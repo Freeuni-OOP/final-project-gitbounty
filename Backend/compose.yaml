@@ -1,0 +1,10 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gitbounty-backend
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_APPLICATION_NAME=Backend
