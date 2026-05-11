@@ -10,11 +10,31 @@ A simple Spring Boot backend for the GitBounty project.
 
 ## Project overview
 
-The app exposes a basic health endpoint:
+The app exposes:
 
 - `GET /health` → returns `Server is running!`
 
 The backend is currently configured to run on port `8081`.
+
+## Start database only (MySQL)
+
+From the project root, start just the MySQL service:
+
+```bash
+docker compose up -d mysql
+```
+
+Check status:
+
+```bash
+docker compose ps
+```
+
+Stop only MySQL:
+
+```bash
+docker compose stop mysql
+```
 
 ## Run locally
 
@@ -65,6 +85,19 @@ If you want to package the app without running it immediately:
 ```
 
 The jar will be created in `target/`.
+
+## Run tests
+
+All tests require MySQL to be running:
+
+```bash
+docker compose up -d mysql
+./mvnw test
+```
+
+This runs:
+- `BackendApplicationTests` — Context and configuration verification
+- `DatabaseConnectivityTests` — MySQL connectivity verification
 
 ## Troubleshooting
 

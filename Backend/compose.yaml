@@ -8,3 +8,38 @@ services:
       - "8081:8081"
     environment:
       - SPRING_APPLICATION_NAME=Backend
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty_dev
+      - SPRING_DATASOURCE_USERNAME=dev_user
+      - SPRING_DATASOURCE_PASSWORD=dev_password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - gitbounty-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: gitbounty-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: gitbounty_dev
+      MYSQL_USER: dev_user
+      MYSQL_PASSWORD: dev_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+      interval: 5s
+    networks:
+      - gitbounty-network
+
+volumes:
+  mysql-data:
+
+networks:
+  gitbounty-network:
