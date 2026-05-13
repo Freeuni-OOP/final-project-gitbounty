@@ -6,7 +6,7 @@ import java.security.Principal;
 import org.gitbounty.gitbountybackend.dto.CodebaseResponse;
 import org.gitbounty.gitbountybackend.dto.CreateCodebaseRequest;
 import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.service.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

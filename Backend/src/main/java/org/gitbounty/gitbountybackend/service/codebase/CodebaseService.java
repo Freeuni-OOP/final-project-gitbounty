@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service;
+package org.gitbounty.gitbountybackend.service.codebase;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,32 +40,8 @@ public class CodebaseService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Repository already exists: " + repositoryName);
         }
 
-        Path repositoryPath = resolveRepositoriesRoot.resolve(repositoryName).normalize();
-        if (!repositoryPath.startsWith(resolveRepositoriesRoot)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid repository name: " + repositoryName);
-        }
-
-        if (Files.exists(repositoryPath)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Repository directory already exists: " + repositoryName);
-        }
-
-        try {
-            Files.createDirectories(resolveRepositoriesRoot);
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to create repository", e);
-        }
-
-        try (Git bareRepository = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
-            return codebaseRepository.saveAndFlush(
-                new Codebase(repositoryName, normalizeDescription(description), gitUrl, owner)
-            );
-        } catch (GitAPIException e) {
-            cleanupRepositoryDirectory(repositoryPath);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to create repository", e);
-        } catch (RuntimeException e) {
-            cleanupRepositoryDirectory(repositoryPath);
-            throw e;
-        }
+        AbstractCodebaseFactory codebaseFactory = new DiskCodebaseFactory(resolveRepositoriesRoot, codebaseRepository);
+        return codebaseFactory.persistCodebase(repositoryName, normalizeDescription(description), gitUrl, owner);
     }
 
     private User resolveOwner(Principal principal) {
@@ -98,24 +74,6 @@ public class CodebaseService {
         return description == null ? null : description.trim();
     }
 
-    private void cleanupRepositoryDirectory(Path repositoryPath) {
-        if (!Files.exists(repositoryPath)) {
-            return;
-        }
-
-        try (var paths = Files.walk(repositoryPath)) {
-            paths.sorted(java.util.Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException e) {
-                        throw new IllegalStateException("Unable to clean up repository directory", e);
-                    }
-                });
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to clean up repository directory", e);
-        }
-    }
 }
 
 

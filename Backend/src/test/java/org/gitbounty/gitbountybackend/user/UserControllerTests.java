@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend;
+package org.gitbounty.gitbountybackend.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.gitbounty.gitbountybackend.controller.UserController;

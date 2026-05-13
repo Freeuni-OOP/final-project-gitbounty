@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service;
+package org.gitbounty.gitbountybackend.codebase.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,6 +11,7 @@ import org.eclipse.jgit.transport.resolver.ServiceNotAuthorizedException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
+import org.gitbounty.gitbountybackend.service.codebase.GitRepositoryAccessService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
