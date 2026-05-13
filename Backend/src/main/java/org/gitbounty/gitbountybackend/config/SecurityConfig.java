@@ -28,7 +28,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 .requestMatchers("/login").permitAll()
                 // Swagger/OpenAPI UI paths
-                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .requestMatchers("/git/**").authenticated()
                 .anyRequest().permitAll()
