@@ -47,7 +47,7 @@ public class GitServletConfiguration {
     public RepositoryResolver<HttpServletRequest> repositoryResolver(Path resolveRepositoriesRoot) {
         return (HttpServletRequest request, String repositoryName) -> {
             Path repositoryPath = resolveRepositoriesRoot.resolve(repositoryName).normalize();
-            if (!repositoryPath.startsWith(resolveRepositoriesRoot) || !Files.exists(repositoryPath)) {
+            if (!repositoryPath.startsWith(resolveRepositoriesRoot) || !Files.isDirectory(repositoryPath)) {
                 throw new RepositoryNotFoundException(repositoryName);
             }
 
