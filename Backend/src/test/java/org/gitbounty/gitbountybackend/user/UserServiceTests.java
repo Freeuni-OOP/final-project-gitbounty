@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend;
+package org.gitbounty.gitbountybackend.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -84,6 +84,18 @@ class UserServiceTests {
 
         assertThat(created.getPasswordHash()).isNotEqualTo(rawPassword);
         assertThat(passwordEncoder.matches(rawPassword, created.getPasswordHash())).isTrue();
+    }
+    @Test
+    void findByIdReturnsUserWhenExists() {
+        String username = randomUsername();
+        String email = randomEmail();
+        User created = userRepository.save(new User(username, email));
+
+        var found = userService.findById(created.getId());
+
+        assertThat(found).isPresent();
+        assertThat(found.get().getUsername()).isEqualTo(username);
+        assertThat(found.get().getEmail()).isEqualTo(email);
     }
 }
 

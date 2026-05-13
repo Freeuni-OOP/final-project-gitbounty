@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend;
+package org.gitbounty.gitbountybackend.codebase;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

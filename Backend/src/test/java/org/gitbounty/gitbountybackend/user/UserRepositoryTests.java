@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend;
+package org.gitbounty.gitbountybackend.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

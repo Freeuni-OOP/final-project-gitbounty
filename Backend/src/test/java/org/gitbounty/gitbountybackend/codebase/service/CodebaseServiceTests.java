@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service;
+package org.gitbounty.gitbountybackend.codebase.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,6 +14,7 @@ import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
 import org.gitbounty.gitbountybackend.repository.UserRepository;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
