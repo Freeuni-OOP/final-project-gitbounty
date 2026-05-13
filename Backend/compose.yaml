@@ -6,12 +6,15 @@ services:
     container_name: gitbounty-backend
     ports:
       - "8081:8081"
+    volumes:
+      - ./repositories:/app/repositories
     environment:
       - SPRING_APPLICATION_NAME=Backend
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty_dev
       - SPRING_DATASOURCE_USERNAME=dev_user
       - SPRING_DATASOURCE_PASSWORD=dev_password
+      - GIT_REPOSITORIES_ROOT=/app/repositories
     depends_on:
       mysql:
         condition: service_healthy
