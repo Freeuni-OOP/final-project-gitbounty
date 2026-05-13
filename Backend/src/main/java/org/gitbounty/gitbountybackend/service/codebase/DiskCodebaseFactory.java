@@ -38,7 +38,7 @@ public class DiskCodebaseFactory extends AbstractCodebaseFactory {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to create repository", e);
         }
 
-        try (Git bareRepository = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
+        try (Git ignored = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
             return codebaseRepository.saveAndFlush(
                 new Codebase(repositoryName, description, gitUrl, owner)
             );
