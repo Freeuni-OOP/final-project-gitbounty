@@ -20,6 +20,8 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.gitbounty.gitbountybackend.service.GitRepositoryAccessService;
+
 /**
  * Configuration class for registering JGit HTTP Server.
  * This configuration enables the platform to act as a Git server,
@@ -70,12 +72,13 @@ public class GitServletConfiguration {
      */
     @Bean
     public ServletRegistrationBean<GitServlet> gitServletRegistration(
-        RepositoryResolver<HttpServletRequest> repositoryResolver
+        RepositoryResolver<HttpServletRequest> repositoryResolver,
+        ReceivePackFactory<HttpServletRequest> receivePackFactory
     ) {
         GitServlet gitServlet = new GitServlet();
         gitServlet.setRepositoryResolver(repositoryResolver);
         gitServlet.setUploadPackFactory(uploadPackFactory());
-        gitServlet.setReceivePackFactory(receivePackFactory());
+        gitServlet.setReceivePackFactory(receivePackFactory);
 
         ServletRegistrationBean<GitServlet> registration = new ServletRegistrationBean<>(gitServlet, "/git/*");
         registration.setLoadOnStartup(1);
@@ -88,8 +91,14 @@ public class GitServletConfiguration {
         return (HttpServletRequest request, org.eclipse.jgit.lib.Repository repository) -> new UploadPack(repository);
     }
 
-    private ReceivePackFactory<HttpServletRequest> receivePackFactory() {
-        return (HttpServletRequest request, org.eclipse.jgit.lib.Repository repository) -> new ReceivePack(repository);
+    @Bean
+    public ReceivePackFactory<HttpServletRequest> receivePackFactory(
+        GitRepositoryAccessService gitRepositoryAccessService
+    ) {
+        return (HttpServletRequest request, org.eclipse.jgit.lib.Repository repository) -> {
+            gitRepositoryAccessService.assertOwnerCanWrite(repository, request.getUserPrincipal());
+            return new ReceivePack(repository);
+        };
     }
 }
 
