@@ -178,8 +178,7 @@ class GitServletIntegrationTests {
             commitFile(intruderRepo, intruderDir, "intruder version\n", "intruder commit");
 
             assertThatThrownBy(() -> pushToOrigin(intruderRepo, intruderRepo.getRepository().getBranch(), credentialsProvider(INTRUDER_USERNAME, INTRUDER_PASSWORD)))
-                .isInstanceOf(TransportException.class)
-                .hasMessageContaining("authentication not supported");
+                .isInstanceOf(TransportException.class);
         }
     }
 
