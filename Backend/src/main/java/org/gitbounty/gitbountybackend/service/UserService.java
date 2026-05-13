@@ -6,6 +6,8 @@ import org.gitbounty.gitbountybackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
+
 @Service
 public class UserService {
 
@@ -32,6 +34,9 @@ public class UserService {
 
         String encodedPassword = rawPassword == null ? null : passwordEncoder.encode(rawPassword);
         return userRepository.save(new User(username, email, encodedPassword));
+    }
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
     }
 }
 

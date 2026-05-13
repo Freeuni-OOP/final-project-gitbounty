@@ -119,5 +119,93 @@ class CodebaseServiceTests {
                 assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
             });
     }
-}
 
+    @Test
+    void createCodebaseRejectsPathSeparatorsInName() {
+        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
+
+        assertThatThrownBy(() -> codebaseService.createCodebase(
+            "demo/evil.git",
+            "Demo repository",
+            "http://localhost/git/demo.git",
+            () -> "git-owner"
+        ))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                ResponseStatusException statusException = (ResponseStatusException) error;
+                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            });
+    }
+
+    @Test
+    void createCodebaseRejectsPathTraversalInName() {
+        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
+
+        assertThatThrownBy(() -> codebaseService.createCodebase(
+            "evil..git",
+            "Demo repository",
+            "http://localhost/git/evil.git",
+            () -> "git-owner"
+        ))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                ResponseStatusException statusException = (ResponseStatusException) error;
+                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            });
+    }
+
+    @Test
+    void createCodebaseRejectsWhenRepositoryDirectoryAlreadyExists() throws Exception {
+        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
+
+        // pre-create the repository directory to simulate an existing repository folder
+        Path existing = repositoriesRoot.resolve("demo.git");
+        Files.createDirectories(existing);
+
+        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
+        Principal principal = () -> "git-owner";
+
+        when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
+
+        assertThatThrownBy(() -> codebaseService.createCodebase(
+            "demo.git",
+            "Demo repository",
+            "http://localhost/git/demo.git",
+            principal
+        ))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                ResponseStatusException statusException = (ResponseStatusException) error;
+                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            });
+    }
+
+    @Test
+    void createCodebaseRejectsUnknownAuthenticatedUser() {
+        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
+
+        Principal principal = () -> "missing-user";
+        when(userRepository.findByUsername("missing-user")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> codebaseService.createCodebase(
+            "demo.git",
+            "Demo repository",
+            "http://localhost/git/demo.git",
+            principal
+        ))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> {
+                ResponseStatusException statusException = (ResponseStatusException) error;
+                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            });
+    }
+
+}
