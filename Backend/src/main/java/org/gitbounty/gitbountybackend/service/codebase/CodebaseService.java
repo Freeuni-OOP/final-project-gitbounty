@@ -1,12 +1,8 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
 
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
