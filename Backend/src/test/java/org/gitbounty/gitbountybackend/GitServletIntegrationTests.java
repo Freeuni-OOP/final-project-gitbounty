@@ -3,7 +3,6 @@ package org.gitbounty.gitbountybackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -34,7 +33,6 @@ import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import java.security.Principal;
 
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
 import org.gitbounty.gitbountybackend.repository.UserRepository;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -49,8 +47,6 @@ class GitServletIntegrationTests {
 
     @Autowired
     private Path resolveRepositoriesRoot;
-
-    private Path serverRepository;
 
     @LocalServerPort
     private int port;
@@ -69,7 +65,7 @@ class GitServletIntegrationTests {
 
     @BeforeAll
     void prepareBareRepository() throws Exception {
-        serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME);
+        Path serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME);
         // Ensure users exist before creating the codebase
         userRepository.findByUsername(OWNER_USERNAME)
             .orElseGet(() -> userRepository.save(
