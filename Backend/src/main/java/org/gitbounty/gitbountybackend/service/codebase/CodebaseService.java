@@ -1,6 +1,5 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
-import java.nio.file.Path;
 import java.security.Principal;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
@@ -16,16 +15,16 @@ public class CodebaseService {
 
     private final CodebaseRepository codebaseRepository;
     private final UserRepository userRepository;
-    private final Path resolveRepositoriesRoot;
+    private final CodebaseStorageService codebaseStorageService;
 
     public CodebaseService(
         CodebaseRepository codebaseRepository,
         UserRepository userRepository,
-        Path resolveRepositoriesRoot
+        CodebaseStorageService codebaseStorageService
     ) {
         this.codebaseRepository = codebaseRepository;
         this.userRepository = userRepository;
-        this.resolveRepositoriesRoot = resolveRepositoriesRoot;
+        this.codebaseStorageService = codebaseStorageService;
     }
 
     public Codebase createCodebase(String name, String description, String gitUrl, Principal principal) {
@@ -36,8 +35,20 @@ public class CodebaseService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Repository already exists: " + repositoryName);
         }
 
-        AbstractCodebaseFactory codebaseFactory = new DiskCodebaseFactory(resolveRepositoriesRoot, codebaseRepository);
-        return codebaseFactory.persistCodebase(repositoryName, normalizeDescription(description), gitUrl, owner);
+        codebaseStorageService.createRepository(repositoryName);
+
+        try {
+            return codebaseRepository.saveAndFlush(
+                new Codebase(repositoryName, normalizeDescription(description), gitUrl, owner)
+            );
+        } catch (RuntimeException e) {
+            try {
+                codebaseStorageService.deleteRepository(repositoryName);
+            } catch (RuntimeException cleanupError) {
+                e.addSuppressed(cleanupError);
+            }
+            throw e;
+        }
     }
 
     private User resolveOwner(Principal principal) {
@@ -68,6 +79,14 @@ public class CodebaseService {
 
     private String normalizeDescription(String description) {
         return description == null ? null : description.trim();
+    }
+
+    public void deleteCodebase(String name) {
+        String repositoryName = normalizeRepositoryName(name);
+
+        // remove database record if present
+        codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
+        codebaseStorageService.deleteRepository(repositoryName);
     }
 
 }
