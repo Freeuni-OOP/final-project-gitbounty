@@ -2,11 +2,13 @@ package org.gitbounty.gitbountybackend.codebase.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.Principal;
 import java.util.Optional;
 
@@ -15,198 +17,169 @@ import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
 import org.gitbounty.gitbountybackend.repository.UserRepository;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseStorageService;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CodebaseServiceTests {
 
-    @TempDir
-    Path repositoriesRoot;
+    private CodebaseRepository codebaseRepository;
+    private UserRepository userRepository;
+    private CodebaseStorageService storageService;
+    private CodebaseService codebaseService;
+    private User owner;
+    private Principal principal;
+
+    @BeforeAll
+    void initSuite() {
+        codebaseRepository = Mockito.mock(CodebaseRepository.class);
+        userRepository = Mockito.mock(UserRepository.class);
+        storageService = Mockito.mock(CodebaseStorageService.class);
+        codebaseService = new CodebaseService(codebaseRepository, userRepository, storageService);
+        owner = new User("git-owner", "git-owner@test.local", "encoded-password");
+        principal = () -> "git-owner";
+    }
+
+    @BeforeEach
+    void resetMocks() {
+        reset(codebaseRepository, userRepository, storageService);
+    }
 
     @Test
-    void createCodebaseCreatesBareRepositoryAndPersistsCodebase() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
-        Principal principal = () -> "git-owner";
-
+    void createCodebaseCreatesStorageAndPersistsCodebase() {
         when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
         when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
         when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Codebase created = codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            principal
-        );
+        Codebase created = codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal);
 
         assertThat(created.getName()).isEqualTo("demo.git");
         assertThat(created.getDescription()).isEqualTo("Demo repository");
         assertThat(created.getGitUrl()).isEqualTo("http://localhost/git/demo.git");
         assertThat(created.getOwner().getUsername()).isEqualTo("git-owner");
-        assertThat(Files.exists(repositoriesRoot.resolve("demo.git"))).isTrue();
+        verify(storageService).createRepository("demo.git");
     }
 
     @Test
-    void createCodebaseCleansUpRepositoryDirectoryWhenPersistenceFails() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
-        Principal principal = () -> "git-owner";
-
+    void createCodebaseDeletesStorageWhenPersistenceFails() {
         when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
         when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
         when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenThrow(new IllegalStateException("boom"));
 
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            principal
-        ))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("boom");
 
-        assertThat(Files.exists(repositoriesRoot.resolve("demo.git"))).isFalse();
+        verify(storageService).createRepository("demo.git");
+        verify(storageService).deleteRepository("demo.git");
+    }
+
+    @Test
+    void createCodebaseKeepsOriginalExceptionWhenCleanupFails() {
+        when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
+        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenThrow(new IllegalStateException("boom"));
+        Mockito.doThrow(new RuntimeException("cleanup-failed")).when(storageService).deleteRepository("demo.git");
+
+        Throwable thrown = catchThrowable(() ->
+            codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal)
+        );
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        assertThat(thrown.getSuppressed()).hasSize(1);
+        assertThat(thrown.getSuppressed()[0].getMessage()).isEqualTo("cleanup-failed");
     }
 
     @Test
     void createCodebaseRejectsDuplicateRepositoryNames() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
-        Principal principal = () -> "git-owner";
-
         when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
         when(codebaseRepository.findByName("demo.git")).thenReturn(
             Optional.of(new Codebase("demo.git", "Existing", "http://localhost/git/demo.git", owner))
         );
 
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            principal
-        ))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-            });
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+
+        verify(storageService, never()).createRepository(any());
     }
 
     @Test
     void createCodebaseRejectsNullPrincipal() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            null
-        ))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", null))
             .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-            });
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+
+        verify(storageService, never()).createRepository(any());
     }
 
     @Test
     void createCodebaseRejectsPathSeparatorsInName() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo/evil.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            () -> "git-owner"
-        ))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo/evil.git", "Demo repository", "http://localhost/git/demo.git", () -> "git-owner"))
             .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-            });
-    }
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
 
-    @Test
-    void createCodebaseRejectsPathTraversalInName() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "evil..git",
-            "Demo repository",
-            "http://localhost/git/evil.git",
-            () -> "git-owner"
-        ))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-            });
-    }
-
-    @Test
-    void createCodebaseRejectsWhenRepositoryDirectoryAlreadyExists() throws Exception {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-
-        // pre-create the repository directory to simulate an existing repository folder
-        Path existing = repositoriesRoot.resolve("demo.git");
-        Files.createDirectories(existing);
-
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
-        Principal principal = () -> "git-owner";
-
-        when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            principal
-        ))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-            });
+        verify(storageService, never()).createRepository(any());
     }
 
     @Test
     void createCodebaseRejectsUnknownAuthenticatedUser() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        UserRepository userRepository = Mockito.mock(UserRepository.class);
-        CodebaseService codebaseService = new CodebaseService(codebaseRepository, userRepository, repositoriesRoot);
-
         Principal principal = () -> "missing-user";
         when(userRepository.findByUsername("missing-user")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> codebaseService.createCodebase(
-            "demo.git",
-            "Demo repository",
-            "http://localhost/git/demo.git",
-            principal
-        ))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> {
-                ResponseStatusException statusException = (ResponseStatusException) error;
-                assertThat(statusException.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-            });
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+
+        verify(storageService, never()).createRepository(any());
     }
 
+    @Test
+    void createCodebasePropagatesStorageConflict() {
+        when(userRepository.findByUsername("git-owner")).thenReturn(Optional.of(owner));
+        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Repository directory already exists: demo.git"))
+            .when(storageService)
+            .createRepository("demo.git");
+
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
+    void deleteCodebaseDeletesRecordAndStorage() {
+        Codebase existing = new Codebase("demo.git", "desc", "url", owner);
+        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.of(existing));
+
+        codebaseService.deleteCodebase("demo.git");
+
+        verify(codebaseRepository).delete(existing);
+        verify(storageService).deleteRepository("demo.git");
+    }
+
+    @Test
+    void deleteCodebaseStillDeletesStorageWhenRecordMissing() {
+        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+
+        codebaseService.deleteCodebase("demo.git");
+
+        verify(codebaseRepository, never()).delete(any());
+        verify(storageService).deleteRepository("demo.git");
+    }
+
+    @Test
+    void deleteCodebaseRejectsInvalidName() {
+        assertThatThrownBy(() -> codebaseService.deleteCodebase("../evil"))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+
+        verify(storageService, never()).deleteRepository(any());
+    }
 }

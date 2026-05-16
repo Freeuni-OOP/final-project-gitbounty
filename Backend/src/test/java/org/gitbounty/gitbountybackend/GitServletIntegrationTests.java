@@ -15,6 +15,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.http.server.GitServlet;
 import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -29,8 +30,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import java.security.Principal;
 
-import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
 import org.gitbounty.gitbountybackend.repository.UserRepository;
@@ -60,7 +62,7 @@ class GitServletIntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
-    private CodebaseRepository codebaseRepository;
+    private CodebaseService codebaseService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -68,17 +70,8 @@ class GitServletIntegrationTests {
     @BeforeAll
     void prepareBareRepository() throws Exception {
         serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME);
-
-        try (Git bareRepo = Git.init().setBare(true).setDirectory(serverRepository.toFile()).call()) {
-            assertThat(bareRepo.getRepository().isBare()).isTrue();
-
-            StoredConfig config = bareRepo.getRepository().getConfig();
-            config.setBoolean("http", null, "uploadpack", true);
-            config.setBoolean("http", null, "receivepack", true);
-            config.save();
-        }
-
-        User ownerUser = userRepository.findByUsername(OWNER_USERNAME)
+        // Ensure users exist before creating the codebase
+        userRepository.findByUsername(OWNER_USERNAME)
             .orElseGet(() -> userRepository.save(
                 new User(OWNER_USERNAME, OWNER_USERNAME + "@test.local", passwordEncoder.encode(OWNER_PASSWORD))
             ));
@@ -88,33 +81,32 @@ class GitServletIntegrationTests {
                 new User(INTRUDER_USERNAME, INTRUDER_USERNAME + "@test.local", passwordEncoder.encode(INTRUDER_PASSWORD))
             ));
 
-        if (codebaseRepository.findByName(REPOSITORY_NAME).isEmpty()) {
-            codebaseRepository.save(
-                new Codebase(REPOSITORY_NAME, "Demo repository", repositoryHttpUrl(), ownerUser)
-            );
+        // Create codebase via the service so tests exercise the same codepath as application
+        Principal ownerPrincipal = () -> OWNER_USERNAME;
+        codebaseService.createCodebase(REPOSITORY_NAME, "Demo repository", repositoryHttpUrl(), ownerPrincipal);
+
+        // Open the created bare repository and ensure HTTP upload/receive are enabled
+        FileRepositoryBuilder builder = new FileRepositoryBuilder();
+        try (var repository = builder.setGitDir(serverRepository.toFile()).build()) {
+            assertThat(repository.isBare()).isTrue();
+            StoredConfig config = repository.getConfig();
+            config.setBoolean("http", null, "uploadpack", true);
+            config.setBoolean("http", null, "receivepack", true);
+            config.save();
         }
     }
 
     @AfterAll
-    void cleanUp() throws Exception {
-        codebaseRepository.findByName(REPOSITORY_NAME).ifPresent(codebaseRepository::delete);
+    void cleanUp() {
+        // Use the service deletion method so cleanup goes through the same code paths
+        try {
+            codebaseService.deleteCodebase(REPOSITORY_NAME);
+        } catch (Exception e) {
+            // ignore - best effort cleanup
+        }
+
         userRepository.findByUsername(OWNER_USERNAME).ifPresent(userRepository::delete);
         userRepository.findByUsername(INTRUDER_USERNAME).ifPresent(userRepository::delete);
-
-        if (!Files.exists(serverRepository)) {
-            return;
-        }
-
-        try (var paths = Files.walk(serverRepository)) {
-            paths.sorted(java.util.Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        }
     }
 
     @Test
