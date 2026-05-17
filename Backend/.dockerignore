@@ -1,0 +1,28 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Build
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yaml
+compose.yaml
+
+# Misc
+README.md
+HELP.md
+.DS_Store
+*.log
+
