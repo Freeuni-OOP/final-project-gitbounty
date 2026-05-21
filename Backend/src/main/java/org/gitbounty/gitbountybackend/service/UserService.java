@@ -4,17 +4,26 @@ import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User createUser(String username, String email) {
+        return createUser(username, email, null);
+    }
+
+    public User createUser(String username, String email, String rawPassword) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new DuplicateUserException("Username already exists: " + username);
         }
@@ -23,7 +32,11 @@ public class UserService {
             throw new DuplicateUserException("Email already exists: " + email);
         }
 
-        return userRepository.save(new User(username, email));
+        String encodedPassword = rawPassword == null ? null : passwordEncoder.encode(rawPassword);
+        return userRepository.save(new User(username, email, encodedPassword));
+    }
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
     }
 }
 

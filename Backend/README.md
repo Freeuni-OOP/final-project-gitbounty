@@ -14,6 +14,10 @@ The app exposes:
 
 - `GET /health` → returns `Server is running!`
 
+Git repositories are served under `GET /git/*` and are stored in `repositories/` by default.
+When running in Docker, that folder is mounted to `/app/repositories`.
+You can override the location with `GIT_REPOSITORIES_ROOT`.
+
 The backend is currently configured to run on port `8081`.
 
 ## Start database only (MySQL)
