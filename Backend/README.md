@@ -70,6 +70,13 @@ docker compose up --build
 
 This starts the backend, the shared MySQL service, and Keycloak. Flyway creates the `keycloak_dev` database and user inside the same MySQL instance before Keycloak connects.
 
+Keycloak is started with the imported `gitbounty` realm from `keycloak/import/gitbounty-realm.json`, which includes a demo client and user for local testing:
+
+- client id: `gitbounty-backend`
+- client secret: `gitbounty-backend-secret`
+- demo user: `gitbounty-user`
+- demo password: `gitbounty123`
+
 This publishes the app on port `8081`, so you can open:
 
 ```text

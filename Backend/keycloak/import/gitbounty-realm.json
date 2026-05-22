@@ -1,0 +1,43 @@
+{
+  "realm": "gitbounty",
+  "enabled": true,
+  "displayName": "GitBounty",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "gitbounty-backend",
+      "name": "GitBounty Backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "secret": "gitbounty-backend-secret",
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Standard GitBounty user"
+      },
+      {
+        "name": "admin",
+        "description": "GitBounty administrator"
+      }
+    ]
+  }
+}
+
+
