@@ -36,8 +36,13 @@ public class User {
     }
 
     public User(String username, String email) {
+        this(username, email, null);
+    }
+
+    public User(String username, String email, String passwordHash) {
         this.username = username;
         this.email = email;
+        this.passwordHash = passwordHash;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -64,6 +69,14 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public LocalDateTime getCreatedAt() {
