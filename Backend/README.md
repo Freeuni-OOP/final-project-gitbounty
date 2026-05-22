@@ -20,9 +20,9 @@ You can override the location with `GIT_REPOSITORIES_ROOT`.
 
 The backend is currently configured to run on port `8081`.
 
-## Start database only (MySQL)
+## Start the database service
 
-From the project root, start just the MySQL service:
+From the project root, start the shared MySQL service:
 
 ```bash
 docker compose up -d mysql
@@ -34,7 +34,7 @@ Check status:
 docker compose ps
 ```
 
-Stop only MySQL:
+Stop the database service:
 
 ```bash
 docker compose stop mysql
@@ -67,6 +67,8 @@ Build and start the container with Docker Compose:
 ```bash
 docker compose up --build
 ```
+
+This starts the backend, the shared MySQL service, and Keycloak. Flyway creates the `keycloak_dev` database and user inside the same MySQL instance before Keycloak connects.
 
 This publishes the app on port `8081`, so you can open:
 
