@@ -14,9 +14,16 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty_dev
       - SPRING_DATASOURCE_USERNAME=dev_user
       - SPRING_DATASOURCE_PASSWORD=dev_password
+      - SPRING_FLYWAY_USER=root
+      - SPRING_FLYWAY_PASSWORD=root_password
       - GIT_REPOSITORIES_ROOT=/app/repositories
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/gitbounty
+      - KEYCLOAK_CLIENT_ID=gitbounty-backend
+      - KEYCLOAK_CLIENT_SECRET=gitbounty-backend-secret
     depends_on:
       mysql:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - gitbounty-network
@@ -38,6 +45,27 @@ services:
       timeout: 10s
       retries: 10
       interval: 5s
+    networks:
+      - gitbounty-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: gitbounty-keycloak
+    command: ["start-dev", "--db=mysql", "--import-realm"]
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak_dev?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - KC_DB_USERNAME=keycloak_user
+      - KC_DB_PASSWORD=keycloak_password
+      - KC_HEALTH_ENABLED=true
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - gitbounty-network
 
