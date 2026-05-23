@@ -16,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
                                                    KeycloakAuthenticationProvider keycloakAuthenticationProvider) {
         http
             .csrf(AbstractHttpConfigurer::disable)

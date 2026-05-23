@@ -26,7 +26,6 @@ public class CodebaseController {
     }
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CodebaseResponse> createCodebase(
         @RequestBody CreateCodebaseRequest request,
         Principal principal
