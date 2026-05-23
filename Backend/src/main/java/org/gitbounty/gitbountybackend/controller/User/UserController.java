@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller;
+package org.gitbounty.gitbountybackend.controller.User;
 
 import org.gitbounty.gitbountybackend.dto.UserResponse;
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
@@ -20,7 +20,8 @@ public class UserController {
 	}
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+	@IsOwner
+	public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
         // The security check happens BEFORE this method is even called
         // thanks to the SecurityConfig rules below.
         User user = userService.findById(id)

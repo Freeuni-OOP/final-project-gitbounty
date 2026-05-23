@@ -24,9 +24,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash")
-    private String passwordHash;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -36,13 +33,8 @@ public class User {
     }
 
     public User(String username, String email) {
-        this(username, email, null);
-    }
-
-    public User(String username, String email, String passwordHash) {
         this.username = username;
         this.email = email;
-        this.passwordHash = passwordHash;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -71,14 +63,6 @@ public class User {
         this.email = email;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -93,7 +77,6 @@ public class User {
                 "id=" + id +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
-                ", passwordHash='[redacted]'" +
                 ", createdAt=" + createdAt +
                 '}';
     }

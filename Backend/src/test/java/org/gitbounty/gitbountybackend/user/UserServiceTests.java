@@ -12,7 +12,6 @@ import org.gitbounty.gitbountybackend.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -25,8 +24,6 @@ class UserServiceTests {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     private String randomUsername() {
         return "svc_" + UUID.randomUUID().toString().substring(0, 8);
@@ -74,17 +71,6 @@ class UserServiceTests {
             .hasMessageContaining("Email already exists");
     }
 
-    @Test
-    void createUserHashesPasswordBeforePersisting() {
-        String username = randomUsername();
-        String email = randomEmail();
-        String rawPassword = "secret-password";
-
-        User created = userService.createUser(username, email, rawPassword);
-
-        assertThat(created.getPasswordHash()).isNotEqualTo(rawPassword);
-        assertThat(passwordEncoder.matches(rawPassword, created.getPasswordHash())).isTrue();
-    }
     @Test
     void findByIdReturnsUserWhenExists() {
         String username = randomUsername();

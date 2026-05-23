@@ -42,7 +42,7 @@ class CodebaseServiceTests {
         userRepository = Mockito.mock(UserRepository.class);
         storageService = Mockito.mock(CodebaseStorageService.class);
         codebaseService = new CodebaseService(codebaseRepository, userRepository, storageService);
-        owner = new User("git-owner", "git-owner@test.local", "encoded-password");
+        owner = new User("git-owner", "git-owner@test.local");
         principal = () -> "git-owner";
     }
 

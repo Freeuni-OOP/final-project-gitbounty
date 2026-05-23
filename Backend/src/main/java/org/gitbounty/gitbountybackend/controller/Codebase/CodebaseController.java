@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller;
+package org.gitbounty.gitbountybackend.controller.Codebase;
 
 import java.net.URI;
 import java.security.Principal;
@@ -8,6 +8,7 @@ import org.gitbounty.gitbountybackend.dto.CreateCodebaseRequest;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,7 @@ public class CodebaseController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CodebaseResponse> createCodebase(
         @RequestBody CreateCodebaseRequest request,
         Principal principal

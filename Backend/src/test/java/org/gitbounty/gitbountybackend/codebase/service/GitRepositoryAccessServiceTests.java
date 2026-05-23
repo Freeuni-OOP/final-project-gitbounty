@@ -22,7 +22,7 @@ class GitRepositoryAccessServiceTests {
         CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
         GitRepositoryAccessService accessService = new GitRepositoryAccessService(codebaseRepository);
         Principal principal = () -> "git-owner";
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
+        User owner = new User("git-owner", "git-owner@test.local");
         Codebase codebase = new Codebase("demo.git", "Demo repository", "http://localhost/git/demo.git", owner);
 
         try (Repository repository = Mockito.mock(Repository.class)) {
@@ -39,7 +39,7 @@ class GitRepositoryAccessServiceTests {
         CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
         GitRepositoryAccessService accessService = new GitRepositoryAccessService(codebaseRepository);
         Principal principal = () -> "git-intruder";
-        User owner = new User("git-owner", "git-owner@test.local", "encoded-password");
+        User owner = new User("git-owner", "git-owner@test.local");
         Codebase codebase = new Codebase("demo.git", "Demo repository", "http://localhost/git/demo.git", owner);
 
         try (Repository repository = Mockito.mock(Repository.class)) {

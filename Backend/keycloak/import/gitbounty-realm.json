@@ -2,7 +2,8 @@
   "realm": "gitbounty",
   "enabled": true,
   "displayName": "GitBounty",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
   "resetPasswordAllowed": false,
   "rememberMe": true,
   "loginWithEmailAllowed": true,
@@ -37,7 +38,8 @@
         "description": "GitBounty administrator"
       }
     ]
-  }
+  },
+  "defaultRoles": [
+    "user"
+  ]
 }
-
-
