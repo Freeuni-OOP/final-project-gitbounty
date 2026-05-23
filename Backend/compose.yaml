@@ -17,14 +17,18 @@ services:
       - SPRING_FLYWAY_USER=root
       - SPRING_FLYWAY_PASSWORD=root_password
       - GIT_REPOSITORIES_ROOT=/app/repositories
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/gitbounty
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080/realms/gitbounty
       - KEYCLOAK_CLIENT_ID=gitbounty-backend
       - KEYCLOAK_CLIENT_SECRET=gitbounty-backend-secret
     depends_on:
       mysql:
         condition: service_healthy
-      keycloak:
-        condition: service_healthy
+    develop:
+      watch:
+        - path: ./src
+          action: rebuild
+        - path: ./pom.xml
+          action: rebuild
     networks:
       - gitbounty-network
 
@@ -40,6 +44,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       timeout: 10s
