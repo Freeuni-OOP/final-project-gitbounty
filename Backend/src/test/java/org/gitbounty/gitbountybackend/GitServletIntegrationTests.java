@@ -25,7 +25,7 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.gitbounty.gitbountybackend.apis.KeycloakApi;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserRepository;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +60,7 @@ class GitServletIntegrationTests {
     private ServletRegistrationBean<GitServlet> gitServletRegistration;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Autowired
     private CodebaseService codebaseService;
@@ -77,12 +77,11 @@ class GitServletIntegrationTests {
     void prepareBareRepository() throws Exception {
         Path serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME);
 
-        userRepository.findByUsername(OWNER_USERNAME)
-            .orElseGet(() -> userRepository.save(createUser(OWNER_USERNAME, OWNER_USERNAME + "@test.local")));
+        userService.findByUsername(OWNER_USERNAME)
+            .orElseGet(() -> userService.save(new User(OWNER_USERNAME, OWNER_USERNAME + "@test.local", "id-owner")));
 
-        userRepository.findByUsername(INTRUDER_USERNAME)
-            .orElseGet(() -> userRepository.save(createUser(INTRUDER_USERNAME, INTRUDER_USERNAME + "@test.local")));
-
+        userService.findByUsername(INTRUDER_USERNAME)
+            .orElseGet(() -> userService.save(new User(INTRUDER_USERNAME, INTRUDER_USERNAME + "@test.local", "id-intruder")));
         // 3. Configure mock rules BEFORE service initialization executes
         mockKeycloakAuthenticationFlow();
 
@@ -106,8 +105,8 @@ class GitServletIntegrationTests {
         } catch (Exception e) {
             // ignore - best effort cleanup
         }
-        userRepository.findByUsername(OWNER_USERNAME).ifPresent(userRepository::delete);
-        userRepository.findByUsername(INTRUDER_USERNAME).ifPresent(userRepository::delete);
+        userService.findByUsername(OWNER_USERNAME).ifPresent(userService::delete);
+        userService.findByUsername(INTRUDER_USERNAME).ifPresent(userService::delete);
     }
 
     /**
@@ -240,13 +239,6 @@ class GitServletIntegrationTests {
             .call();
 
         assertThat(pushResults).isNotEmpty();
-    }
-
-    private static User createUser(String username, String email) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        return user;
     }
 
     private static CredentialsProvider credentialsProvider(String username, String password) {

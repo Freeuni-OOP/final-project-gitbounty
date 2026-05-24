@@ -1,17 +1,17 @@
-package org.gitbounty.gitbountybackend.user;
+package org.gitbounty.gitbountybackend.service.User;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserRepository;
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -24,13 +24,64 @@ class UserServiceTests {
     @Autowired
     private UserRepository userRepository;
 
-
     private String randomUsername() {
         return "svc_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private String randomEmail() {
         return UUID.randomUUID().toString().substring(0, 8) + "@svc.test";
+    }
+
+    private String randomKeycloakId() {
+        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /**
+     * Helper to manufacture valid mock JWT tokens matching your filter configurations
+     */
+    private Jwt createMockJwt(String keycloakId, String username, String email) {
+        return Jwt.withTokenValue("mock-token-" + UUID.randomUUID())
+            .header("alg", "none")
+            .subject(keycloakId)
+            .claim("preferred_username", username)
+            .claim("email", email)
+            .expiresAt(Instant.now().plusSeconds(3600))
+            .build();
+    }
+
+    @Test
+    void syncKeycloakUserProvisionsNewUserOnFirstLogin() {
+        // Given
+        String keycloakId = randomKeycloakId();
+        String username = randomUsername();
+        String email = randomEmail();
+        Jwt mockJwt = createMockJwt(keycloakId, username, email);
+
+        // When - Simulate the JIT trigger
+        userService.syncKeycloakUser(mockJwt);
+
+        // Then - Verify it was written to the DB automatically
+        var foundUser = userRepository.findByUsername(username);
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getEmail()).isEqualTo(email);
+    }
+
+    @Test
+    void syncKeycloakUserIsIdempotentAndDoesNotDuplicateExistingUser() {
+        // Given - Pre-seed the user in the database
+        String keycloakId = randomKeycloakId();
+        String username = randomUsername();
+        String email = randomEmail();
+        userRepository.save(new User(username, email, keycloakId));
+
+        long initialUserCount = userRepository.count();
+        Jwt mockJwt = createMockJwt(keycloakId, username, email);
+
+        // When - User logs in a second time
+        userService.syncKeycloakUser(mockJwt);
+
+        // Then - Confirm no duplicate inserts occurred
+        assertThat(userRepository.count()).isEqualTo(initialUserCount);
     }
 
     @Test
@@ -43,10 +94,6 @@ class UserServiceTests {
         assertThat(created.getId()).isNotNull();
         assertThat(created.getUsername()).isEqualTo(username);
         assertThat(created.getEmail()).isEqualTo(email);
-    }
-
-    private String randomKeycloakId() {
-        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @Test
@@ -88,4 +135,3 @@ class UserServiceTests {
         assertThat(found.get().getEmail()).isEqualTo(email);
     }
 }
-

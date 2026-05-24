@@ -13,7 +13,7 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
+    UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
@@ -53,6 +53,20 @@ public class UserService {
                 // Safeguard against concurrent multi-request race conditions
             }
         }
+    }
+
+    public Optional<User> findByUsername(String ownerUsername) {
+        return userRepository.findByUsername(ownerUsername);
+    }
+
+    @Transactional
+    public User save(User user) {
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public void delete(User user) {
+        userRepository.delete(user);
     }
 }
 

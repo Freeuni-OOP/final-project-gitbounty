@@ -4,7 +4,7 @@ import java.security.Principal;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserRepository;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -13,17 +13,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class CodebaseService {
 
     private final CodebaseRepository codebaseRepository;
-    private final UserRepository userRepository;
     private final CodebaseStorageService codebaseStorageService;
+    private final UserService userService;
 
-    public CodebaseService(
+    CodebaseService(
         CodebaseRepository codebaseRepository,
-        UserRepository userRepository,
-        CodebaseStorageService codebaseStorageService
-    ) {
+        CodebaseStorageService codebaseStorageService,
+        UserService userService) {
         this.codebaseRepository = codebaseRepository;
-        this.userRepository = userRepository;
         this.codebaseStorageService = codebaseStorageService;
+        this.userService = userService;
     }
 
     public Codebase createCodebase(String name, String description, String gitUrl, Principal principal) {
@@ -55,7 +54,7 @@ public class CodebaseService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
         }
 
-        return userRepository.findByUsername(principal.getName())
+        return userService.findByUsername(principal.getName())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found"));
     }
 

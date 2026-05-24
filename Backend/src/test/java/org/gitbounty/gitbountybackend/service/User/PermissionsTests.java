@@ -1,8 +1,7 @@
-package org.gitbounty.gitbountybackend.user;
+package org.gitbounty.gitbountybackend.service.User;
 
 import org.gitbounty.gitbountybackend.controller.User.Permissions;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

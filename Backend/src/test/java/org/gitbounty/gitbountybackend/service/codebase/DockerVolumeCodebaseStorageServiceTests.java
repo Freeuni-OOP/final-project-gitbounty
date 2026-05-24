@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.codebase.service;
+package org.gitbounty.gitbountybackend.service.codebase;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -17,7 +17,6 @@ import java.util.stream.Stream;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.gitbounty.gitbountybackend.service.codebase.DockerVolumeCodebaseStorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;

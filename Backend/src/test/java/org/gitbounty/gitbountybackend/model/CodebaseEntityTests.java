@@ -1,9 +1,7 @@
-package org.gitbounty.gitbountybackend.codebase.entity;
+package org.gitbounty.gitbountybackend.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.model.Codebase;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
