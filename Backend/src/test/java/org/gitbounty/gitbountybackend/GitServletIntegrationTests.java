@@ -25,7 +25,7 @@ import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.gitbounty.gitbountybackend.apis.KeycloakApi;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.repository.UserRepository;
+import org.gitbounty.gitbountybackend.service.User.UserRepository;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

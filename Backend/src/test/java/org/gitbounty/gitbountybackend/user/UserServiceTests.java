@@ -7,8 +7,8 @@ import java.util.UUID;
 
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.repository.UserRepository;
-import org.gitbounty.gitbountybackend.service.UserService;
+import org.gitbounty.gitbountybackend.service.User.UserRepository;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,12 +37,16 @@ class UserServiceTests {
     void createUserSucceedsWhenUsernameAndEmailAreUnique() {
         String username = randomUsername();
         String email = randomEmail();
-
-        User created = userService.createUser(username, email);
+        String keycloakId = randomKeycloakId();
+        User created = userService.createUser(username, email, keycloakId);
 
         assertThat(created.getId()).isNotNull();
         assertThat(created.getUsername()).isEqualTo(username);
         assertThat(created.getEmail()).isEqualTo(email);
+    }
+
+    private String randomKeycloakId() {
+        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @Test
@@ -51,9 +55,9 @@ class UserServiceTests {
         String firstEmail = randomEmail();
         String secondEmail = randomEmail();
 
-        userRepository.save(new User(username, firstEmail));
+        userRepository.save(new User(username, firstEmail, randomKeycloakId()));
 
-        assertThatThrownBy(() -> userService.createUser(username, secondEmail))
+        assertThatThrownBy(() -> userService.createUser(username, secondEmail, randomKeycloakId()))
             .isInstanceOf(DuplicateUserException.class)
             .hasMessageContaining("Username already exists");
     }
@@ -64,9 +68,9 @@ class UserServiceTests {
         String firstUsername = randomUsername();
         String secondUsername = randomUsername();
 
-        userRepository.save(new User(firstUsername, email));
+        userRepository.save(new User(firstUsername, email, randomKeycloakId()));
 
-        assertThatThrownBy(() -> userService.createUser(secondUsername, email))
+        assertThatThrownBy(() -> userService.createUser(secondUsername, email, randomKeycloakId()))
             .isInstanceOf(DuplicateUserException.class)
             .hasMessageContaining("Email already exists");
     }
@@ -75,7 +79,7 @@ class UserServiceTests {
     void findByIdReturnsUserWhenExists() {
         String username = randomUsername();
         String email = randomEmail();
-        User created = userRepository.save(new User(username, email));
+        User created = userRepository.save(new User(username, email, randomKeycloakId()));
 
         var found = userService.findById(created.getId());
 

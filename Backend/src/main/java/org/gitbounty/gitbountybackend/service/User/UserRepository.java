@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.repository;
+package org.gitbounty.gitbountybackend.service.User;
 
 import java.util.Optional;
 
@@ -20,5 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     Optional<User> findById(Long id);
+
+    boolean existsByKeycloakId(String keycloakId);
 }
 

@@ -1,8 +1,7 @@
 package org.gitbounty.gitbountybackend.controller.User;
 
-import org.gitbounty.gitbountybackend.dto.UserResponse;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.UserService;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

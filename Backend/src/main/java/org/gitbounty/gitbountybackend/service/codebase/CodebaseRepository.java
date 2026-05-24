@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.repository;
+package org.gitbounty.gitbountybackend.service.codebase;
 
 import java.util.Optional;
 

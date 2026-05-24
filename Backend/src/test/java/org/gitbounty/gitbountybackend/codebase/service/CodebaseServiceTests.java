@@ -11,11 +11,12 @@ import static org.mockito.Mockito.when;
 
 import java.security.Principal;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
-import org.gitbounty.gitbountybackend.repository.UserRepository;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseRepository;
+import org.gitbounty.gitbountybackend.service.User.UserRepository;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseStorageService;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,8 +43,12 @@ class CodebaseServiceTests {
         userRepository = Mockito.mock(UserRepository.class);
         storageService = Mockito.mock(CodebaseStorageService.class);
         codebaseService = new CodebaseService(codebaseRepository, userRepository, storageService);
-        owner = new User("git-owner", "git-owner@test.local");
+        owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
         principal = () -> "git-owner";
+    }
+
+    private String randomKeycloakId() {
+        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @BeforeEach

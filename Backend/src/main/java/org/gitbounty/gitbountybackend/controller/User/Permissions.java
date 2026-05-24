@@ -1,6 +1,6 @@
 package org.gitbounty.gitbountybackend.controller.User;
 
-import org.gitbounty.gitbountybackend.service.UserService;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;

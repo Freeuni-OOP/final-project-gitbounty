@@ -2,16 +2,12 @@ package org.gitbounty.gitbountybackend.model;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+indexes = @Index(name = "idx_users_keycloak_id", columnList = "keycloak_id") )
 public class User {
 
     @Id
@@ -24,6 +20,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "keycloak_id", nullable = false, unique = true)
+    private String keycloakId; // Keycloak's unique sub claim string
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -32,9 +31,10 @@ public class User {
     public User() {
     }
 
-    public User(String username, String email) {
+    public User(String username, String email, String keycloakId) {
         this.username = username;
         this.email = email;
+        this.keycloakId = keycloakId;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -79,6 +79,14 @@ public class User {
                 ", email='" + email + '\'' +
                 ", createdAt=" + createdAt +
                 '}';
+    }
+
+    public String getKeycloakId() {
+        return keycloakId;
+    }
+
+    public void setKeycloakId(String keycloakId) {
+        this.keycloakId = keycloakId;
     }
 }
 

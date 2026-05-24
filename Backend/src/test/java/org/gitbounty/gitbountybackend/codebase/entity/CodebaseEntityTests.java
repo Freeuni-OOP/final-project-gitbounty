@@ -6,6 +6,8 @@ import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 class CodebaseEntityTests {
 
     @Test
@@ -14,10 +16,12 @@ class CodebaseEntityTests {
 
         assertThat(codebase).isNotNull();
     }
-
+    private String randomKeycloakId() {
+        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
+    }
     @Test
     void codebaseConstructorSetsFields() {
-        User owner = new User("owner_123", "owner_123@test.local");
+        User owner = new User("owner_123", "owner_123@test.local",randomKeycloakId() );
 
         Codebase codebase = new Codebase(
             "Payment-Gateway-API",
@@ -34,7 +38,7 @@ class CodebaseEntityTests {
 
     @Test
     void codebaseGettersAndSettersWork() {
-        User owner = new User("owner_456", "owner_456@test.local");
+        User owner = new User("owner_456", "owner_456@test.local", randomKeycloakId());
         Codebase codebase = new Codebase();
 
         codebase.setId(7L);
@@ -56,7 +60,7 @@ class CodebaseEntityTests {
             "Auth-Service",
             "Authentication repo",
             "git@provider.com:user/auth-service.git",
-            new User("owner_789", "owner_789@test.local")
+            new User("owner_789", "owner_789@test.local", randomKeycloakId())
         );
 
         assertThat(codebase.toString())

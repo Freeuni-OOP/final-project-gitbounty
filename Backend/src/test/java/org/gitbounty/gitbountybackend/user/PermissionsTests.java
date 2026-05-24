@@ -2,7 +2,7 @@ package org.gitbounty.gitbountybackend.user;
 
 import org.gitbounty.gitbountybackend.controller.User.Permissions;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.UserService;
+import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +13,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -32,7 +33,7 @@ class PermissionsTests {
 
     @Test
     void isOwner_returnsTrueWhenUsernameMatchesUser() {
-        User user = new User("alice", "alice@example.com");
+        User user = new User("alice", "alice@example.com", randomKeycloakId());
         user.setId(42L);
         when(userService.findById(42L)).thenReturn(Optional.of(user));
 
@@ -41,13 +42,15 @@ class PermissionsTests {
 
     @Test
     void isOwner_returnsFalseWhenUsernameDoesNotMatchUser() {
-        User user = new User("alice", "alice@example.com");
+        User user = new User("alice", "alice@example.com", randomKeycloakId());
         user.setId(42L);
         when(userService.findById(42L)).thenReturn(Optional.of(user));
 
         assertThat(permissions.isOwner(42L, "bob")).isFalse();
     }
-
+    private String randomKeycloakId() {
+        return "kc_" + UUID.randomUUID().toString().substring(0, 8);
+    }
     @Test
     void isOwner_returnsFalseWhenUserDoesNotExist() {
         when(userService.findById(42L)).thenReturn(Optional.empty());
