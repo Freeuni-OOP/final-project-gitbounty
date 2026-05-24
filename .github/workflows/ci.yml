@@ -16,7 +16,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root_password
-          MYSQL_DATABASE: gitbounty_dev
+          MYSQL_DATABASE: gitbounty
           MYSQL_USER: dev_user
           MYSQL_PASSWORD: dev_password
         ports:
@@ -44,7 +44,7 @@ jobs:
       - name: Run tests
         env:
           SPRING_PROFILES_ACTIVE: dev
-          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/gitbounty_dev
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/gitbounty
           SPRING_DATASOURCE_USERNAME: dev_user
           SPRING_DATASOURCE_PASSWORD: dev_password
         run: ./mvnw -B test
