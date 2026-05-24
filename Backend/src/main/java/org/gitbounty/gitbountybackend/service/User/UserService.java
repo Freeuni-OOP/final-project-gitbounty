@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.User;
 
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
 import org.gitbounty.gitbountybackend.model.User;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,7 @@ public class UserService {
                 userRepository.save(newUser);
             } catch (Exception e) {
                 // Safeguard against concurrent multi-request race conditions
+                throw(new DataIntegrityViolationException("couldn't save user"));
             }
         }
     }
