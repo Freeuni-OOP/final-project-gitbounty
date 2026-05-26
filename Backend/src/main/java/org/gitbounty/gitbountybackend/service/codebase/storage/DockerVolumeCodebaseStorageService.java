@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.codebase.Storage;
+package org.gitbounty.gitbountybackend.service.codebase.storage;
 
 import java.io.IOException;
 import java.nio.file.Files;
