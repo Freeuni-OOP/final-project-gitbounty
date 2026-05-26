@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.codebase;
+package org.gitbounty.gitbountybackend.service.codebase.Storage;
 
 public interface CodebaseStorageService {
 
