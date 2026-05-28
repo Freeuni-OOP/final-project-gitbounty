@@ -6,7 +6,6 @@ import java.security.Principal;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.resolver.ServiceNotAuthorizedException;
 import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.repository.CodebaseRepository;
 import org.springframework.stereotype.Service;
 
 @Service
