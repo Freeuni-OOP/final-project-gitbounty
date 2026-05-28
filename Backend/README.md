@@ -121,3 +121,6 @@ This runs:
 chmod +x mvnw
 ```
 
+# Registering an account in Keycloak
+http://localhost:8080/realms/gitbounty/account/
+

@@ -1,67 +1,72 @@
 package org.gitbounty.gitbountybackend.config;
 
+import org.gitbounty.gitbountybackend.middleware.JwtUserSyncMiddleware;
+import org.gitbounty.gitbountybackend.util.KeycloakJwtConverterUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
-
-import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.repository.UserRepository;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
+    private final JwtUserSyncMiddleware jwtUserSyncMiddleware;
+
+    public SecurityConfig(JwtUserSyncMiddleware jwtUserSyncMiddleware) {
+        this.jwtUserSyncMiddleware = jwtUserSyncMiddleware;
+    }
+
+    /**
+     * CHAIN 1: Git Subsystem Security Context
+     * Matches ONLY /git/**. Uses HTTP Basic backed by your Keycloak provider.
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    @Order(1)
+    public SecurityFilterChain gitSecurityFilterChain(HttpSecurity http,
+                                                      KeycloakAuthenticationProvider keycloakAuthenticationProvider) {
         http
+            .securityMatcher("/git/**") // This chain ONLY evaluates requests starting with /git/
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/health").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                .requestMatchers("/login").permitAll()
-                // Swagger/OpenAPI UI paths
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/**").authenticated()
-                .requestMatchers("/git/**").authenticated()
-                .anyRequest().permitAll()
+                .anyRequest().authenticated()
             )
-            .httpBasic(Customizer.withDefaults());
+            .httpBasic(Customizer.withDefaults())
+            .authenticationProvider(keycloakAuthenticationProvider); // Isolated strictly to git
 
         return http.build();
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    @Order(2)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(authorize -> authorize
+                // Open Public routes
+                .requestMatchers("/health").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-    @Bean
-    public UserDetailsService userDetailsService(UserRepository userRepository) {
-        return username -> {
-            User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                // Secure API endpoints
+                .requestMatchers("/api/**").authenticated()
 
-            if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-                throw new UsernameNotFoundException("User has no password configured: " + username);
-            }
+                // Tight catch-all: Anything else hitting this backend must be rejected
+                .anyRequest().denyAll()
+            )
+            // Pure JWT resource server - HTTP Basic cannot leak in here
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
+                jwt.jwtAuthenticationConverter(KeycloakJwtConverterUtil.createConverter())
+            ))
+            // Process our JIT creation right after JWT parsing succeeds
+            .addFilterAfter(jwtUserSyncMiddleware, BearerTokenAuthenticationFilter.class);
 
-            return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
-                .password(user.getPasswordHash())
-                .roles("GIT")
-                .build();
-        };
+        return http.build();
     }
 }
-
-
-
-
