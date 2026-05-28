@@ -31,6 +31,11 @@ services:
           action: rebuild
     networks:
       - gitbounty-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mysql:
     image: mysql:8.0
@@ -74,6 +79,20 @@ services:
     networks:
       - gitbounty-network
 
+  nginx:
+    image: nginx:alpine
+    container_name: gitbounty-proxy
+    ports:
+      - "80:80"   # Handles the HTTP connection to force a redirect
+      - "443:443" # Opens public HTTPS secure line
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      backend:
+          condition: service_healthy
+    networks:
+        - gitbounty-network
 volumes:
   mysql-data:
 
