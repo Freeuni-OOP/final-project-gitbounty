@@ -4,30 +4,21 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "issues")
-public class Issue {
+@Table(name = "repositories")
+public class GitRepository {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String name; // e.g., "gitbounty-backend"
+
     @Column(nullable = false)
-    private String title;
+    private String url;  // e.g., "https://github.com/user/repo"
 
     @Column(columnDefinition = "TEXT")
     private String description;
-    
-    @Column(nullable = false)
-    private String status = "OPEN";
-
-    @ManyToOne
-    @JoinColumn(name = "author_id", nullable = false)
-    private User author;
-
-
-    @ManyToOne
-    @JoinColumn(name = "repository_id", nullable = false)
-    private GitRepository repository;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -40,28 +31,20 @@ public class Issue {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getUrl() { return url; }
+    public void setUrl(String url) { this.url = url; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public User getAuthor() { return author; }
-    public void setAuthor(User author) { this.author = author; }
-
-    // those as well has to be uncommented after implementing the repository entity
-    public GitRepository getRepository() { return repository; }
-    public void setRepository(GitRepository repository) { this.repository = repository; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
 
     @PrePersist
     protected void onCreate() {
