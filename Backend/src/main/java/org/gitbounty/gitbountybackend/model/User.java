@@ -2,16 +2,12 @@ package org.gitbounty.gitbountybackend.model;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+indexes = @Index(name = "idx_users_keycloak_id", columnList = "keycloak_id") )
 public class User {
 
     @Id
@@ -24,8 +20,8 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash")
-    private String passwordHash;
+    @Column(name = "keycloak_id", nullable = false, unique = true)
+    private String keycloakId; // Keycloak's unique sub claim string
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
@@ -35,14 +31,10 @@ public class User {
     public User() {
     }
 
-    public User(String username, String email) {
-        this(username, email, null);
-    }
-
-    public User(String username, String email, String passwordHash) {
+    public User(String username, String email, String keycloakId) {
         this.username = username;
         this.email = email;
-        this.passwordHash = passwordHash;
+        this.keycloakId = keycloakId;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -71,14 +63,6 @@ public class User {
         this.email = email;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -93,9 +77,16 @@ public class User {
                 "id=" + id +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
-                ", passwordHash='[redacted]'" +
                 ", createdAt=" + createdAt +
                 '}';
+    }
+
+    public String getKeycloakId() {
+        return keycloakId;
+    }
+
+    public void setKeycloakId(String keycloakId) {
+        this.keycloakId = keycloakId;
     }
 }
 

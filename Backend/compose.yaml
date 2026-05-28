@@ -11,7 +11,7 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=Backend
       - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty_dev
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty
       - SPRING_DATASOURCE_USERNAME=dev_user
       - SPRING_DATASOURCE_PASSWORD=dev_password
       - SPRING_FLYWAY_USER=root
@@ -42,7 +42,7 @@ services:
     container_name: gitbounty-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: gitbounty_dev
+      MYSQL_DATABASE: gitbounty
       MYSQL_USER: dev_user
       MYSQL_PASSWORD: dev_password
     ports:
@@ -65,7 +65,7 @@ services:
     environment:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-      - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak_dev?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
       - KC_DB_USERNAME=keycloak_user
       - KC_DB_PASSWORD=keycloak_password
       - KC_HEALTH_ENABLED=true
