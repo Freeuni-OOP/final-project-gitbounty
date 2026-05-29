@@ -1,5 +1,6 @@
 package org.gitbounty.gitbountybackend.service.codebase.git;
 
+import lombok.RequiredArgsConstructor;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -7,11 +8,16 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.PostReceiveHook;
 import org.eclipse.jgit.transport.ReceiveCommand;
 import org.eclipse.jgit.transport.ReceivePack;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
+import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 
+@Service
+@RequiredArgsConstructor
 public class GitPushHook implements PostReceiveHook {
 
+    private final BranchService branchService;
 
     private void updateBranchTable(ReceivePack receivePack, ReceiveCommand command) {
         String refName = command.getRefName();
