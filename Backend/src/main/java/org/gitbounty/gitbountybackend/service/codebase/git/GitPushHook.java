@@ -38,7 +38,6 @@ public class GitPushHook implements PostReceiveHook {
             ? refName.substring("refs/heads/".length())
             : refName;
 
-        // if branch gets deleted all its commits do too
         if (type == ReceiveCommand.Type.DELETE) {
             branchService.deleteBranchForCodebase(codebase, branchName);
             return;
