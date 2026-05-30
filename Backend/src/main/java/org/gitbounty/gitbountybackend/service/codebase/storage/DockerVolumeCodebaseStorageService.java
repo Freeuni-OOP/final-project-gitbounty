@@ -55,7 +55,7 @@ public class DockerVolumeCodebaseStorageService implements CodebaseStorageServic
     }
 
     private Path resolveRepositoryPath(String repositoryName) {
-        Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
+        Path repositoryPath = repositoriesRoot.resolve(repositoryName).normalize();
         if (!repositoryPath.startsWith(repositoriesRoot)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid repository name: " + repositoryName);
         }

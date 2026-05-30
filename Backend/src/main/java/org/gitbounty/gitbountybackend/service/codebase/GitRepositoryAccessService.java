@@ -37,11 +37,7 @@ public class GitRepositoryAccessService {
             throw new ServiceNotAuthorizedException("Repository directory could not be resolved");
         }
 
-        // Repository directories are stored with a ".git" suffix on disk (e.g. "demo.git").
-        // The application stores Codebase.name without the ".git" suffix, so strip it here
-        // to ensure lookups succeed.
-        String rawName = repositoryDirectory.getName();
-        return rawName.replaceAll("\\.git$", "");
+        return repositoryDirectory.getName();
     }
 }
 

@@ -33,7 +33,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 	void createRepository_createsBareRepositoryOnDisk() {
 		DockerVolumeCodebaseStorageService storageService = new DockerVolumeCodebaseStorageService(repositoriesRoot);
 
-		storageService.createRepository("demo");
+		storageService.createRepository("demo.git");
 
 		Path repoPath = repositoriesRoot.resolve("demo.git");
 		assertThat(Files.exists(repoPath)).isTrue();
@@ -54,7 +54,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 		DockerVolumeCodebaseStorageService storageService = new DockerVolumeCodebaseStorageService(repositoriesRoot);
 		Files.createDirectories(repositoriesRoot.resolve("demo.git"));
 
-		assertThatThrownBy(() -> storageService.createRepository("demo"))
+		assertThatThrownBy(() -> storageService.createRepository("demo.git"))
 			.isInstanceOf(ResponseStatusException.class)
 			.satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
 	}
@@ -67,7 +67,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 			mockedFiles.when(() -> Files.exists(any(Path.class))).thenReturn(false);
 			mockedFiles.when(() -> Files.createDirectories(any(Path.class))).thenThrow(new IOException("no permissions"));
 
-			assertThatThrownBy(() -> storageService.createRepository("demo"))
+			assertThatThrownBy(() -> storageService.createRepository("demo.git"))
 				.isInstanceOf(ResponseStatusException.class)
 				.satisfies(error -> {
 					ResponseStatusException ex = (ResponseStatusException) error;
@@ -89,7 +89,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 		try (MockedStatic<Git> mockedGit = mockStatic(Git.class)) {
 			mockedGit.when(Git::init).thenReturn(initCommand);
 
-			assertThatThrownBy(() -> storageService.createRepository("demo"))
+			assertThatThrownBy(() -> storageService.createRepository("demo.git"))
 				.isInstanceOf(ResponseStatusException.class)
 				.satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
 		}
@@ -107,7 +107,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 		try (MockedStatic<Git> mockedGit = mockStatic(Git.class)) {
 			mockedGit.when(Git::init).thenReturn(initCommand);
 
-			assertThatThrownBy(() -> storageService.createRepository("demo"))
+			assertThatThrownBy(() -> storageService.createRepository("demo.git"))
 				.isInstanceOf(RuntimeException.class)
 				.hasMessageContaining("boom");
 		}
@@ -116,11 +116,11 @@ class DockerVolumeCodebaseStorageServiceTests {
 	@Test
 	void deleteRepository_deletesExistingRepositoryDirectory() {
 		DockerVolumeCodebaseStorageService storageService = new DockerVolumeCodebaseStorageService(repositoriesRoot);
-		storageService.createRepository("demo");
+		storageService.createRepository("demo.git");
 		Path repoPath = repositoriesRoot.resolve("demo.git");
 		assertThat(Files.exists(repoPath)).isTrue();
 
-		storageService.deleteRepository("demo");
+		storageService.deleteRepository("demo.git");
 
 		assertThat(Files.exists(repoPath)).isFalse();
 	}
@@ -129,7 +129,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 	void deleteRepository_noopWhenRepositoryDirectoryDoesNotExist() {
 		DockerVolumeCodebaseStorageService storageService = new DockerVolumeCodebaseStorageService(repositoriesRoot);
 
-		assertThatCode(() -> storageService.deleteRepository("missing")).doesNotThrowAnyException();
+		assertThatCode(() -> storageService.deleteRepository("missing.git")).doesNotThrowAnyException();
 	}
 
 	@Test
@@ -153,7 +153,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 			var throwingWalk = mockedFiles.when(() -> Files.walk(repoPath));
 			throwingWalk.thenThrow(new IOException("walk failed"));
 
-			assertThatThrownBy(() -> storageService.deleteRepository("demo"))
+			assertThatThrownBy(() -> storageService.deleteRepository("demo.git"))
 				.isInstanceOf(ResponseStatusException.class)
 				.satisfies(error -> {
 					ResponseStatusException ex = (ResponseStatusException) error;
@@ -175,7 +175,7 @@ class DockerVolumeCodebaseStorageServiceTests {
 			mockedWalk.thenReturn(Stream.of(repoPath));
 			mockedFiles.when(() -> Files.deleteIfExists(repoPath)).thenThrow(new IOException("delete failed"));
 
-			assertThatThrownBy(() -> storageService.deleteRepository("demo"))
+			assertThatThrownBy(() -> storageService.deleteRepository("demo.git"))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("Unable to clean up repository directory");
 		}
