@@ -50,6 +50,16 @@ public class CodebaseService {
         }
     }
 
+    public Codebase getCodebase(String repositoryName) {
+        String normalizedRepositoryName = normalizeRepositoryName(repositoryName);
+
+        return codebaseRepository.findByName(normalizedRepositoryName)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Repository not found: " + normalizedRepositoryName
+            ));
+    }
+
     private User resolveOwner(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
