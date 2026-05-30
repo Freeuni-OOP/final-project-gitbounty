@@ -2,6 +2,8 @@ package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.time.Instant;
 
 @Entity
@@ -22,6 +24,7 @@ public class Commit {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "codebase_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Codebase codebase;
 
     @Column(name = "commit_hash", nullable = false, length = 40, updatable = false)

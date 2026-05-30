@@ -8,6 +8,7 @@ import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -83,6 +84,13 @@ public class CodebaseService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain path separators");
         }
 
+        // Disallow any use of the ".git" suffix or substring in repository names. The server
+        // manages the bare repository directory names itself and a name containing ".git"
+        // could lead to surprising paths or user confusion.
+        if (trimmedName.contains(".git")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain '.git'");
+        }
+
         return trimmedName;
     }
 
@@ -90,12 +98,21 @@ public class CodebaseService {
         return description == null ? null : description.trim();
     }
 
+    @Transactional
     public void deleteCodebase(String name) {
         String repositoryName = normalizeRepositoryName(name);
 
-        // remove database record if present
-        codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
+        // First remove repository files from disk. Doing this before the DB delete
+        // avoids a transaction rollback (caused by IO errors) re-creating the DB row
+        // and leaving the user delete to fail on FK constraints.
         codebaseStorageService.deleteRepository(repositoryName);
+
+        // Now remove database record. The @OneToMany relationships with CascadeType.ALL
+        // on the Codebase entity will automatically delete associated branches and commits.
+        codebaseRepository.findByName(repositoryName).ifPresent(cb -> {
+            codebaseRepository.delete(cb);
+            codebaseRepository.flush();
+        });
     }
 
 }

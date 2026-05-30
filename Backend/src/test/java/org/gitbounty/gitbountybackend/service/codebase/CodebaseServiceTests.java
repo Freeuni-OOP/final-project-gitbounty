@@ -157,14 +157,15 @@ class CodebaseServiceTests {
     }
 
     @Test
-    void deleteCodebaseDeletesRecordAndStorage() {
+    void deleteCodebaseDeletesStorageAndRecord() {
         Codebase existing = new Codebase("demo.git", "desc", "url", owner);
         when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.of(existing));
 
         codebaseService.deleteCodebase("demo.git");
 
-        verify(codebaseRepository).delete(existing);
         verify(storageService).deleteRepository("demo.git");
+        verify(codebaseRepository).delete(existing);
+        verify(codebaseRepository).flush();
     }
 
     @Test
@@ -173,8 +174,8 @@ class CodebaseServiceTests {
 
         codebaseService.deleteCodebase("demo.git");
 
-        verify(codebaseRepository, never()).delete(any());
         verify(storageService).deleteRepository("demo.git");
+        verify(codebaseRepository, never()).delete(any());
     }
 
     @Test
@@ -184,5 +185,6 @@ class CodebaseServiceTests {
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
 
         verify(storageService, never()).deleteRepository(any());
+        verify(codebaseRepository, never()).delete(any());
     }
 }

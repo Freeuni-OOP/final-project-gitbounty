@@ -41,7 +41,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class GitServletIntegrationTests {
 
-    private static final String REPOSITORY_NAME = "demo.git";
+    private static final String REPOSITORY_NAME = "demo";
     private static final String OWNER_USERNAME = "git-owner";
     private static final String OWNER_PASSWORD = "git-owner-password";
     private static final String INTRUDER_USERNAME = "git-intruder";
@@ -75,7 +75,7 @@ class GitServletIntegrationTests {
 
     @BeforeEach
     void prepareBareRepository() throws Exception {
-        Path serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME);
+        Path serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME + ".git");
 
         userService.findByUsername(OWNER_USERNAME)
             .orElseGet(() -> userService.save(new User(OWNER_USERNAME, OWNER_USERNAME + "@test.local", "id-owner")));
@@ -103,7 +103,7 @@ class GitServletIntegrationTests {
         try {
             codebaseService.deleteCodebase(REPOSITORY_NAME);
         } catch (Exception e) {
-            // ignore - best effort cleanup
+            throw new RuntimeException(e);
         }
         userService.findByUsername(OWNER_USERNAME).ifPresent(userService::delete);
         userService.findByUsername(INTRUDER_USERNAME).ifPresent(userService::delete);
@@ -210,7 +210,7 @@ class GitServletIntegrationTests {
     }
 
     private String repositoryHttpUrl() {
-        return "http://localhost:" + port + "/git/" + REPOSITORY_NAME;
+        return "http://localhost:" + port + "/git/" + REPOSITORY_NAME + ".git";
     }
 
     private static void commitFile(Git repo, Path repoDir, String content, String message) throws Exception {
