@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.codebase.branch;
 
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.Commit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -90,5 +91,70 @@ public class BranchServiceTests {
 		assertEquals("refs/heads/feature-x", created.getName());
 		assertSame(codebase, created.getCodebase());
 		verify(branchRepository, times(1)).save(any(Branch.class));
+	}
+
+	@Test
+	void updateBranch_setsLatestCommit_andSaves() {
+		Codebase codebase = new Codebase();
+		codebase.setId(10L);
+
+		Branch existing = Branch.builder()
+			.id(11L)
+			.codebase(codebase)
+			.name("refs/heads/main")
+			.build();
+
+		when(branchRepository.findByCodebaseIdAndName(eq(10L), eq("refs/heads/main")))
+			.thenReturn(java.util.Optional.of(existing));
+
+		when(branchRepository.save(any(Branch.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		Commit newCommit = Commit.builder().commitHash("abcd").build();
+		Branch updated = branchService.updateBranchLatestCommit(codebase, "main", newCommit);
+
+		assertNotNull(updated);
+		assertSame(newCommit, updated.getLatestCommit());
+
+		verify(branchRepository, times(1)).save(branchCaptor.capture());
+		Branch saved = branchCaptor.getValue();
+		assertSame(newCommit, saved.getLatestCommit());
+	}
+
+	@Test
+	void deleteBranch_deletesFoundBranch() {
+		Codebase codebase = new Codebase();
+		codebase.setId(12L);
+
+		Branch existing = Branch.builder()
+			.id(13L)
+			.codebase(codebase)
+			.name("refs/heads/feature-delete")
+			.build();
+
+		when(branchRepository.findByCodebaseIdAndName(eq(12L), eq("refs/heads/feature-delete")))
+			.thenReturn(java.util.Optional.of(existing));
+
+		branchService.deleteBranchForCodebase(codebase, "feature-delete");
+
+		verify(branchRepository, times(1)).delete(existing);
+	}
+
+	@Test
+	void findBranch_returnsOptional_whenPresent_andNormalizesName() {
+		Codebase codebase = new Codebase();
+		codebase.setId(14L);
+
+		Branch existing = Branch.builder()
+			.id(15L)
+			.codebase(codebase)
+			.name("refs/heads/feature-find")
+			.build();
+
+		when(branchRepository.findByCodebaseIdAndName(eq(14L), eq("refs/heads/feature-find")))
+			.thenReturn(java.util.Optional.of(existing));
+
+		java.util.Optional<Branch> found = branchService.findBranchForCodebase(codebase, "feature-find");
+		assertTrue(found.isPresent());
+		assertEquals(existing, found.get());
 	}
 }

@@ -14,4 +14,4 @@ ALTER TABLE commits
     ADD CONSTRAINT uc_codebase_with_commit UNIQUE (codebase_id, commit_hash);
 
 ALTER TABLE commits
-    ADD CONSTRAINT FK_COMMITS_ON_CODEBASE FOREIGN KEY (codebase_id) REFERENCES codebases (id);
+    ADD CONSTRAINT FK_COMMITS_ON_CODEBASE FOREIGN KEY (codebase_id) REFERENCES codebases (id) ON DELETE CASCADE;

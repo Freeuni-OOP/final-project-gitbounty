@@ -27,6 +27,10 @@ import org.gitbounty.gitbountybackend.apis.KeycloakApi;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.commit.CommitService;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
+import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.Branch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +41,8 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.eclipse.jgit.lib.ObjectId;
+import java.util.Optional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class GitServletIntegrationTests {
@@ -64,6 +70,12 @@ class GitServletIntegrationTests {
 
     @Autowired
     private CodebaseService codebaseService;
+
+    @Autowired
+    private CommitService commitService;
+
+    @Autowired
+    private BranchService branchService;
 
     // 1. Mock the Keycloak API outward network delegation layer
     @MockitoBean
@@ -103,7 +115,7 @@ class GitServletIntegrationTests {
         try {
             codebaseService.deleteCodebase(REPOSITORY_NAME);
         } catch (Exception e) {
-            // ignore - best effort cleanup
+            throw  new RuntimeException(e);
         }
         userService.findByUsername(OWNER_USERNAME).ifPresent(userService::delete);
         userService.findByUsername(INTRUDER_USERNAME).ifPresent(userService::delete);
@@ -168,6 +180,17 @@ class GitServletIntegrationTests {
             // JGit natively passes username/password, triggering KeycloakAuthenticationProvider
             pushToOrigin(sourceRepo, branch, credentialsProvider(OWNER_USERNAME, OWNER_PASSWORD));
 
+            // Verify that the server side servlet persisted the pushed commit and created/updated
+            // the branch information in the database via the CommitService and BranchService.
+            Codebase codebase = codebaseService.getCodebase(REPOSITORY_NAME);
+            ObjectId firstId = sourceRepo.getRepository().resolve("HEAD");
+            String firstCommitHash = firstId.getName();
+            assertThat(commitService.findByCodebaseIdAndCommitHash(codebase.getId(), firstCommitHash)).isPresent();
+            Optional<Branch> branchOpt = branchService.findBranchForCodebase(codebase, branch);
+            assertThat(branchOpt).isPresent();
+            assertThat(branchOpt.get().getLatestCommit()).isNotNull();
+            assertThat(branchOpt.get().getLatestCommit().getCommitHash()).isEqualTo(firstCommitHash);
+
             try (Git cloneRepo = Git.cloneRepository()
                 .setURI(serverUrl)
                 .setDirectory(cloneDir.toFile())
@@ -179,6 +202,15 @@ class GitServletIntegrationTests {
 
                 commitFile(sourceRepo, sourceDir, "second version\n", "second commit");
                 pushToOrigin(sourceRepo, branch, credentialsProvider(OWNER_USERNAME, OWNER_PASSWORD));
+
+                // After second push the commit and branch latest pointer should be updated
+                ObjectId secondId = sourceRepo.getRepository().resolve("HEAD");
+                String secondCommitHash = secondId.getName();
+                assertThat(commitService.findByCodebaseIdAndCommitHash(codebase.getId(), secondCommitHash)).isPresent();
+                Optional<Branch> branchOptAfter = branchService.findBranchForCodebase(codebase, branch);
+                assertThat(branchOptAfter).isPresent();
+                assertThat(branchOptAfter.get().getLatestCommit()).isNotNull();
+                assertThat(branchOptAfter.get().getLatestCommit().getCommitHash()).isEqualTo(secondCommitHash);
 
                 assertThat(cloneRepo.fetch().setRemote("origin").setCredentialsProvider(credentialsProvider(OWNER_USERNAME, OWNER_PASSWORD)).call())
                     .isNotNull();
@@ -206,6 +238,12 @@ class GitServletIntegrationTests {
             // Asserts that your provider decodes the token, identifies them as INTRUDER_USERNAME, and denies access
             assertThatThrownBy(() -> pushToOrigin(intruderRepo, intruderRepo.getRepository().getBranch(), credentialsProvider(INTRUDER_USERNAME, INTRUDER_PASSWORD)))
                 .isInstanceOf(TransportException.class);
+
+            // Ensure that the intruder's push did not create commit entries in the DB
+            Codebase codebase = codebaseService.getCodebase(REPOSITORY_NAME);
+            ObjectId intruderId = intruderRepo.getRepository().resolve("HEAD");
+            String intruderCommitHash = intruderId.getName();
+            assertThat(commitService.findByCodebaseIdAndCommitHash(codebase.getId(), intruderCommitHash)).isNotPresent();
         }
     }
 

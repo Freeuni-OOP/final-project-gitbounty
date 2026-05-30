@@ -8,6 +8,7 @@ import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -50,6 +51,16 @@ public class CodebaseService {
         }
     }
 
+    public Codebase getCodebase(String repositoryName) {
+        String normalizedRepositoryName = normalizeRepositoryName(repositoryName);
+
+        return codebaseRepository.findByName(normalizedRepositoryName)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Repository not found: " + normalizedRepositoryName
+            ));
+    }
+
     private User resolveOwner(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
@@ -80,12 +91,13 @@ public class CodebaseService {
         return description == null ? null : description.trim();
     }
 
+    @Transactional
     public void deleteCodebase(String name) {
         String repositoryName = normalizeRepositoryName(name);
+        codebaseStorageService.deleteRepository(repositoryName);
 
         // remove database record if present
         codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
-        codebaseStorageService.deleteRepository(repositoryName);
     }
 
 }

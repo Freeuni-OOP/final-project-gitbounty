@@ -3,13 +3,18 @@ package org.gitbounty.gitbountybackend.model;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "users",
 indexes = @Index(name = "idx_users_keycloak_id", columnList = "keycloak_id") )
 public class User {
 
+    // Getters and Setters
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,39 +43,6 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     @Override
     public String toString() {
         return "User{" +
@@ -81,12 +53,5 @@ public class User {
                 '}';
     }
 
-    public String getKeycloakId() {
-        return keycloakId;
-    }
-
-    public void setKeycloakId(String keycloakId) {
-        this.keycloakId = keycloakId;
-    }
 }
 
