@@ -157,4 +157,22 @@ public class BranchServiceTests {
 		assertTrue(found.isPresent());
 		assertEquals(existing, found.get());
 	}
+
+	@Test
+	void listBranchesForCodebase_returnsAllBranches() {
+		Codebase codebase = new Codebase();
+		codebase.setId(20L);
+
+		Branch b1 = Branch.builder().id(21L).codebase(codebase).name("refs/heads/a").build();
+		Branch b2 = Branch.builder().id(22L).codebase(codebase).name("refs/heads/b").build();
+
+		when(branchRepository.findByCodebaseId(eq(20L))).thenReturn(java.util.List.of(b1, b2));
+
+		java.util.List<Branch> branches = branchService.listBranchesForCodebase(codebase);
+
+		assertEquals(2, branches.size());
+		assertTrue(branches.contains(b1));
+		assertTrue(branches.contains(b2));
+		verify(branchRepository, times(1)).findByCodebaseId(20L);
+	}
 }

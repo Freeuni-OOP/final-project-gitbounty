@@ -7,6 +7,7 @@ import org.gitbounty.gitbountybackend.model.Commit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -65,6 +66,12 @@ public class BranchService {
 
 		final String normalized = branchName.startsWith("refs/heads/") ? branchName : "refs/heads/" + branchName;
 		return branchRepository.findByCodebaseIdAndName(codebase.getId(), normalized);
+	}
+
+	@Transactional(readOnly = true)
+	public List<Branch> listBranchesForCodebase(Codebase codebase) {
+		assertCodebasePersisted(codebase);
+		return branchRepository.findByCodebaseId(codebase.getId());
 	}
 
 	private void assertCodebasePersisted(Codebase codebase) {
