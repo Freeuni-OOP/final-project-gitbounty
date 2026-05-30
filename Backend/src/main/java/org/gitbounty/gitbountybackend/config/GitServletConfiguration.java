@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.gitbounty.gitbountybackend.service.codebase.GitRepositoryAccessService;
+import org.gitbounty.gitbountybackend.service.codebase.git.GitPushHook;
 
 /**
  * Configuration class for registering JGit HTTP Server.
@@ -93,11 +94,15 @@ public class GitServletConfiguration {
 
     @Bean
     public ReceivePackFactory<HttpServletRequest> receivePackFactory(
-        GitRepositoryAccessService gitRepositoryAccessService
+        GitRepositoryAccessService gitRepositoryAccessService,
+        GitPushHook gitPushHook
     ) {
         return (HttpServletRequest request, org.eclipse.jgit.lib.Repository repository) -> {
             gitRepositoryAccessService.assertOwnerCanWrite(repository, request.getUserPrincipal());
-            return new ReceivePack(repository);
+            ReceivePack receivePack = new ReceivePack(repository);
+            // attach our application PostReceiveHook that synchronizes branches/commits to the DB
+            receivePack.setPostReceiveHook(gitPushHook);
+            return receivePack;
         };
     }
 }
