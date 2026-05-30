@@ -2,6 +2,8 @@ package org.gitbounty.gitbountybackend.model;
 
 import java.time.LocalDateTime;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
@@ -16,6 +18,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+@Getter
 @Entity
 @Table(
     name = "codebases",
@@ -23,19 +26,24 @@ import jakarta.persistence.UniqueConstraint;
 )
 public class Codebase {
 
+    @Setter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Setter
     @Column(nullable = false, unique = true, length = 255)
     private String name;
 
+    @Setter
     @Column(length = 1000)
     private String description;
 
+    @Setter
     @Column(name = "git_url", nullable = false, length = 2048)
     private String gitUrl;
 
+    @Setter
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
         name = "owner_id",
@@ -44,6 +52,7 @@ public class Codebase {
     )
     private User owner;
 
+    @Setter
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -58,53 +67,6 @@ public class Codebase {
         this.owner = owner;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getGitUrl() {
-        return gitUrl;
-    }
-
-    public void setGitUrl(String gitUrl) {
-        this.gitUrl = gitUrl;
-    }
-
-    public User getOwner() {
-        return owner;
-    }
-
-    public void setOwner(User owner) {
-        this.owner = owner;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
 
     @Override
     public String toString() {
