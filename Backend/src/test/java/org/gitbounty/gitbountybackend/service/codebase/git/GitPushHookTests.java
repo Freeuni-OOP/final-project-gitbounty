@@ -69,7 +69,7 @@ public class GitPushHookTests {
 
         Codebase codebase = new Codebase();
         codebase.setId(5L);
-        when(codebaseService.getCodebase("myrepo")).thenReturn(codebase);
+        when(codebaseService.getCodebase("myrepo.git")).thenReturn(codebase);
 
         ReceiveCommand cmd = new ReceiveCommand(
                 ObjectId.fromString("0000000000000000000000000000000000000000"),
@@ -89,7 +89,7 @@ public class GitPushHookTests {
 
         Codebase codebase = new Codebase();
         codebase.setId(6L);
-        when(codebaseService.getCodebase("myrepo")).thenReturn(codebase);
+        when(codebaseService.getCodebase("myrepo.git")).thenReturn(codebase);
 
         ReceiveCommand cmd = new ReceiveCommand(
                 ObjectId.fromString("1111111111111111111111111111111111111111"),
@@ -111,7 +111,7 @@ public class GitPushHookTests {
 
         Codebase codebase = new Codebase();
         codebase.setId(7L);
-        when(codebaseService.getCodebase("myrepo")).thenReturn(codebase);
+        when(codebaseService.getCodebase("myrepo.git")).thenReturn(codebase);
 
         RevCommit commit = mockCommit("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "Test User", "test@example.com", "first", 1700000000);
         when(commitHistoryReader.readCommits(any(), any(), any())).thenReturn(List.of(commit));
@@ -137,7 +137,7 @@ public class GitPushHookTests {
 
         Codebase codebase = new Codebase();
         codebase.setId(8L);
-        when(codebaseService.getCodebase("myrepo")).thenReturn(codebase);
+        when(codebaseService.getCodebase("myrepo.git")).thenReturn(codebase);
 
         RevCommit older = mockCommit("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Test User", "test@example.com", "first", 1700000000);
         RevCommit newer = mockCommit("cccccccccccccccccccccccccccccccccccccccc", "Test User", "test@example.com", "second", 1700000100);

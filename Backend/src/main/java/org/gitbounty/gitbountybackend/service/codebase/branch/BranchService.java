@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Commit;
+import org.gitbounty.gitbountybackend.service.codebase.commit.CommitRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,11 @@ import java.util.Optional;
 public class BranchService {
 
 	private final BranchRepository branchRepository;
+	private final CommitRepository commitRepository;
 
-	public BranchService(BranchRepository branchRepository) {
+	public BranchService(BranchRepository branchRepository, CommitRepository commitRepository) {
 		this.branchRepository = branchRepository;
+		this.commitRepository = commitRepository;
 	}
 
     @Transactional
@@ -64,7 +67,18 @@ public class BranchService {
 		assertBranchNameValid(branchName);
 
 		final String normalized = branchName.startsWith("refs/heads/") ? branchName : "refs/heads/" + branchName;
-		return branchRepository.findByCodebaseIdAndName(codebase.getId(), normalized);
+		Optional<Branch> maybe = branchRepository.findByCodebaseIdAndName(codebase.getId(), normalized);
+
+		// If a branch exists and points to a latestCommit, explicitly load the commit
+		// via the CommitRepository while we're inside the transactional boundary.
+		maybe.ifPresent(b -> {
+			Commit latest = b.getLatestCommit();
+			if (latest != null && latest.getId() != null) {
+				commitRepository.findById(latest.getId()).ifPresent(b::setLatestCommit);
+			}
+		});
+
+		return maybe;
 	}
 
 	private void assertCodebasePersisted(Codebase codebase) {

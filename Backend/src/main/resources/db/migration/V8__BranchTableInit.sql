@@ -12,7 +12,7 @@ ALTER TABLE branches
     ADD CONSTRAINT uc_branch_in_codebase UNIQUE (codebase_id, name);
 
 ALTER TABLE branches
-    ADD CONSTRAINT FK_BRANCHES_ON_CODEBASE FOREIGN KEY (codebase_id) REFERENCES codebases (id);
+    ADD CONSTRAINT FK_BRANCHES_ON_CODEBASE FOREIGN KEY (codebase_id) REFERENCES codebases (id) ON DELETE CASCADE;
 
 ALTER TABLE branches
     ADD CONSTRAINT FK_BRANCHES_ON_LATEST_COMMIT FOREIGN KEY (latest_commit_id) REFERENCES commits (id);
