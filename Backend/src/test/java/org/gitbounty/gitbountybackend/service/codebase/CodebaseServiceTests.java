@@ -57,41 +57,41 @@ class CodebaseServiceTests {
     @Test
     void createCodebaseCreatesStorageAndPersistsCodebase() {
         when(userService.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
         when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Codebase created = codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal);
+        Codebase created = codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal);
 
-        assertThat(created.getName()).isEqualTo("demo.git");
+        assertThat(created.getName()).isEqualTo("demo");
         assertThat(created.getDescription()).isEqualTo("Demo repository");
         assertThat(created.getGitUrl()).isEqualTo("http://localhost/git/demo.git");
         assertThat(created.getOwner().getUsername()).isEqualTo("git-owner");
-        verify(storageService).createRepository("demo.git");
+        verify(storageService).createRepository("demo");
     }
 
     @Test
     void createCodebaseDeletesStorageWhenPersistenceFails() {
         when(userService.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
         when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenThrow(new IllegalStateException("boom"));
 
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("boom");
 
-        verify(storageService).createRepository("demo.git");
-        verify(storageService).deleteRepository("demo.git");
+        verify(storageService).createRepository("demo");
+        verify(storageService).deleteRepository("demo");
     }
 
     @Test
     void createCodebaseKeepsOriginalExceptionWhenCleanupFails() {
         when(userService.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
         when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenThrow(new IllegalStateException("boom"));
-        Mockito.doThrow(new RuntimeException("cleanup-failed")).when(storageService).deleteRepository("demo.git");
+        Mockito.doThrow(new RuntimeException("cleanup-failed")).when(storageService).deleteRepository("demo");
 
         Throwable thrown = catchThrowable(() ->
-            codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal)
+            codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal)
         );
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class);
@@ -102,11 +102,11 @@ class CodebaseServiceTests {
     @Test
     void createCodebaseRejectsDuplicateRepositoryNames() {
         when(userService.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-        when(codebaseRepository.findByName("demo.git")).thenReturn(
-            Optional.of(new Codebase("demo.git", "Existing", "http://localhost/git/demo.git", owner))
+        when(codebaseRepository.findByName("demo")).thenReturn(
+            Optional.of(new Codebase("demo", "Existing", "http://localhost/git/demo.git", owner))
         );
 
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
 
@@ -115,7 +115,7 @@ class CodebaseServiceTests {
 
     @Test
     void createCodebaseRejectsNullPrincipal() {
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", null))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", null))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 
@@ -124,7 +124,7 @@ class CodebaseServiceTests {
 
     @Test
     void createCodebaseRejectsPathSeparatorsInName() {
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo/evil.git", "Demo repository", "http://localhost/git/demo.git", () -> "git-owner"))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo/evil", "Demo repository", "http://localhost/git/demo.git", () -> "git-owner"))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
 
@@ -136,7 +136,7 @@ class CodebaseServiceTests {
         Principal principal = () -> "missing-user";
         when(userService.findByUsername("missing-user")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 
@@ -146,35 +146,35 @@ class CodebaseServiceTests {
     @Test
     void createCodebasePropagatesStorageConflict() {
         when(userService.findByUsername("git-owner")).thenReturn(Optional.of(owner));
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
         Mockito.doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Repository directory already exists: demo.git"))
             .when(storageService)
-            .createRepository("demo.git");
+            .createRepository("demo");
 
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo.git", "Demo repository", "http://localhost/git/demo.git", principal))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     }
 
     @Test
     void deleteCodebaseDeletesRecordAndStorage() {
-        Codebase existing = new Codebase("demo.git", "desc", "url", owner);
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.of(existing));
+        Codebase existing = new Codebase("demo", "desc", "url", owner);
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.of(existing));
 
-        codebaseService.deleteCodebase("demo.git");
+        codebaseService.deleteCodebase("demo");
 
         verify(codebaseRepository).delete(existing);
-        verify(storageService).deleteRepository("demo.git");
+        verify(storageService).deleteRepository("demo");
     }
 
     @Test
     void deleteCodebaseStillDeletesStorageWhenRecordMissing() {
-        when(codebaseRepository.findByName("demo.git")).thenReturn(Optional.empty());
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
 
-        codebaseService.deleteCodebase("demo.git");
+        codebaseService.deleteCodebase("demo");
 
         verify(codebaseRepository, never()).delete(any());
-        verify(storageService).deleteRepository("demo.git");
+        verify(storageService).deleteRepository("demo");
     }
 
     @Test

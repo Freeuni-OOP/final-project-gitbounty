@@ -73,6 +73,10 @@ public class CodebaseService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain path separators");
         }
 
+        if(trimmedName.contains(".git")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain .git");
+        }
+
         return trimmedName;
     }
 

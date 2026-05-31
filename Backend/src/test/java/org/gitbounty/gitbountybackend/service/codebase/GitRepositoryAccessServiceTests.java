@@ -22,11 +22,11 @@ class GitRepositoryAccessServiceTests {
         GitRepositoryAccessService accessService = new GitRepositoryAccessService(codebaseRepository);
         Principal principal = () -> "git-owner";
         User owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
-        Codebase codebase = new Codebase("demo.git", "Demo repository", "http://localhost/git/demo.git", owner);
+        Codebase codebase = new Codebase("demo", "Demo repository", "http://localhost/git/demo.git", owner);
 
         try (Repository repository = Mockito.mock(Repository.class)) {
             when(repository.getDirectory()).thenReturn(new java.io.File("/tmp/demo.git"));
-            when(codebaseRepository.findByName("demo.git")).thenReturn(java.util.Optional.of(codebase));
+            when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
 
             assertThatCode(() -> accessService.assertOwnerCanWrite(repository, principal))
                 .doesNotThrowAnyException();
@@ -41,11 +41,11 @@ class GitRepositoryAccessServiceTests {
         GitRepositoryAccessService accessService = new GitRepositoryAccessService(codebaseRepository);
         Principal principal = () -> "git-intruder";
         User owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
-        Codebase codebase = new Codebase("demo.git", "Demo repository", "http://localhost/git/demo.git", owner);
+        Codebase codebase = new Codebase("demo", "Demo repository", "http://localhost/git/demo.git", owner);
 
         try (Repository repository = Mockito.mock(Repository.class)) {
             when(repository.getDirectory()).thenReturn(new java.io.File("/tmp/demo.git"));
-            when(codebaseRepository.findByName("demo.git")).thenReturn(java.util.Optional.of(codebase));
+            when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
 
             assertThatThrownBy(() -> accessService.assertOwnerCanWrite(repository, principal))
                 .isInstanceOf(ServiceNotAuthorizedException.class)

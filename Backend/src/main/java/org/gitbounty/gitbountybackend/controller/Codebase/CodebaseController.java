@@ -30,7 +30,7 @@ public class CodebaseController {
         String repositoryName = request.name() == null ? "" : request.name().trim();
         String gitUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
             .path("/git/")
-            .path(repositoryName)
+            .path(repositoryName).path(".git")
             .toUriString();
 
         Codebase codebase = codebaseService.createCodebase(

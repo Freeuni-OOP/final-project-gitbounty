@@ -36,8 +36,10 @@ public class GitRepositoryAccessService {
         if (repositoryDirectory == null) {
             throw new ServiceNotAuthorizedException("Repository directory could not be resolved");
         }
+        // strip away the .git suffix
 
-        return repositoryDirectory.getName();
+
+        return repositoryDirectory.getName().replace(".git", "");
     }
 }
 
