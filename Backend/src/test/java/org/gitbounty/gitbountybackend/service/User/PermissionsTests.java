@@ -1,6 +1,6 @@
 package org.gitbounty.gitbountybackend.service.User;
 
-import org.gitbounty.gitbountybackend.controller.User.Permissions;
+import org.gitbounty.gitbountybackend.controller.User.UserPermissions;
 import org.gitbounty.gitbountybackend.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,11 +23,11 @@ class PermissionsTests {
     @Mock
     private UserService userService;
 
-    private Permissions permissions;
+    private UserPermissions permissions;
 
     @BeforeEach
     void setUp() {
-        permissions = new Permissions(userService);
+        permissions = new UserPermissions(userService);
     }
 
     @Test

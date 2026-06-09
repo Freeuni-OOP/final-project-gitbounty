@@ -20,6 +20,14 @@ interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    /**
+     * Find a user by Keycloak ID.
+     *
+     * @param keycloakId the Keycloak ID to search for
+     * @return an Optional containing the user if found, empty otherwise
+     */
+    Optional<User> findByKeycloakId(String keycloakId);
+
     @Override
     @NullMarked
     Optional<User> findById(Long id);

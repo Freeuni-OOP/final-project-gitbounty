@@ -85,7 +85,7 @@ class UserServiceTests {
     }
 
     @Test
-    void createUserSucceedsWhenUsernameAndEmailAreUnique() {
+    void createUserSucceedsWhenUsernameAndEmailAreUnique() throws Exception {
         String username = randomUsername();
         String email = randomEmail();
         String keycloakId = randomKeycloakId();
@@ -133,5 +133,44 @@ class UserServiceTests {
         assertThat(found).isPresent();
         assertThat(found.get().getUsername()).isEqualTo(username);
         assertThat(found.get().getEmail()).isEqualTo(email);
+    }
+
+    @Test
+    void updateUserProfileUpdatesUsernameAndEmailWhenUnique() throws Exception {
+        User created = userRepository.save(new User(randomUsername(), randomEmail(), randomKeycloakId()));
+        String updatedUsername = randomUsername();
+        String updatedEmail = randomEmail();
+
+        User updated = userService.updateUserProfile(created.getId(), updatedUsername, updatedEmail);
+
+        assertThat(updated.getUsername()).isEqualTo(updatedUsername);
+        assertThat(updated.getEmail()).isEqualTo(updatedEmail);
+    }
+
+    @Test
+    void updateUserProfileThrowsDuplicateUserWhenUsernameAlreadyExists() {
+        User target = userRepository.save(new User(randomUsername(), randomEmail(), randomKeycloakId()));
+        User existing = userRepository.save(new User(randomUsername(), randomEmail(), randomKeycloakId()));
+
+        assertThatThrownBy(() -> userService.updateUserProfile(target.getId(), existing.getUsername(), null))
+            .isInstanceOf(DuplicateUserException.class)
+            .hasMessageContaining("Username already exists");
+    }
+
+    @Test
+    void updateUserProfileThrowsDuplicateUserWhenEmailAlreadyExists() {
+        User target = userRepository.save(new User(randomUsername(), randomEmail(), randomKeycloakId()));
+        User existing = userRepository.save(new User(randomUsername(), randomEmail(), randomKeycloakId()));
+
+        assertThatThrownBy(() -> userService.updateUserProfile(target.getId(), null, existing.getEmail()))
+            .isInstanceOf(DuplicateUserException.class)
+            .hasMessageContaining("Email already exists");
+    }
+
+    @Test
+    void updateUserProfileThrowsIllegalArgumentWhenUserDoesNotExist() {
+        assertThatThrownBy(() -> userService.updateUserProfile(Long.MAX_VALUE, randomUsername(), randomEmail()))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("User not found");
     }
 }
