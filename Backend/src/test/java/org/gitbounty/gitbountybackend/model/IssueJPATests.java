@@ -1,6 +1,5 @@
 package org.gitbounty.gitbountybackend.model;
 
-import org.aspectj.apache.bcel.classfile.Code;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -94,9 +93,7 @@ public class IssueJPATests {
 
         issue.setTitle(null);
 
-        assertThrows(Exception.class, () -> {
-            entityManager.persistAndFlush(issue);
-        }, "Database or Hibernate should reject persistence because title is missing");
+        assertThrows(Exception.class, () -> entityManager.persistAndFlush(issue), "Database or Hibernate should reject persistence because title is missing");
     }
 
     @Test
@@ -107,7 +104,7 @@ public class IssueJPATests {
 
         Issue savedIssue = entityManager.persistFlushFind(issue);
 
-        assertEquals("OPEN", savedIssue.getStatus(), "Status column must fallback to 'OPEN' by default");
+        assertEquals(IssueStatus.OPEN, savedIssue.getStatus(), "Status column must fallback to OPEN by default");
     }
 
     // 3. RELATIONSHIP CONSTRAINT TESTS (ManyToOne)
@@ -120,9 +117,7 @@ public class IssueJPATests {
         Issue issue = createValidBaseIssue(null, repo);
         issue.setAuthor(null);
 
-        assertThrows(Exception.class, () -> {
-            entityManager.persistAndFlush(issue);
-        }, "Should reject save when mandatory author foreign key is missing");
+        assertThrows(Exception.class, () -> entityManager.persistAndFlush(issue), "Should reject save when mandatory author foreign key is missing");
     }
 
     @Test
@@ -131,9 +126,7 @@ public class IssueJPATests {
         Issue issue = createValidBaseIssue(author, null);
         issue.setRepository(null);
 
-        assertThrows(Exception.class, () -> {
-            entityManager.persistAndFlush(issue);
-        }, "Should reject save when mandatory repository foreign key is missing");
+        assertThrows(Exception.class, () -> entityManager.persistAndFlush(issue), "Should reject save when mandatory repository foreign key is missing");
     }
 
     // 4. LIFECYCLE AUDITING HOOKS TESTS
@@ -222,7 +215,7 @@ public class IssueJPATests {
     public void shouldStrictlyCoverStatusGetterAndSetter() {
         Issue issue = new Issue();
 
-        issue.setStatus("IN_PROGRESS");
-        assertEquals("IN_PROGRESS", issue.getStatus(), "getStatus did not return the manually set status");
+    issue.setStatus(IssueStatus.IN_PROGRESS);
+    assertEquals(IssueStatus.IN_PROGRESS, issue.getStatus(), "getStatus did not return the manually set status");
     }
 }

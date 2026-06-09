@@ -1,8 +1,13 @@
 package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "issues")
 public class Issue {
@@ -17,8 +22,9 @@ public class Issue {
     @Column(columnDefinition = "TEXT")
     private String description;
     
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "OPEN";
+    private IssueStatus status = IssueStatus.OPEN;
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)
@@ -34,33 +40,6 @@ public class Issue {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public User getAuthor() { return author; }
-    public void setAuthor(User author) { this.author = author; }
-
-    // those as well has to be uncommented after implementing the repository entity
-    public Codebase getRepository() { return repository; }
-    public void setRepository(Codebase repository) { this.repository = repository; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
 
     @PrePersist
