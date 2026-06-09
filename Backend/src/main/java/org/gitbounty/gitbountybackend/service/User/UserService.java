@@ -19,7 +19,7 @@ public class UserService {
     }
 
 
-    public User createUser(String username, String email, String keycloakId) {
+    public User createUser(String username, String email, String keycloakId) throws DuplicateUserException {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new DuplicateUserException("Username already exists: " + username);
         }
@@ -61,6 +61,10 @@ public class UserService {
         return userRepository.findByUsername(ownerUsername);
     }
 
+    public Optional<User> findByKeycloakId(String keycloakId) {
+        return userRepository.findByKeycloakId(keycloakId);
+    }
+
     @Transactional
     public User save(User user) {
         return userRepository.save(user);
@@ -70,5 +74,40 @@ public class UserService {
     public void delete(User user) {
         userRepository.delete(user);
     }
-}
 
+    /**
+     * Updates a user's profile with new username and/or email.
+     * Validates that the new username/email don't already exist.
+     *
+     * @param userId the ID of the user to update
+     * @param newUsername the new username (optional, null to keep existing)
+     * @param newEmail the new email (optional, null to keep existing)
+     * @return the updated User
+     * @throws IllegalArgumentException if no user exists for the provided id
+     * @throws DuplicateUserException if the requested username or email is already taken
+     */
+    @Transactional
+    public User updateUserProfile(Long userId, String newUsername, String newEmail)
+            throws IllegalArgumentException, DuplicateUserException {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+
+        // Validate new username if provided
+        if (newUsername != null && !newUsername.isBlank() && !newUsername.equals(user.getUsername())) {
+            if (userRepository.findByUsername(newUsername).isPresent()) {
+                throw new DuplicateUserException("Username already exists: " + newUsername);
+            }
+            user.setUsername(newUsername);
+        }
+
+        // Validate new email if provided
+        if (newEmail != null && !newEmail.isBlank() && !newEmail.equals(user.getEmail())) {
+            if (userRepository.findByEmail(newEmail).isPresent()) {
+                throw new DuplicateUserException("Email already exists: " + newEmail);
+            }
+            user.setEmail(newEmail);
+        }
+
+        return userRepository.save(user);
+    }
+}
