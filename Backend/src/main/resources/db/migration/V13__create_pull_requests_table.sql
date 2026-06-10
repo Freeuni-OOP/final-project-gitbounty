@@ -1,33 +1,17 @@
-CREATE TABLE pull_requests
-(
-    id                BIGINT AUTO_INCREMENT NOT NULL,
-    codebase_id       BIGINT                NOT NULL,
-    pr_number         INT                   NOT NULL,
-    title             VARCHAR(255)          NOT NULL,
-    description       TEXT,
-    status            VARCHAR(50)           NOT NULL,
-    source_branch_id  BIGINT                NULL,
-    target_branch_id  BIGINT                NOT NULL,
-    author_id         BIGINT                NOT NULL,
-    created_at        datetime              NOT NULL,
-    updated_at        datetime              NOT NULL,
-    merged_at         datetime              NULL,
-    CONSTRAINT pk_pull_requests PRIMARY KEY (id)
-);
+-- Add discriminator column to issues table for SINGLE_TABLE inheritance
+ALTER TABLE issues ADD COLUMN type VARCHAR(31) NOT NULL DEFAULT 'ISSUE';
 
-ALTER TABLE pull_requests
-    ADD CONSTRAINT uc_pr_in_codebase UNIQUE (codebase_id, pr_number);
+-- Add PR-specific columns to issues table
+ALTER TABLE issues ADD COLUMN source_branch_id BIGINT;
+ALTER TABLE issues ADD COLUMN target_branch_id BIGINT;
+ALTER TABLE issues ADD COLUMN merged_at datetime NULL;
 
-ALTER TABLE pull_requests
-    ADD CONSTRAINT FK_PULLREQUESTS_ON_CODEBASE FOREIGN KEY (codebase_id) REFERENCES codebases (id) ON DELETE CASCADE;
 
-ALTER TABLE pull_requests
-    ADD CONSTRAINT FK_PULLREQUESTS_ON_SOURCE_BRANCH FOREIGN KEY (source_branch_id) REFERENCES branches (id) ON DELETE SET NULL;
+-- Add foreign keys for PR-specific columns
+ALTER TABLE issues
+    ADD CONSTRAINT FK_ISSUES_ON_SOURCE_BRANCH FOREIGN KEY (source_branch_id) REFERENCES branches (id) ON DELETE SET NULL;
 
-ALTER TABLE pull_requests
-    ADD CONSTRAINT FK_PULLREQUESTS_ON_TARGET_BRANCH FOREIGN KEY (target_branch_id) REFERENCES branches (id) ON DELETE RESTRICT;
-
-ALTER TABLE pull_requests
-    ADD CONSTRAINT FK_PULLREQUESTS_ON_AUTHOR FOREIGN KEY (author_id) REFERENCES users (id);
+ALTER TABLE issues
+    ADD CONSTRAINT FK_ISSUES_ON_TARGET_BRANCH FOREIGN KEY (target_branch_id) REFERENCES branches (id) ON DELETE RESTRICT;
 
 
