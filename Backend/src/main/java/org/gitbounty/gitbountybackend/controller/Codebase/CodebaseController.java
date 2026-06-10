@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/codebases")
@@ -42,6 +44,15 @@ public class CodebaseController {
 
         return ResponseEntity.created(URI.create(codebase.getGitUrl()))
             .body(CodebaseResponse.from(codebase));
+    }
+
+    @GetMapping("/{repositoryName}")
+    public ResponseEntity<CodebaseResponse> getCodebase(
+            @PathVariable String repositoryName
+    ) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+
+        return ResponseEntity.ok(CodebaseResponse.from(codebase));
     }
 }
 
