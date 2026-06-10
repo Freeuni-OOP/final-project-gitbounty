@@ -1,0 +1,163 @@
+package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
+
+import org.gitbounty.gitbountybackend.model.Branch;
+import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.PullRequest;
+import org.gitbounty.gitbountybackend.model.User;
+import org.gitbounty.gitbountybackend.service.User.UserService;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseRepository;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class PullRequestServiceTests {
+
+    @Mock
+    private PullRequestRepository pullRequestRepository;
+
+    @Mock
+    private BranchRepository branchRepository;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private IssueRepository issueRepository;
+
+    @Mock
+    private CodebaseRepository codebaseRepository;
+
+    @InjectMocks
+    private PullRequestService pullRequestService;
+
+    private User mockUser;
+    private Codebase mockCodebase;
+    private Branch mockSourceBranch;
+    private Branch mockTargetBranch;
+
+    @BeforeEach
+    void setUp() {
+        mockUser = new User();
+        mockUser.setId(1L);
+
+        mockCodebase = new Codebase();
+        mockCodebase.setId(10L);
+
+        mockSourceBranch = new Branch();
+        mockSourceBranch.setName("feature-branch");
+
+        mockTargetBranch = new Branch();
+        mockTargetBranch.setName("main");
+    }
+
+    @Test
+    void createPullRequest_Success_WithAllParams() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
+        when(issueRepository.findMaxNumberByRepositoryId(10L)).thenReturn(Optional.of(5));
+
+        when(pullRequestRepository.saveAndFlush(any(PullRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PullRequest result = pullRequestService.createPullRequest(
+            10L, 1L, "feature-branch", "main", "  Fix bug  ", "Description"
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTitle()).isEqualTo("Fix bug"); // Normalized
+        assertThat(result.getNumber()).isEqualTo(6); // 5 + 1
+        assertThat(result.getAuthor()).isEqualTo(mockUser);
+        assertThat(result.getRepository()).isEqualTo(mockCodebase);
+        assertThat(result.getSourceBranch()).isEqualTo(mockSourceBranch);
+        assertThat(result.getTargetBranch()).isEqualTo(mockTargetBranch);
+
+        verify(pullRequestRepository).saveAndFlush(any(PullRequest.class));
+    }
+
+    @Test
+    void createPullRequest_Throws_NoSourceBranch() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+        assertThatThrownBy( () -> pullRequestService.createPullRequest(
+            10L, 1L, null, "main", "Title", "Description"
+        )).isInstanceOf(ResponseStatusException.class);
+
+        verify(branchRepository, never()).findByCodebaseIdAndName(eq(10L), anyString());
+        verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenUserIdNull() {
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, null, "feature", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("User id is required");
+
+        verifyNoInteractions(pullRequestRepository);
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenUserNotFound() {
+        when(userService.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, 1L, "feature", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenCodebaseIdNull() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(null, 1L, "feature", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("Codebase id is required");
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenCodebaseNotFound() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(codebaseRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, 1L, "feature", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenSourceBranchNotFound() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(branchRepository.findByCodebaseIdAndName(10L, "invalid")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, 1L, "invalid", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenTargetBranchNotFound() {
+        when(userService.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, 1L, "feature-branch", "main", "Title", "Desc"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("branch not found: main");
+
+        verify(branchRepository).findByCodebaseIdAndName(10L, "feature-branch");
+        verify(branchRepository).findByCodebaseIdAndName(10L, "main");
+        verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
+    }
+}

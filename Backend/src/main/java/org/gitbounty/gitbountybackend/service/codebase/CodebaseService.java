@@ -60,13 +60,6 @@ public class CodebaseService {
                 "Repository not found: " + normalizedRepositoryName
             ));
     }
-    public Codebase getCodebase(Long id) {
-        return codebaseRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Repository not found: " + id
-            ));
-    }
 
     private User resolveOwner(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {

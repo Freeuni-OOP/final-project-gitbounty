@@ -99,11 +99,11 @@ class PullRequestService {
      * @throws ResponseStatusException if source branch not found
      */
     private Branch resolveBranch(Long codebaseId, String branchName) {
-        if (branchName == null || branchName.isBlank()) {
-            return null;
+        if(branchName == null || branchName.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Branch name is required");
         }
         return branchRepository.findByCodebaseIdAndName(codebaseId, branchName)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source branch not found: " + branchName));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "branch not found: " + branchName));
     }
 
 }
