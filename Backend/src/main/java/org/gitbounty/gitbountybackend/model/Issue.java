@@ -1,10 +1,18 @@
 package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "issues")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.STRING)
+@DiscriminatorValue("ISSUE")
 public class Issue {
 
     @Id
@@ -28,6 +36,7 @@ public class Issue {
     private User author;
 
 
+    // those as well has to be uncommented after implementing the repository entity
     @ManyToOne
     @JoinColumn(name = "repository_id", nullable = false)
     private Codebase repository;
@@ -37,36 +46,6 @@ public class Issue {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public Integer getNumber() { return number; }
-    public void setNumber(Integer number) { this.number = number; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public User getAuthor() { return author; }
-    public void setAuthor(User author) { this.author = author; }
-
-    // those as well has to be uncommented after implementing the repository entity
-    public Codebase getRepository() { return repository; }
-    public void setRepository(Codebase repository) { this.repository = repository; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
 
     @PrePersist
