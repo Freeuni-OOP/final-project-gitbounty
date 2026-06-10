@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-class PullRequestService {
+public class PullRequestService {
 
     private final PullRequestRepository pullRequestRepository;
     private final BranchRepository branchRepository;
@@ -37,19 +37,12 @@ class PullRequestService {
     }
 
     @Transactional
-    public PullRequest createPullRequest(Long codebaseId, Long userId, String sourceBranchName, String targetBranchName,
-                                         String title, String description) {
+    public PullRequest createPullRequest(Codebase codebase, User author, Branch sourceBranch, Branch targetBranch, String title, String description){
         String normalizedTitle = PullRequest.normalizeTitle(title);
-
-        User author = resolveUser(userId);
-        Codebase codebase = resolveCodebase(codebaseId);
-        Branch sourceBranch = resolveBranch(codebaseId, sourceBranchName);
-        Branch targetBranch = resolveBranch(codebaseId, targetBranchName);
-
         // compute next issue number within the repository
         Integer nextNumber = issueRepository.findMaxNumberByRepositoryId(codebase.getId())
-                .map(maxNumber -> maxNumber + 1)
-                .orElse(1);
+            .map(maxNumber -> maxNumber + 1)
+            .orElse(1);
 
         PullRequest pr = new PullRequest();
         pr.setTitle(normalizedTitle);
@@ -59,8 +52,27 @@ class PullRequestService {
         pr.setRepository(codebase);
         pr.setSourceBranch(sourceBranch);
         pr.setTargetBranch(targetBranch);
-
         return pullRequestRepository.saveAndFlush(pr);
+
+    }
+    @Transactional
+    public PullRequest createPullRequest(Long codebaseId, String userId, String sourceBranchName, String targetBranchName,
+                                         String title, String description) {
+        User author = resolveUser(userId);
+        Codebase codebase = resolveCodebase(codebaseId);
+        Branch sourceBranch = resolveBranch(codebaseId, sourceBranchName);
+        Branch targetBranch = resolveBranch(codebaseId, targetBranchName);
+
+        return createPullRequest(codebase, author, sourceBranch, targetBranch, title, description);
+    }
+
+    // Could use a rewrite using command pattern but i'd need to change tests for which there isn't time
+    @Transactional
+    public PullRequest createPullRequest(String repositoryName, String userId, String sourceBranchName, String targetBranchName,
+                                         String title, String description) {
+        Codebase codebase = codebaseRepository.findByName(repositoryName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Codebase not found: name=" + repositoryName));
+        return createPullRequest(codebase.getId(), userId, sourceBranchName, targetBranchName, title, description);
     }
 
     /**
@@ -69,11 +81,11 @@ class PullRequestService {
      * @return the User
      * @throws ResponseStatusException if userId is null or user not found
      */
-    private User resolveUser(Long userId) {
+    private User resolveUser(String userId) {
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User id is required");
         }
-        return userService.findById(userId)
+        return userService.findByKeycloakId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: id=" + userId));
     }
 
