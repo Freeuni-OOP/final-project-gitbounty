@@ -6,14 +6,12 @@ import java.util.List;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
-import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -22,16 +20,13 @@ public class CodebaseController {
 
     private final CodebaseService codebaseService;
     private final CodebaseMemberService memberService;
-    private final UserService userService;
 
     public CodebaseController(
             CodebaseService codebaseService,
-            CodebaseMemberService memberService,
-            UserService userService
+            CodebaseMemberService memberService
     ) {
         this.codebaseService = codebaseService;
         this.memberService = memberService;
-        this.userService = userService;
     }
 
     @PostMapping
@@ -70,8 +65,7 @@ public class CodebaseController {
     public ResponseEntity<List<MemberResponse>> getMembers(
             @PathVariable String repositoryName
     ) {
-        Codebase codebase = codebaseService.getCodebase(repositoryName);
-        List<MemberResponse> members = memberService.getCodebaseRoster(codebase.getId())
+        List<MemberResponse> members = memberService.getCodebaseRoster(repositoryName)
                 .stream()
                 .map(MemberResponse::from)
                 .toList();
@@ -79,45 +73,33 @@ public class CodebaseController {
     }
 
     @PostMapping("/{repositoryName}/members")
+    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<MemberResponse> addMember(
             @PathVariable String repositoryName,
             @RequestBody AddMemberRequest request
     ) {
-        Codebase codebase = codebaseService.getCodebase(repositoryName);
-        User user = userService.findByUsername(request.username())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "User not found: " + request.username()));
-
-        CodebaseMember member = memberService.addMember(codebase, user, request.role());
+        CodebaseMember member = memberService.addMember(repositoryName, request.username(), request.role());
         return ResponseEntity.status(HttpStatus.CREATED).body(MemberResponse.from(member));
     }
 
     @PutMapping("/{repositoryName}/members/{username}")
+    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<MemberResponse> updateMemberRole(
             @PathVariable String repositoryName,
             @PathVariable String username,
             @RequestBody UpdateMemberRoleRequest request
     ) {
-        Codebase codebase = codebaseService.getCodebase(repositoryName);
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "User not found: " + username));
-
-        CodebaseMember member = memberService.updateMemberRole(codebase.getId(), user.getId(), request.role());
+        CodebaseMember member = memberService.updateMemberRole(repositoryName, username, request.role());
         return ResponseEntity.ok(MemberResponse.from(member));
     }
 
     @DeleteMapping("/{repositoryName}/members/{username}")
+    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<Void> removeMember(
             @PathVariable String repositoryName,
             @PathVariable String username
     ) {
-        Codebase codebase = codebaseService.getCodebase(repositoryName);
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "User not found: " + username));
-
-        memberService.removeMember(codebase.getId(), user.getId());
+        memberService.removeMember(repositoryName, username);
         return ResponseEntity.noContent().build();
     }
 }

@@ -152,4 +152,25 @@ class CodebaseMemberControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("MAINTAINER"));
     }
+    @Test
+    void addMember_returns403_whenNotOwner() throws Exception {
+        // A different authenticated user who is NOT the codebase owner
+        String otherToken = random("token_");
+        String otherKc = random("kc_");
+        String otherUsername = random("intruder_");
+        String otherEmail = random("mail_") + "@test.local";
+        userService.save(new User(otherUsername, otherEmail, otherKc));
+        when(jwtDecoder.decode(otherToken))
+                .thenReturn(jwtFor(otherToken, otherKc, otherUsername, otherEmail));
+
+        // A real target user to attempt to add
+        String memberUsername = random("member_");
+        userService.save(new User(memberUsername, random("mail_") + "@test.local", random("kc_")));
+
+        mockMvc.perform(post("/api/codebases/" + codebase.getName() + "/members")
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + memberUsername + "\",\"role\":\"DEVELOPER\"}"))
+                .andExpect(status().isForbidden());
+    }
 }
