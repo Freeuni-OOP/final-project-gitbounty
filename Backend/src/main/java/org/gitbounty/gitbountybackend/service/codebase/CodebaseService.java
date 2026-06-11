@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.codebase;
 
 import java.security.Principal;
 
+import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
@@ -102,6 +103,13 @@ public class CodebaseService {
 
         // remove database record if present
         codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
+    }
+
+    public Codebase findByName(String repositoryName) {
+        return codebaseRepository.findByName(repositoryName).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + repositoryName));
+    }
+    public Codebase findById(Long repositoryId) {
+        return codebaseRepository.findById(repositoryId).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: Id = " + repositoryId));
     }
 
 }

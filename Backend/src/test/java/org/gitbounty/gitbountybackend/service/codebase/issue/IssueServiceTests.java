@@ -1,10 +1,12 @@
-package org.gitbounty.gitbountybackend.service.issue;
+package org.gitbounty.gitbountybackend.service.codebase.issue;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

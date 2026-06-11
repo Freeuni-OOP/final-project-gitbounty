@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.issue;
+package org.gitbounty.gitbountybackend.service.codebase.issue;
 
 import java.security.Principal;
 
