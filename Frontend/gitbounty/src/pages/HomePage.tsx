@@ -1,16 +1,9 @@
-import BountyCard from '../components/BountyCard';
+import HeroBanner from '../components/HeroBanner';
 import { useHomepageData } from '../hooks/useHomepageData';
 import '../styles/HomePage.css';
 
 const HomePage = () => {
-  const {
-    trendingBounties,
-    personalizedBounties,
-    trendingTopics,
-    topRepositories,
-    activityFeed,
-    isLoading,
-  } = useHomepageData();
+  const { topRepositories, activityFeed, isLoading } = useHomepageData();
 
   const formatPool = (amount: number, currency: string) =>
     currency === 'ETH' ? `${amount} ETH` : `$${amount.toLocaleString()}`;
@@ -28,82 +21,23 @@ const HomePage = () => {
     return (
       <div className="explore-loading">
         <div className="loading-spinner" />
-        <p>Loading bounties...</p>
+        <p>Loading...</p>
       </div>
     );
   }
 
   return (
     <div className="explore-page">
-      <div className="hero-banner">
-        <div className="hero-content">
-          <h1 className="hero-title">
-            Discover & Earn on <span className="hero-highlight">Open Source</span>
-          </h1>
-          <p className="hero-subtitle">
-            Browse trending bounties, find issues matching your skills, and get rewarded for your contributions.
-          </p>
-          <div className="hero-actions">
-            <button className="btn btn-primary">Explore Bounties</button>
-            <button className="btn btn-secondary">Post a Bounty</button>
-          </div>
-        </div>
-        <div className="hero-stats">
-          <div className="hero-stat">
-            <span className="hero-stat-value">$124K+</span>
-            <span className="hero-stat-label">Total Bounties</span>
-          </div>
-          <div className="hero-stat">
-            <span className="hero-stat-value">1,240</span>
-            <span className="hero-stat-label">Open Issues</span>
-          </div>
-          <div className="hero-stat">
-            <span className="hero-stat-value">340+</span>
-            <span className="hero-stat-label">Contributors</span>
-          </div>
-        </div>
-      </div>
-
+      <HeroBanner />
       <div className="explore-layout">
         <main className="explore-main">
-          <section className="feed-section">
-            <div className="section-header">
-              <h2 className="section-title">🔥 Trending Bounties</h2>
-              <span className="section-subtitle">Highest reward, most active issues right now</span>
-            </div>
-            <div className="bounties-feed">
-              {trendingBounties.map((bounty) => (
-                <BountyCard key={bounty.id} {...bounty} />
-              ))}
-            </div>
-          </section>
-
-          <section className="feed-section">
-            <div className="section-header">
-              <h2 className="section-title">✨ Based on Your Interests</h2>
-              <span className="section-subtitle">TypeScript, Rust, Python — your stack</span>
-            </div>
-            <div className="bounties-feed">
-              {personalizedBounties.map((bounty) => (
-                <BountyCard key={bounty.id} {...bounty} />
-              ))}
-            </div>
-          </section>
+          <div className="coming-soon">
+            <h2>🚀 Bounties Coming Soon</h2>
+            <p>Trending bounties and personalized feeds will appear here.</p>
+          </div>
         </main>
 
         <aside className="explore-sidebar">
-          <div className="sidebar-card">
-            <h3 className="sidebar-card-title">📌 Trending Topics</h3>
-            <div className="topics-grid">
-              {trendingTopics.map((topic) => (
-                <button key={topic.tag} className="topic-pill">
-                  {topic.tag}
-                  <span className="topic-count">{topic.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="sidebar-card">
             <h3 className="sidebar-card-title">🏆 Top Rewarding Repos</h3>
             <div className="repo-leaderboard">
