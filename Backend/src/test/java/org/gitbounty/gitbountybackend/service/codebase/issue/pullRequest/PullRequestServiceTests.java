@@ -1,11 +1,14 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
 
+import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
+import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.PullRequest;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
-import org.gitbounty.gitbountybackend.service.codebase.CodebaseRepository;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -39,7 +41,7 @@ class PullRequestServiceTests {
     private IssueRepository issueRepository;
 
     @Mock
-    private CodebaseRepository codebaseRepository;
+    private CodebaseService codebaseService;
 
     @InjectMocks
     private PullRequestService pullRequestService;
@@ -70,7 +72,7 @@ class PullRequestServiceTests {
     @Test
     void createPullRequest_Success_WithAllParams() {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
-        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(codebaseService.findById(10L)).thenReturn(mockCodebase);
         when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
         when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
         when(issueRepository.findMaxNumberByRepositoryId(10L)).thenReturn(Optional.of(5));
@@ -97,7 +99,7 @@ class PullRequestServiceTests {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         assertThatThrownBy( () -> pullRequestService.createPullRequest(
             10L, mockKeycloakId, null, "main", "Title", "Description"
-        )).isInstanceOf(ResponseStatusException.class);
+        )).isInstanceOf(IllegalArgumentException.class);
 
         verify(branchRepository, never()).findByCodebaseIdAndName(eq(10L), anyString());
         verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
@@ -106,7 +108,7 @@ class PullRequestServiceTests {
     @Test
     void createPullRequest_Throws_WhenUserIdNull() {
         assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, null, "feature", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class)
+            .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("User id is required");
 
         verifyNoInteractions(pullRequestRepository);
@@ -117,7 +119,7 @@ class PullRequestServiceTests {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "feature", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class);
+            .isInstanceOf(UserNotFoundException.class);
     }
 
     @Test
@@ -125,42 +127,60 @@ class PullRequestServiceTests {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
 
         assertThatThrownBy(() -> pullRequestService.createPullRequest((Long) null, mockKeycloakId, "feature", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class)
-            .hasMessageContaining("Codebase id is required");
-    }
-
-    @Test
-    void createPullRequest_Throws_WhenCodebaseNotFound() {
-        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
-        when(codebaseRepository.findById(10L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "feature", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class);
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void createPullRequest_Throws_WhenSourceBranchNotFound() {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
-        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(codebaseService.findById(10L)).thenReturn(mockCodebase);
         when(branchRepository.findByCodebaseIdAndName(10L, "invalid")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "invalid", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class);
+            .isInstanceOf(BranchNotFoundException.class);
     }
 
     @Test
     void createPullRequest_Throws_WhenTargetBranchNotFound() {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
-        when(codebaseRepository.findById(10L)).thenReturn(Optional.of(mockCodebase));
+        when(codebaseService.findById(10L)).thenReturn(mockCodebase);
         when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
         when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "feature-branch", "main", "Title", "Desc"))
-            .isInstanceOf(ResponseStatusException.class)
+            .isInstanceOf(BranchNotFoundException.class)
             .hasMessageContaining("branch not found: main");
 
         verify(branchRepository).findByCodebaseIdAndName(10L, "feature-branch");
         verify(branchRepository).findByCodebaseIdAndName(10L, "main");
         verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
+    }
+    @Test
+    void createPullRequest_Throws_WhenTargetAndSourceIsSameBranch() {
+        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
+        when(codebaseService.findById(10L)).thenReturn(mockCodebase);
+        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "main", "main", "Title", "Desc"))
+            .isInstanceOf(PRBranchesAreSameException.class);
+
+        verify(branchRepository, times(2)).findByCodebaseIdAndName(10L, "main");
+        verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
+    }
+
+    @Test
+    void createPullRequest_Throws_WhenTitleIsWhitespace(){
+        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
+        when(codebaseService.findById(10L)).thenReturn(mockCodebase);
+        when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
+
+        assertThatThrownBy(() -> pullRequestService.createPullRequest(10L, mockKeycloakId, "feature-branch", "main", " ", "Desc"))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        verify(branchRepository).findByCodebaseIdAndName(10L, "main");
+        verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
+
     }
 }

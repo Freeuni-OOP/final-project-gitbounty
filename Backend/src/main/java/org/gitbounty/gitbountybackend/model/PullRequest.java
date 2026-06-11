@@ -2,7 +2,6 @@ package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 
@@ -35,7 +34,7 @@ public class PullRequest extends Issue {
      */
     public static String normalizeTitle(String title) {
         if (title == null || title.trim().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pull request title is required");
+            throw new IllegalArgumentException("Pull request title is required");
         }
         return title.trim();
     }

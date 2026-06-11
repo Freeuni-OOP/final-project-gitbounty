@@ -1,14 +1,16 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
 
+import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
+import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.PullRequest;
-import org.gitbounty.gitbountybackend.service.codebase.CodebaseRepository;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,25 +22,29 @@ public class PullRequestService {
     private final BranchRepository branchRepository;
     private final UserService userService;
     private final IssueRepository issueRepository;
-    private final CodebaseRepository codebaseRepository;
+    private final CodebaseService codebaseService;
 
     PullRequestService(
             PullRequestRepository pullRequestRepository,
             BranchRepository branchRepository,
             UserService userService,
             IssueRepository issueRepository,
-            CodebaseRepository codebaseRepository
+            CodebaseService codebaseService
     ) {
         this.pullRequestRepository = pullRequestRepository;
         this.branchRepository = branchRepository;
         this.userService = userService;
         this.issueRepository = issueRepository;
-        this.codebaseRepository = codebaseRepository;
+        this.codebaseService = codebaseService;
     }
 
     @Transactional
     public PullRequest createPullRequest(Codebase codebase, User author, Branch sourceBranch, Branch targetBranch, String title, String description){
         String normalizedTitle = PullRequest.normalizeTitle(title);
+
+        if(sourceBranch.equals(targetBranch)) {
+            throw new PRBranchesAreSameException("Source and target branches shouldn't be the same");
+        }
         // compute next issue number within the repository
         Integer nextNumber = issueRepository.findMaxNumberByRepositoryId(codebase.getId())
             .map(maxNumber -> maxNumber + 1)
@@ -70,8 +76,7 @@ public class PullRequestService {
     @Transactional
     public PullRequest createPullRequest(String repositoryName, String userId, String sourceBranchName, String targetBranchName,
                                          String title, String description) {
-        Codebase codebase = codebaseRepository.findByName(repositoryName)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Codebase not found: name=" + repositoryName));
+        Codebase codebase = codebaseService.findByName(repositoryName);
         return createPullRequest(codebase.getId(), userId, sourceBranchName, targetBranchName, title, description);
     }
 
@@ -83,10 +88,10 @@ public class PullRequestService {
      */
     private User resolveUser(String userId) {
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User id is required");
+            throw new IllegalArgumentException("User id is required");
         }
         return userService.findByKeycloakId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: id=" + userId));
+                .orElseThrow(() -> new UserNotFoundException("User not found: id=" + userId));
     }
 
     /**
@@ -97,10 +102,9 @@ public class PullRequestService {
      */
     private Codebase resolveCodebase(Long codebaseId) {
         if (codebaseId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Codebase id is required");
+            throw new IllegalArgumentException("Codebase id is required");
         }
-        return codebaseRepository.findById(codebaseId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Codebase not found: id=" + codebaseId));
+        return codebaseService.findById(codebaseId);
     }
 
     /**
@@ -111,11 +115,11 @@ public class PullRequestService {
      * @throws ResponseStatusException if source branch not found
      */
     private Branch resolveBranch(Long codebaseId, String branchName) {
-        if(branchName == null || branchName.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Branch name is required");
+        if(branchName == null || branchName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Branch name is required");
         }
         return branchRepository.findByCodebaseIdAndName(codebaseId, branchName)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "branch not found: " + branchName));
+                .orElseThrow(() -> new BranchNotFoundException("branch not found: " + branchName));
     }
 
 }
