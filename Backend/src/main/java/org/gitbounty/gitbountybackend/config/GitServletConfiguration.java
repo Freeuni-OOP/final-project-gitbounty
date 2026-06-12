@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.eclipse.jgit.storage.file.WindowCacheConfig;
+import jakarta.annotation.PostConstruct;
 
 import org.gitbounty.gitbountybackend.service.codebase.GitRepositoryAccessService;
 import org.gitbounty.gitbountybackend.service.codebase.git.GitPushHook;
@@ -30,6 +32,19 @@ import org.gitbounty.gitbountybackend.service.codebase.git.GitPushHook;
  */
 @Configuration
 public class GitServletConfiguration {
+
+    /**
+     * Disable JGit's memory-mapped pack file access. On Windows, mmap'd pack files
+     * hold OS-level handles that prevent deletion (AccessDeniedException) even after
+     * the Repository is closed. Using regular buffered I/O avoids this, with a
+     * negligible performance cost for typical repository sizes.
+     */
+    @PostConstruct
+    public void configureJGitWindowCache() {
+        WindowCacheConfig cfg = new WindowCacheConfig();
+        cfg.setPackedGitMMAP(false);
+        cfg.install();
+    }
 
     @Bean
     public Path resolveRepositoriesRoot(@Value("${git.repositories-root:repositories}") String repositoriesRoot) {
