@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @Service
 public class PullRequestService {
 
@@ -80,6 +82,10 @@ public class PullRequestService {
         return createPullRequest(codebase.getId(), userId, sourceBranchName, targetBranchName, title, description);
     }
 
+    public List<PullRequest> getPullRequestsForCodebase(String repositoryName) {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        return pullRequestRepository.findByRepository(codebase);
+    }
     /**
      * Resolves a user by ID.
      * @param userId the user ID

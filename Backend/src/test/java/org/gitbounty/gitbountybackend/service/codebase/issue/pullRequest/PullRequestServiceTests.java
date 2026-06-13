@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
 
 import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
+import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
@@ -18,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -182,5 +184,53 @@ class PullRequestServiceTests {
         verify(branchRepository).findByCodebaseIdAndName(10L, "main");
         verify(pullRequestRepository, never()).saveAndFlush(any(PullRequest.class));
 
+    }
+
+    @Test
+    void getPullRequestsForCodebase_Success_ReturnsListOfPullRequests() {
+        PullRequest pr1 = new PullRequest();
+        pr1.setId(1L);
+        pr1.setTitle("Fix bug");
+        pr1.setNumber(1);
+
+        PullRequest pr2 = new PullRequest();
+        pr2.setId(2L);
+        pr2.setTitle("Add feature");
+        pr2.setNumber(2);
+
+        when(codebaseService.findByName("repo-name")).thenReturn(mockCodebase);
+        when(pullRequestRepository.findByRepository(mockCodebase)).thenReturn(List.of(pr1, pr2));
+
+        List<PullRequest> result = pullRequestService.getPullRequestsForCodebase("repo-name");
+
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactly(pr1, pr2);
+        verify(codebaseService).findByName("repo-name");
+        verify(pullRequestRepository).findByRepository(mockCodebase);
+    }
+
+    @Test
+    void getPullRequestsForCodebase_Success_ReturnsEmptyList() {
+        when(codebaseService.findByName("empty-repo")).thenReturn(mockCodebase);
+        when(pullRequestRepository.findByRepository(mockCodebase)).thenReturn(List.of());
+
+        List<PullRequest> result = pullRequestService.getPullRequestsForCodebase("empty-repo");
+
+        assertThat(result).isNotNull();
+        assertThat(result).isEmpty();
+        verify(codebaseService).findByName("empty-repo");
+        verify(pullRequestRepository).findByRepository(mockCodebase);
+    }
+
+    @Test
+    void getPullRequestsForCodebase_Throws_WhenCodebaseNotFound() {
+        when(codebaseService.findByName("non-existent")).thenThrow(new CodebaseNotFoundException("Codebase not found"));
+
+        assertThatThrownBy(() -> pullRequestService.getPullRequestsForCodebase("non-existent"))
+            .isInstanceOf(CodebaseNotFoundException.class);
+
+        verify(codebaseService).findByName("non-existent");
+        verify(pullRequestRepository, never()).findByRepository(any());
     }
 }
