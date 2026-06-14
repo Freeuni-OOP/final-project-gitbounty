@@ -1,20 +1,23 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
 
+import org.eclipse.jgit.api.MergeResult;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
 import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
+import org.gitbounty.gitbountybackend.exception.ResourceNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
-import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.model.PullRequest;
+import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
-import org.gitbounty.gitbountybackend.model.Branch;
-import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -25,19 +28,22 @@ public class PullRequestService {
     private final UserService userService;
     private final IssueRepository issueRepository;
     private final CodebaseService codebaseService;
+    private final GitService gitService;
 
     PullRequestService(
             PullRequestRepository pullRequestRepository,
             BranchRepository branchRepository,
             UserService userService,
             IssueRepository issueRepository,
-            CodebaseService codebaseService
+            CodebaseService codebaseService,
+            GitService gitService
     ) {
         this.pullRequestRepository = pullRequestRepository;
         this.branchRepository = branchRepository;
         this.userService = userService;
         this.issueRepository = issueRepository;
         this.codebaseService = codebaseService;
+        this.gitService = gitService;
     }
 
     @Transactional
@@ -86,7 +92,38 @@ public class PullRequestService {
         Codebase codebase = codebaseService.findByName(repositoryName);
         return pullRequestRepository.findByRepository(codebase);
     }
-    /**
+
+    @Transactional
+    public PullRequest mergePullRequestForCodebase(String repositoryName, Integer prNumber) {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+            .orElseThrow(() -> new ResourceNotFoundException("Pull request not found: " + prNumber + " For repository: " + repositoryName));
+
+        try {
+            // Assuming your PR stores source/target branch names
+            MergeResult result = gitService.mergeBranches(
+                codebase.getName(),
+                pr.getSourceBranch().getName(),
+                pr.getTargetBranch().getName()
+            );
+
+            // 3. Update status based on merge result
+            if (result.getMergeStatus().isSuccessful()) {
+                pr.setStatus(IssueStatus.CLOSED);
+                pr.setMergedAt(Instant.now());
+            } else if (result.getMergeStatus() == MergeResult.MergeStatus.CONFLICTING) {
+                // Optionally save conflict details to the PR entity
+            }
+
+
+            return pullRequestRepository.save(pr);
+        } catch (GitAPIException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+        /**
      * Resolves a user by ID.
      * @param userId the user ID
      * @return the User

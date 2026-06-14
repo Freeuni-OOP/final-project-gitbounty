@@ -1,16 +1,12 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
 
-import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
-import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
-import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
-import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
-import org.gitbounty.gitbountybackend.model.Branch;
-import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.model.PullRequest;
-import org.gitbounty.gitbountybackend.model.User;
+import org.eclipse.jgit.api.MergeResult;
+import org.gitbounty.gitbountybackend.exception.*;
+import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
+import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +59,7 @@ class PullRequestServiceTests {
 
         mockCodebase = new Codebase();
         mockCodebase.setId(10L);
+        mockCodebase.setName("repo");
 
         mockSourceBranch = new Branch();
         mockSourceBranch.setName("feature-branch");
@@ -232,5 +229,58 @@ class PullRequestServiceTests {
 
         verify(codebaseService).findByName("non-existent");
         verify(pullRequestRepository, never()).findByRepository(any());
+    }
+
+    @Mock
+    private GitService gitService; // Ensure this is added to your fields
+
+    @Test
+    void mergePullRequest_Success() throws Exception {
+        // Setup mocks
+        MergeResult mockResult = mock(MergeResult.class);
+        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.FAST_FORWARD);
+
+        when(codebaseService.findByName("repo")).thenReturn(mockCodebase);
+        PullRequest pr = new PullRequest();
+        pr.setSourceBranch(mockSourceBranch);
+        pr.setTargetBranch(mockTargetBranch);
+        when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, 1)).thenReturn(Optional.of(pr));
+
+        when(gitService.mergeBranches("repo", "feature-branch", "main")).thenReturn(mockResult);
+
+        // Execute
+        pullRequestService.mergePullRequestForCodebase("repo", 1);
+
+        // Assert
+        verify(pullRequestRepository).save(pr);
+    }
+
+    @Test
+    void mergePullRequest_Throws_OnConflict() throws Exception {
+        MergeResult mockResult = mock(MergeResult.class);
+        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.CONFLICTING);
+
+        when(codebaseService.findByName("repo")).thenReturn(mockCodebase);
+        PullRequest pr = new PullRequest();
+        pr.setSourceBranch(mockSourceBranch);
+        pr.setTargetBranch(mockTargetBranch);
+        when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, 1)).thenReturn(Optional.of(pr));
+
+        when(gitService.mergeBranches("repo", "feature-branch", "main")).thenReturn(mockResult);
+
+        pullRequestService.mergePullRequestForCodebase("repo", 1);
+
+        // Assert that status was not set to CLOSED
+        assertThat(pr.getStatus()).isNotEqualTo(IssueStatus.CLOSED);
+        verify(pullRequestRepository).save(pr);
+    }
+
+    @Test
+    void mergePullRequest_Throws_WhenNotFound() {
+        when(codebaseService.findByName("repo")).thenReturn(mockCodebase);
+        when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, 99)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase("repo", 99))
+            .isInstanceOf(ResourceNotFoundException.class);
     }
 }

@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Backend/GitBountyBackend.iml" filepath="$PROJECT_DIR$/Backend/GitBountyBackend.iml" />
       <module fileurl="file://$PROJECT_DIR$/Frontend/gitbounty/GitBountyFrontend.iml" filepath="$PROJECT_DIR$/Frontend/gitbounty/GitBountyFrontend.iml" />
     </modules>
   </component>
