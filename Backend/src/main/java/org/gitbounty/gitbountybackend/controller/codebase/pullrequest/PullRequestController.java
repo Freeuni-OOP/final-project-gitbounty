@@ -22,6 +22,7 @@ class PullRequestController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public CreatePullRequestResponse createPullRequest(
         @PathVariable String repositoryName,
         @RequestBody CreatePullRequestDto dto,

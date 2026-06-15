@@ -2,10 +2,7 @@ package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
-import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
-import org.gitbounty.gitbountybackend.exception.ResourceNotFoundException;
-import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
+import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
@@ -98,15 +95,13 @@ public class PullRequestService {
                 pr.setStatus(IssueStatus.CLOSED);
                 pr.setMergedAt(Instant.now());
             } else if (result.getMergeStatus() == MergeResult.MergeStatus.CONFLICTING) {
-                // Optionally save conflict details to the PR entity
+                throw new MergeConflictException("Merge conflict detected for PR #" + prNumber);
             }
 
 
             return pullRequestRepository.save(pr);
         } catch (GitAPIException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Git API error during merge operation: " + e.getMessage());
         }
     }
 
