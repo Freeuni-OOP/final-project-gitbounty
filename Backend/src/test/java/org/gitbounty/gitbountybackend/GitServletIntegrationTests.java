@@ -87,6 +87,9 @@ class GitServletIntegrationTests {
 
     @BeforeEach
     void prepareBareRepository() throws Exception {
+        // Defensive cleanup — delete any leftover state from previous failed runs
+        try { codebaseService.deleteCodebase(REPOSITORY_NAME); } catch (Exception ignored) {}
+
         Path serverRepository = resolveRepositoriesRoot.resolve(REPOSITORY_NAME + ".git");
 
         userService.findByUsername(OWNER_USERNAME)
@@ -174,7 +177,7 @@ class GitServletIntegrationTests {
         try (Git sourceRepo = Git.init().setDirectory(sourceDir.toFile()).call()) {
             String branch = sourceRepo.getRepository().getBranch();
 
-            commitFile(sourceRepo, sourceDir, "first version\n", "initial commit");
+            commitFile(sourceRepo, sourceDir, "first version", "initial commit");
             configureOrigin(sourceRepo, serverUrl);
 
             // JGit natively passes username/password, triggering KeycloakAuthenticationProvider
@@ -198,9 +201,9 @@ class GitServletIntegrationTests {
                 .call()) {
 
                 assertThat(Files.readString(cloneDir.resolve("README.md"), StandardCharsets.UTF_8))
-                    .isEqualTo("first version\n");
+                    .isEqualTo("first version");
 
-                commitFile(sourceRepo, sourceDir, "second version\n", "second commit");
+                commitFile(sourceRepo, sourceDir, "second version", "second commit");
                 pushToOrigin(sourceRepo, branch, credentialsProvider(OWNER_USERNAME, OWNER_PASSWORD));
 
                 // After second push the commit and branch latest pointer should be updated
@@ -218,7 +221,7 @@ class GitServletIntegrationTests {
             }
 
             assertThat(Files.readString(cloneDir.resolve("README.md"), StandardCharsets.UTF_8))
-                .isEqualTo("second version\n");
+                .isEqualTo("second version");
         }
     }
 
