@@ -37,8 +37,10 @@ public class TransactionController {
         @RequestBody CreateTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
         try {
+            Long authenticatedUserId = extractUserIdFromJwt(jwt);
+
             Transaction transaction = transactionService.createEscrow(
-                request.fromUserId(),
+                    authenticatedUserId,
                 request.toUserId(),
                 request.issueId()
             );
@@ -57,7 +59,6 @@ public class TransactionController {
         @PathVariable Long id,
         @AuthenticationPrincipal Jwt jwt) {
         try {
-            // Extract user ID from JWT
             Long approverUserId = extractUserIdFromJwt(jwt);
 
             Transaction transaction = transactionService.approveTransaction(id, approverUserId);
@@ -77,9 +78,11 @@ public class TransactionController {
         @RequestBody RejectTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
         try {
+            Long rejecterUserId = extractUserIdFromJwt(jwt);
+
             Transaction transaction = transactionService.rejectTransaction(
                 id,
-                request.rejecterId(),
+                rejecterUserId,
                 request.reason()
             );
             return ResponseEntity.ok(TransactionResponse.from(transaction));
@@ -98,9 +101,12 @@ public class TransactionController {
         @RequestBody DisputeTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
         try {
+            Long disputantUserId = extractUserIdFromJwt(jwt);
+
+
             Transaction transaction = transactionService.disputeTransaction(
                 id,
-                request.disputantId(),
+                disputantUserId,
                 request.reason()
             );
             return ResponseEntity.ok(TransactionResponse.from(transaction));
