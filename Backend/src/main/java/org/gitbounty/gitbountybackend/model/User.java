@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.model;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -31,6 +32,9 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Column(name = "credit_balance", nullable = false)
+    private BigDecimal creditBalance = BigDecimal.ZERO;
 
     // Constructors
     public User() {
