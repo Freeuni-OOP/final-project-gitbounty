@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
+package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
 import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
@@ -12,7 +12,6 @@ import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -38,48 +37,32 @@ public class PullRequestService {
         this.codebaseService = codebaseService;
     }
 
-    @Transactional
-    public PullRequest createPullRequest(Codebase codebase, User author, Branch sourceBranch, Branch targetBranch, String title, String description){
-        String normalizedTitle = PullRequest.normalizeTitle(title);
+    public PullRequest createPullRequest(CreatePullRequestCommand request) {
+        User author = resolveUser(request.userId());
+        Codebase codebase = resolveCodebase(request.codebaseName());
 
-        if(sourceBranch.equals(targetBranch)) {
-            throw new PRBranchesAreSameException("Source and target branches shouldn't be the same");
+        Branch sourceBranch = resolveBranch(codebase.getId(), request.sourceBranchName());
+        Branch targetBranch = resolveBranch(codebase.getId(), request.targetBranchName());
+
+        if (sourceBranch.equals(targetBranch)) {
+            throw new PRBranchesAreSameException("Source and target branches cannot be the same");
         }
-        // compute next issue number within the repository
+
         Integer nextNumber = issueRepository.findMaxNumberByRepositoryId(codebase.getId())
             .map(maxNumber -> maxNumber + 1)
             .orElse(1);
 
         PullRequest pr = new PullRequest();
-        pr.setTitle(normalizedTitle);
-        pr.setDescription(PullRequest.normalizeDescription(description));
+        pr.setTitle(PullRequest.normalizeTitle(request.title()));
+        pr.setDescription(PullRequest.normalizeDescription(request.description()));
         pr.setNumber(nextNumber);
         pr.setAuthor(author);
         pr.setRepository(codebase);
         pr.setSourceBranch(sourceBranch);
         pr.setTargetBranch(targetBranch);
+
         return pullRequestRepository.saveAndFlush(pr);
-
     }
-    @Transactional
-    public PullRequest createPullRequest(Long codebaseId, String userId, String sourceBranchName, String targetBranchName,
-                                         String title, String description) {
-        User author = resolveUser(userId);
-        Codebase codebase = resolveCodebase(codebaseId);
-        Branch sourceBranch = resolveBranch(codebaseId, sourceBranchName);
-        Branch targetBranch = resolveBranch(codebaseId, targetBranchName);
-
-        return createPullRequest(codebase, author, sourceBranch, targetBranch, title, description);
-    }
-
-    // Could use a rewrite using command pattern but i'd need to change tests for which there isn't time
-    @Transactional
-    public PullRequest createPullRequest(String repositoryName, String userId, String sourceBranchName, String targetBranchName,
-                                         String title, String description) {
-        Codebase codebase = codebaseService.findByName(repositoryName);
-        return createPullRequest(codebase.getId(), userId, sourceBranchName, targetBranchName, title, description);
-    }
-
     /**
      * Resolves a user by ID.
      * @param userId the user ID
@@ -95,16 +78,16 @@ public class PullRequestService {
     }
 
     /**
-     * Resolves a codebase by ID.
-     * @param codebaseId the codebase ID
+     * Resolves a codebase by Name.
+     * @param codebaseName the codebase name
      * @return the Codebase
-     * @throws ResponseStatusException if codebaseId is null or codebase not found
+     * @throws ResponseStatusException if codebaseName is null or codebase not found
      */
-    private Codebase resolveCodebase(Long codebaseId) {
-        if (codebaseId == null) {
-            throw new IllegalArgumentException("Codebase id is required");
+    private Codebase resolveCodebase(String codebaseName) {
+        if (codebaseName == null || codebaseName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Codebase Name is required");
         }
-        return codebaseService.findById(codebaseId);
+        return codebaseService.findByName(codebaseName);
     }
 
     /**

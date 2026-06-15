@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.codebase.issue.pullRequest;
+package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.gitbounty.gitbountybackend.model.PullRequest;
 import org.springframework.data.jpa.repository.JpaRepository;

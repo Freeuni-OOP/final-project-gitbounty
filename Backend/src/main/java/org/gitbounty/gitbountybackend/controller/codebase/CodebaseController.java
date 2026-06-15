@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.Codebase;
+package org.gitbounty.gitbountybackend.controller.codebase;
 
 import java.net.URI;
 import java.security.Principal;

@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.Codebase.pullRequest.dto;
+package org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto;
 
 public record CreatePullRequestDto(
     String sourceBranch,
