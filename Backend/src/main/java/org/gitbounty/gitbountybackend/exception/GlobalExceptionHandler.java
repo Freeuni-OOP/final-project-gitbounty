@@ -25,7 +25,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             UserNotFoundException.class,
             BranchNotFoundException.class,
-            CodebaseNotFoundException.class
+            CodebaseNotFoundException.class,
+            CodebaseMemberNotFoundException.class
     })
     public ResponseEntity<Object> handleNotFoundExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -34,6 +35,7 @@ public class GlobalExceptionHandler {
     // --- 409 CONFLICT HANDLERS ---
     @ExceptionHandler({
             DuplicateUserException.class,
+            DuplicateCodebaseMemberException.class,
             PRBranchesAreSameException.class
     })
     public ResponseEntity<Object> handleConflictExceptions(RuntimeException ex) {
