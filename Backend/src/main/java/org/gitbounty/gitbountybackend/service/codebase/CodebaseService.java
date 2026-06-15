@@ -55,10 +55,7 @@ public class CodebaseService {
         String normalizedRepositoryName = normalizeRepositoryName(repositoryName);
 
         return codebaseRepository.findByName(normalizedRepositoryName)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Repository not found: " + normalizedRepositoryName
-            ));
+            .orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + normalizedRepositoryName));
     }
 
     private User resolveOwner(Principal principal) {
