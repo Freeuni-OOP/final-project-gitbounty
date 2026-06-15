@@ -9,7 +9,6 @@ import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -56,10 +55,7 @@ public class CodebaseService {
         String normalizedRepositoryName = normalizeRepositoryName(repositoryName);
 
         return codebaseRepository.findByName(normalizedRepositoryName)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Repository not found: " + normalizedRepositoryName
-            ));
+            .orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + normalizedRepositoryName));
     }
 
     private User resolveOwner(Principal principal) {
@@ -96,13 +92,17 @@ public class CodebaseService {
         return description == null ? null : description.trim();
     }
 
-    @Transactional
     public void deleteCodebase(String name) {
         String repositoryName = normalizeRepositoryName(name);
-        codebaseStorageService.deleteRepository(repositoryName);
 
-        // remove database record if present
+        // Remove DB record first so S
+        // app state stays consistent even if
+        // filesystem cleanup encounters issues (e.g. transient file locks).
+        // Not wrapped in @Transactional so the DB delete commits immediately
+        // and cannot be rolled back by a subsequent filesystem failure.
         codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
+
+        codebaseStorageService.deleteRepository(repositoryName);
     }
 
     public Codebase findByName(String repositoryName) {

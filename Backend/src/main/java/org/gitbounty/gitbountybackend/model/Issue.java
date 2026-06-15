@@ -28,8 +28,13 @@ public class Issue {
     @Column(columnDefinition = "TEXT")
     private String description;
     
+//    @Column(nullable = false)
+//    private String status = "OPEN";
+
+    // changed to using enums
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "OPEN";
+    private IssueStatus status = IssueStatus.OPEN;
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)
