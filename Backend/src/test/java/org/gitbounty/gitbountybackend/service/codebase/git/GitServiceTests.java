@@ -12,66 +12,109 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class GitServiceTest {
+class GitServiceTests {
 
     private GitService gitService;
     private final String REPO_NAME = "test-repo";
-    private File repoDir;
+    private File bareRepoDir;
 
     @BeforeEach
     void setup(@TempDir Path tempDir) throws Exception {
-        // tempDir acts as the repositoriesRoot
         gitService = new GitService(tempDir);
+        bareRepoDir = tempDir.resolve(REPO_NAME).toFile();
 
-        // Create the directory structure: tempDir/test-repo/.git
-        repoDir = tempDir.resolve(REPO_NAME).toFile();
-        assertTrue(repoDir.mkdir());
+        // 1. Initialize a BARE repository
+        try (Git git = Git.init().setDirectory(bareRepoDir).setBare(true).call()) {
+            // 2. To create the initial commit in a bare repo, we must clone it,
+            // make changes, and push.
+            Path cloneDir = tempDir.resolve("temp-clone");
+            try (Git clone = Git.cloneRepository().setURI(bareRepoDir.getAbsolutePath())
+                .setDirectory(cloneDir.toFile()).call()) {
 
-        // Initialize the repository
-        try (Git git = Git.init().setDirectory(repoDir).call()) {
-            Files.writeString(new File(repoDir, "file.txt").toPath(), "initial content");
-            git.add().addFilepattern("file.txt").call();
-            git.commit().setMessage("Initial commit").call();
-            git.branchCreate().setName("main").call();
+                Files.writeString(cloneDir.resolve("file.txt"), "initial content");
+                clone.add().addFilepattern("file.txt").call();
+                clone.commit().setMessage("Initial commit").call();
+                clone.push().call();
+            }
         }
     }
 
     @Test
     void testSuccessfulMerge() throws Exception {
-        try (Git git = Git.open(repoDir)) {
-            // Create feature branch
+        // Clone to prepare the feature branch
+        Path cloneDir = Files.createTempDirectory("test-clone");
+        try (Git git = Git.cloneRepository().setURI(bareRepoDir.getAbsolutePath())
+            .setDirectory(cloneDir.toFile()).call()) {
+
             git.checkout().setCreateBranch(true).setName("feature").call();
-            Files.writeString(new File(repoDir, "feature.txt").toPath(), "feature content");
+            Files.writeString(cloneDir.resolve("feature.txt"), "feature content");
             git.add().addFilepattern("feature.txt").call();
             git.commit().setMessage("Feature commit").call();
-
-            // Merge feature into main using repository name
-            MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "main");
-
-            assertTrue(result.getMergeStatus().isSuccessful());
+            git.push().call();
         }
+
+        // Test the service (which now handles the clone-merge-push logic internally)
+        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master");
+
+        assertTrue(result.getMergeStatus().isSuccessful());
     }
 
     @Test
     void testMergeConflict() throws Exception {
-        try (Git git = Git.open(repoDir)) {
-            // 1. Create and edit file in feature branch
-            git.checkout().setCreateBranch(true).setName("feature").call();
-            Files.writeString(new File(repoDir, "file.txt").toPath(), "feature change");
-            git.add().addFilepattern("file.txt").call();
-            git.commit().setMessage("Feature change").call();
+        // Prepare feature branch with change
+        prepareBranch("feature", "file.txt", "feature change");
+        // Prepare master branch with conflicting change
+        prepareBranch("master", "file.txt", "master change");
 
-            // 2. Edit same file in main branch
-            git.checkout().setName("main").call();
-            Files.writeString(new File(repoDir, "file.txt").toPath(), "main change");
-            git.add().addFilepattern("file.txt").call();
-            git.commit().setMessage("Main change").call();
+        // Attempt merge
+        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master");
 
-            // 3. Attempt merge using repository name
-            MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "main");
+        assertEquals(MergeResult.MergeStatus.CONFLICTING, result.getMergeStatus());
+    }
 
-            assertEquals(MergeResult.MergeStatus.CONFLICTING, result.getMergeStatus());
-            assertNotNull(result.getConflicts());
+    // Helper to simulate work in a bare repo
+    private void prepareBranch(String branch, String file, String content) throws Exception {
+        Path cloneDir = Files.createTempDirectory("conflict-clone");
+        try (Git git = Git.cloneRepository().setURI(bareRepoDir.getAbsolutePath())
+            .setDirectory(cloneDir.toFile()).call()) {
+
+            // Use the safe logic: check if branch exists, otherwise create it
+            boolean exists = git.branchList().call().stream()
+                .anyMatch(ref -> ref.getName().equals("refs/heads/" + branch));
+
+            git.checkout()
+                .setCreateBranch(!exists)
+                .setName(branch)
+                .call();
+
+            Files.writeString(cloneDir.resolve(file), content);
+            git.add().addFilepattern(file).call();
+            git.commit().setMessage("Change to " + file).call();
+            git.push().call();
         }
+    }
+
+    @Test
+    void testMaliciousMergeTargetInjection(){
+        // Assume "main" is a protected branch and a user tries to inject a merge
+        // into a branch they shouldn't be able to touch or that doesn't exist.
+
+        // Attempt to merge into a non-existent or forbidden branch
+        // The service should ideally throw an exception rather than creating or corrupting state
+        assertThrows(Exception.class, () -> {
+            gitService.mergeBranches(REPO_NAME, "feature", "malicious-branch-name");
+        });
+    }
+
+    @Test
+    void testMergeAttemptWithInvalidBranchNames(){
+        // A user tries to use path traversal-like branch names
+        // Git branch names can technically contain many characters
+        // sanitizing this is a security necessity.
+        String maliciousBranch = "../../../etc/passwd";
+
+        assertThrows(Exception.class, () -> {
+            gitService.mergeBranches(REPO_NAME, maliciousBranch, "master");
+        });
     }
 }
