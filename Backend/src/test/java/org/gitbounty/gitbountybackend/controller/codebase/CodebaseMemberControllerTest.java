@@ -1,7 +1,6 @@
-package org.gitbounty.gitbountybackend.controller.Codebase;
+package org.gitbounty.gitbountybackend.controller.codebase;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;

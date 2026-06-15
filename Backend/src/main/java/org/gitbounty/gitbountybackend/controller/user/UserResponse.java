@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.User;
+package org.gitbounty.gitbountybackend.controller.user;
 
 import java.time.LocalDateTime;
 

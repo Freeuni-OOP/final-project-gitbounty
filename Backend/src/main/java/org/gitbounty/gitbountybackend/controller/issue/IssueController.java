@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.Issue;
+package org.gitbounty.gitbountybackend.controller.issue;
 
 import java.net.URI;
 import java.security.Principal;

@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.User;
+package org.gitbounty.gitbountybackend.controller.user;
 
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
 import org.gitbounty.gitbountybackend.model.User;

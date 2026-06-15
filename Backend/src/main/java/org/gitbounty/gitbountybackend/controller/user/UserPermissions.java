@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller.User;
+package org.gitbounty.gitbountybackend.controller.user;
 
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.security.core.Authentication;
