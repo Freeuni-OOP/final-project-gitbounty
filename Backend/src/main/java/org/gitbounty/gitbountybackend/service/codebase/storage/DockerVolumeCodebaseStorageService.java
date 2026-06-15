@@ -1,7 +1,6 @@
 package org.gitbounty.gitbountybackend.service.codebase.storage;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -72,46 +71,13 @@ public class DockerVolumeCodebaseStorageService implements CodebaseStorageServic
             paths.sorted(java.util.Comparator.reverseOrder())
                 .forEach(path -> {
                     try {
-                        deleteWithRetry(path);
+                        Files.deleteIfExists(path);
                     } catch (IOException e) {
                         throw new IllegalStateException("Unable to clean up repository directory", e);
                     }
                 });
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to delete repository", e);
-        }
-
-        // On WSL2/DrvFs (9P), the VFS dentry cache can lag behind the syscall return,
-        // so Files.exists may still return true immediately after a successful delete.
-        // Poll briefly to let the cache invalidation propagate before returning.
-        for (int i = 0; i < 10 && Files.exists(repositoryPath); i++) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-    }
-
-    // On Windows (and WSL2 over NTFS), external agents such as OneDrive sync or
-    // AV software can briefly hold a handle on newly-created pack files, causing
-    // AccessDeniedException on delete. Retry with exponential back-off to let the
-    // handle be released (OneDrive typically finishes within 1-2 s).
-    private static void deleteWithRetry(Path path) throws IOException {
-        for (int attempt = 0; ; attempt++) {
-            try {
-                Files.deleteIfExists(path);
-                return;
-            } catch (AccessDeniedException e) {
-                if (attempt >= 4) throw e;  // 5 attempts: waits of 100/200/400/800 ms
-                try {
-                    Thread.sleep(100L << attempt);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw e;
-                }
-            }
         }
     }
 }
