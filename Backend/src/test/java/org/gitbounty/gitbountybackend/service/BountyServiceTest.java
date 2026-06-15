@@ -2,6 +2,9 @@ package org.gitbounty.gitbountybackend.service;
 
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.BountyStatus;
+import org.gitbounty.gitbountybackend.dto.BountyDTO;
+import org.gitbounty.gitbountybackend.model.Issue;
+import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,8 +63,39 @@ class BountyServiceTest {
         Bounty bounty = new Bounty("Task", "Desc", 50.0, BountyStatus.OPEN);
         when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
 
-        Bounty found = bountyService.getBountyById(1L);
+        BountyDTO found = bountyService.getBountyById(1L);
 
         assertEquals("Task", found.getTitle());
+    }
+
+    @Test
+    void closeBounty_ShouldAlsoCloseLinkedIssue() {
+        Issue mockIssue = new Issue();
+        mockIssue.setStatus(IssueStatus.OPEN);
+
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(1L);
+        mockBounty.setStatus(BountyStatus.OPEN);
+        mockBounty.setIssue(mockIssue);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(mockBounty));
+
+        bountyService.closeBounty(1L);
+
+        assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
+        assertEquals(IssueStatus.CLOSED, mockIssue.getStatus(), "The linked issue should be closed when bounty is completed");
+    }
+
+    @Test
+    void closeIssue_ShouldCloseLinkedBounty() {
+        Bounty mockBounty = new Bounty();
+        mockBounty.setStatus(BountyStatus.OPEN);
+
+        when(bountyRepository.findByIssueId(1L)).thenReturn(Optional.of(mockBounty));
+
+        bountyService.closeIssue(1L);
+
+        assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
+        verify(bountyRepository, times(1)).save(mockBounty);
     }
 }

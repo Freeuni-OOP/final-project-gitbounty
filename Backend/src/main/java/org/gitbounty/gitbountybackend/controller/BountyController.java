@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.controller;
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.BountyStatus;
+import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.service.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,17 +30,17 @@ public class BountyController {
     }
 
     @GetMapping
-    public List<Bounty> getAllBounties() { return bountyService.getAllBounties(); }
+    public List<BountyDTO> getAllBounties() { return bountyService.getAllBounties(); }
 
     //get bounties by status: GET http://localhost:8080/api/bounties/status/{status}
     @GetMapping("/status/{status}")
-    public List<Bounty> getBountiesByStatus(@PathVariable BountyStatus status) {
+    public List<BountyDTO> getBountiesByStatus(@PathVariable BountyStatus status) {
         return bountyService.getBountiesByStatus(status);
     }
 
     //get a single bounty: GET http://localhost:8080/api/bounties/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<Bounty> getBountyById(@PathVariable Long id) {
+    public ResponseEntity<BountyDTO> getBountyById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(bountyService.getBountyById(id));
         } catch (RuntimeException e) {
