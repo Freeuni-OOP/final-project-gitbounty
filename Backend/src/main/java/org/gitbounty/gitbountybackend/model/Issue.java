@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @Entity
 @Table(name = "issues")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.STRING)
 @DiscriminatorValue("ISSUE")
 public class Issue {
@@ -28,8 +28,13 @@ public class Issue {
     @Column(columnDefinition = "TEXT")
     private String description;
     
+//    @Column(nullable = false)
+//    private String status = "OPEN";
+
+    // changed to using enums
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "OPEN";
+    private IssueStatus status = IssueStatus.OPEN;
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)

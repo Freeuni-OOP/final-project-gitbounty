@@ -19,7 +19,7 @@ public record IssueResponse(
                 issue.getId(),
                 issue.getTitle(),
                 issue.getDescription(),
-                issue.getStatus(),
+                issue.getStatus().name(),
                 issue.getAuthor().getId(),
                 issue.getRepository().getId(),
                 issue.getCreatedAt(),

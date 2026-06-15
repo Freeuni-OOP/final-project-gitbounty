@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 
 @Entity
@@ -24,6 +25,28 @@ public class PullRequest extends Issue {
 
     @Column(name = "merged_at")
     private Instant mergedAt; // Null until PR is merged
+
+    /**
+     * Validates and normalizes the title.
+     * @param title the title to normalize
+     * @return normalized title
+     * @throws ResponseStatusException if title is null or blank
+     */
+    public static String normalizeTitle(String title) {
+        if (title == null || title.trim().isBlank()) {
+            throw new IllegalArgumentException("Pull request title is required");
+        }
+        return title.trim();
+    }
+
+    /**
+     * Validates and normalizes the description.
+     * @param description the description to normalize
+     * @return normalized description (null if input is null)
+     */
+    public static String normalizeDescription(String description) {
+        return description == null ? null : description.trim();
+    }
 }
 
 

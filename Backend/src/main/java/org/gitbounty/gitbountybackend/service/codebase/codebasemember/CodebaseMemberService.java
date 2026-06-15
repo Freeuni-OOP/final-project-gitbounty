@@ -5,8 +5,12 @@ import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.model.User;
+import org.gitbounty.gitbountybackend.service.User.UserService;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -15,57 +19,78 @@ import java.util.List;
 public class CodebaseMemberService {
 
     private final CodebaseMemberRepository memberRepository;
+    private final CodebaseService codebaseService;
+    private final UserService userService;
 
     /**
-     * Safely adds a user to a codebase with a designated role.
-     * Throws an exception if the user is already a collaborator.
+     * Safely adds a user (by username) to a codebase (by name) with a designated role.
+     * Resolves the codebase and user internally and throws if either is missing
+     * or if the user is already a collaborator.
      */
     @Transactional
-    public CodebaseMember addMember(Codebase codebase, User user, CodebaseRole role) {
-        // Enforce the unique constraint at the application level to avoid generic SQL errors
+    public CodebaseMember addMember(String repositoryName, String username, CodebaseRole role) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        User user = resolveUser(username);
+
         if (memberRepository.existsByCodebaseIdAndUserId(codebase.getId(), user.getId())) {
-            throw new IllegalStateException(
-                String.format("User '%s' is already a member of this codebase.", user.getUsername())
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    String.format("User '%s' is already a member of this codebase.", user.getUsername())
             );
         }
 
         CodebaseMember newMember = CodebaseMember.builder()
-            .codebase(codebase)
-            .user(user)
-            .role(role)
-            .build();
+                .codebase(codebase)
+                .user(user)
+                .role(role)
+                .build();
 
         return memberRepository.save(newMember);
     }
 
     /**
-     * Updates an existing member's access permissions.
+     * Updates an existing member's access permissions, resolving codebase and user by name.
      */
     @Transactional
-    public CodebaseMember updateMemberRole(Long codebaseId, Long userId, CodebaseRole newRole) {
-        CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebaseId, userId)
-            .orElseThrow(() -> new IllegalArgumentException("Membership association not found."));
+    public CodebaseMember updateMemberRole(String repositoryName, String username, CodebaseRole newRole) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        User user = resolveUser(username);
+
+        CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Membership association not found."));
 
         member.setRole(newRole);
         return memberRepository.save(member);
     }
 
     /**
-     * Removes a user from a codebase's collaborator list.
+     * Removes a user from a codebase's collaborator list, resolving by name.
      */
     @Transactional
-    public void removeMember(Long codebaseId, Long userId) {
-        CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebaseId, userId)
-            .orElseThrow(() -> new IllegalArgumentException("Membership association not found."));
+    public void removeMember(String repositoryName, String username) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        User user = resolveUser(username);
+
+        CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Membership association not found."));
 
         memberRepository.delete(member);
     }
 
     /**
-     * Read-only fetch for a codebase's internal roster.
+     * Read-only fetch for a codebase's internal roster, resolving by name.
      */
     @Transactional(readOnly = true)
-    public List<CodebaseMember> getCodebaseRoster(Long codebaseId) {
-        return memberRepository.findByCodebaseId(codebaseId);
+    public List<CodebaseMember> getCodebaseRoster(String repositoryName) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        return memberRepository.findByCodebaseId(codebase.getId());
+    }
+
+    private User resolveUser(String username) {
+        return userService.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found: " + username));
     }
 }

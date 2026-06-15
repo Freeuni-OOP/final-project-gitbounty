@@ -4,7 +4,7 @@ import java.net.URI;
 import java.security.Principal;
 
 import org.gitbounty.gitbountybackend.model.Issue;
-import org.gitbounty.gitbountybackend.service.issue.IssueService;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
