@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.service;
 
 import org.gitbounty.gitbountybackend.model.Bounty;
+import org.gitbounty.gitbountybackend.model.BountyStatus;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class BountyServiceTest {
 
     @Test
     void createBounty_SaveBounty_WhenAmountPositive() {
-        Bounty bounty = new Bounty("Fixx Bug", "Fix it please", 100.0, "OPEN");
+        Bounty bounty = new Bounty("Fixx Bug", "Fix it please", 100.0, BountyStatus.OPEN);
         when(bountyRepository.save(any(Bounty.class))).thenReturn(bounty);
 
         //call the method we are testing
@@ -43,7 +44,7 @@ class BountyServiceTest {
     @Test
     void createBounty_Exception_WhenAmountIsBad() {
         //bounty with invalid amount
-        Bounty invalidBounty = new Bounty("Cheap Bug", "Too cheap", -10.0, "OPEN");
+        Bounty invalidBounty = new Bounty("Cheap Bug", "Too cheap", -10.0, BountyStatus.OPEN);
 
         //should be IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> {
@@ -56,7 +57,7 @@ class BountyServiceTest {
 
     @Test
     void getBountyById_ShouldReturnBounty_WhenIdExists() {
-        Bounty bounty = new Bounty("Task", "Desc", 50.0, "OPEN");
+        Bounty bounty = new Bounty("Task", "Desc", 50.0, BountyStatus.OPEN);
         when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
 
         Bounty found = bountyService.getBountyById(1L);

@@ -1,5 +1,6 @@
 package org.gitbounty.gitbountybackend.controller;
 import org.gitbounty.gitbountybackend.model.Bounty;
+import org.gitbounty.gitbountybackend.model.BountyStatus;
 import org.gitbounty.gitbountybackend.service.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,7 @@ public class BountyController {
 
     //get bounties by status: GET http://localhost:8080/api/bounties/status/{status}
     @GetMapping("/status/{status}")
-    public List<Bounty> getBountiesByStatus(@PathVariable String status) {
+    public List<Bounty> getBountiesByStatus(@PathVariable BountyStatus status) {
         return bountyService.getBountiesByStatus(status);
     }
 

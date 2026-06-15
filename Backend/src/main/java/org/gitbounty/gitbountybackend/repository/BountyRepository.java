@@ -1,5 +1,6 @@
 package org.gitbounty.gitbountybackend.repository;
 import org.gitbounty.gitbountybackend.model.Bounty;
+import org.gitbounty.gitbountybackend.model.BountyStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -13,6 +14,5 @@ public interface BountyRepository extends JpaRepository<Bounty, Long> {
     //.findAll()
     //.deleteById(Long id)
 
-    //spring figures it out...
-    List<Bounty> findByStatus(String status);
+    List<Bounty> findByStatus(BountyStatus status);
 }
