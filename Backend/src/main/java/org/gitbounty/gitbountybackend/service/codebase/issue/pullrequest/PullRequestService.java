@@ -3,7 +3,10 @@ package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.exception.*;
-import org.gitbounty.gitbountybackend.model.*;
+import org.gitbounty.gitbountybackend.model.Branch;
+import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.PullRequest;
+import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
@@ -47,8 +50,10 @@ public class PullRequestService {
         User author = userService.findByKeycloakId(request.userId())
             .orElseThrow(() -> new UserNotFoundException("User not found: id=" + request.userId()));
         Codebase codebase = codebaseService.getCodebase(request.codebaseName());
-        Branch source = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.sourceBranchName()).orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.sourceBranchName()));
-        Branch target = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.targetBranchName()).orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.targetBranchName()));
+        Branch source = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.sourceBranchName())
+            .orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.sourceBranchName()));
+        Branch target = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.targetBranchName())
+            .orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.targetBranchName()));
 
         if (source.equals(target)) {
             throw new PRBranchesAreSameException("Source and target branches cannot be the same");
