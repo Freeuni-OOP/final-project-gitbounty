@@ -3,8 +3,13 @@ package org.gitbounty.gitbountybackend.service.codebase.git;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeResult;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.TransportException;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.gitbounty.gitbountybackend.exception.MergeConflictException;
+import org.gitbounty.gitbountybackend.util.codebase.RepositoryLockProvider;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -12,16 +17,75 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.locks.Lock;
 
 @Service
 public class GitService {
 
     private final Path repositoriesRoot;
     private final String MERGE_WORKSPACE_DIRECTORY = System.getProperty("java.io.tmpdir");
+    private final RepositoryLockProvider repositoryLockProvider;
 
     // Inject the root path created in your GitServletConfiguration
-    public GitService(Path repositoriesRoot) {
+    public GitService(Path repositoriesRoot, RepositoryLockProvider repositoryLockProvider) {
         this.repositoriesRoot = repositoriesRoot;
+        this.repositoryLockProvider = repositoryLockProvider;
+    }
+
+    /**
+     * Executes a task while holding a lock on the specific repository.
+     * This ensures atomicity across multiple Git operations.
+     */
+    public <T> T runLocked(String repositoryName, SupplierWithException<T> task) throws GitAPIException, IOException {
+        Lock lock = repositoryLockProvider.getLock(repositoryName);
+        lock.lock();
+        try {
+            return task.get();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void revertMerge(String repositoryName, ObjectId mergeCommitId) throws GitAPIException, IOException {
+        runLocked(repositoryName, () -> {
+            File repoDir = new File(getRepoPath(repositoryName));
+            Path tempDir = Files.createTempDirectory(Paths.get(MERGE_WORKSPACE_DIRECTORY), "rollback-");
+
+            try (Git git = Git.cloneRepository()
+                .setURI(repoDir.getAbsolutePath())
+                .setDirectory(tempDir.toFile())
+                .call()) {
+
+                // 1. Locate the parent (the state before merge)
+                try (RevWalk walk = new RevWalk(git.getRepository())) {
+                    RevCommit mergeCommit = walk.parseCommit(mergeCommitId);
+                    // Parent 0 is the mainline (e.g., master/main)
+                    RevCommit mainlineParent = mergeCommit.getParent(0);
+
+                    // 2. Reset the branch pointer to the state BEFORE the merge
+                    git.reset()
+                        .setMode(ResetCommand.ResetType.HARD)
+                        .setRef(mainlineParent.getName())
+                        .call();
+
+                    // 3. Force push the reset state to overwrite the remote history
+                    // This makes the remote match the state before the merge
+                    git.push()
+                        .setRemote("origin")
+                        .setForce(true) // Required to overwrite the history
+                        .call();
+                }
+            } finally {
+                FileUtils.deleteDirectory(tempDir.toFile());
+            }
+            return null;
+        });
+    }
+
+    // Functional interface to allow throwing checked exceptions
+    @FunctionalInterface
+    public interface SupplierWithException<T> {
+        T get() throws IOException, GitAPIException;
     }
 
     /**
@@ -39,59 +103,44 @@ public class GitService {
         return repoPath.toAbsolutePath().toString();
     }
 
-    public MergeResult mergeBranches(String repositoryName, String sourceBranch, String targetBranch)
-        throws IOException, GitAPIException {
+    private MergeResult performMerge(String repositoryName, String sourceBranch, String targetBranch)
+        throws IOException, GitAPIException, MergeConflictException {
 
-        // 1. Sanitize Inputs (Crucial for security)
-        if (!isValidBranchName(sourceBranch) || !isValidBranchName(targetBranch)) {
-            throw new IllegalArgumentException("Invalid branch name format.");
+        if(!isValidBranchName(sourceBranch) || !isValidBranchName(targetBranch)) {
+            throw new IllegalArgumentException("Invalid branch name. Allowed characters: alphanumeric, hyphens, underscores, forward slashes.");
         }
 
-        File bareRepoDir = new File(getRepoPath(repositoryName));
-        Path baseTempDir = Paths.get(MERGE_WORKSPACE_DIRECTORY);
-        Files.createDirectories(baseTempDir);
+        File bareRepo = new File(getRepoPath(repositoryName));
+        Path tempDir = Files.createTempDirectory(Paths.get(MERGE_WORKSPACE_DIRECTORY), "merge-" + repositoryName + "-");
 
-        // Use a unique name for the temporary working directory
-        Path tempDirPath = Files.createTempDirectory(baseTempDir, "merge-" + repositoryName + "-");
-        File tempDir = tempDirPath.toFile();
+        try (Git git = Git.cloneRepository()
+            .setURI(bareRepo.getAbsolutePath())
+            .setDirectory(tempDir.toFile())
+            .call()) {
 
-        try {
-            int maxRetries = 3;
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                // 1. Clone inside the try-block to ensure fresh state per attempt
-                try (Git git = Git.cloneRepository()
-                    .setURI(bareRepoDir.getAbsolutePath())
-                    .setDirectory(tempDir)
-                    .call()) {
+            git.checkout().setName(targetBranch).call();
 
-                    git.checkout().setName(targetBranch).call();
+            MergeResult result = git.merge()
+                .include(git.getRepository().findRef("refs/remotes/origin/" + sourceBranch))
+                .setMessage("Merge " + sourceBranch + " into " + targetBranch)
+                .call();
 
-                    // 2. Perform merge
-                    MergeResult result = git.merge()
-                        .include(git.getRepository().findRef("refs/remotes/origin/" + sourceBranch))
-                        .setMessage("Merge " + sourceBranch + " into " + targetBranch)
-                        .call();
-
-                    if (!result.getMergeStatus().isSuccessful()) {
-                        return result; // Exit if merge failed (conflicts)
-                    }
-
-                    // 3. Attempt push with retry logic
-                    try {
-                        git.push().setRemote("origin").call();
-                        return result; // Success!
-                    } catch (TransportException e) {
-                        if (attempt == maxRetries) throw e;
-                        // Potential race condition (e.g., branch updated since clone), loop and retry
-                        git.pull().setRemote("origin").call();
-                    }
-                }
+            if (!result.getMergeStatus().isSuccessful()) {
+                throw new MergeConflictException("Merge conflict detected: " + result.getMergeStatus());
             }
-            throw new GitAPIException("Failed to push changes after " + maxRetries + " attempts.") {};
+
+            git.push().setRemote("origin").call();
+
+            return result;
+
         } finally {
-            FileUtils.deleteDirectory(tempDir);
+            FileUtils.deleteDirectory(tempDir.toFile());
         }
     }
+    public MergeResult mergeBranches(String repositoryName, String sourceBranch, String targetBranch) throws GitAPIException, IOException {
+        return runLocked(repositoryName, () -> performMerge(repositoryName, sourceBranch, targetBranch));
+    }
+
 
     private boolean isValidBranchName(String name) {
         // Basic regex: allow only alphanumeric, hyphens, underscores, forward slashes

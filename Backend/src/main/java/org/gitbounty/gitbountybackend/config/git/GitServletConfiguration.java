@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.config;
+package org.gitbounty.gitbountybackend.config.git;
 
 import java.io.IOException;
 import java.nio.file.Files;
