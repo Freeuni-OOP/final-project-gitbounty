@@ -7,6 +7,7 @@ import java.nio.file.Path;
 
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.transport.resolver.RepositoryResolver;
+import org.gitbounty.gitbountybackend.config.git.GitServletConfiguration;
 import org.junit.jupiter.api.Test;
 
 class GitServletConfigurationTests {
