@@ -1,6 +1,5 @@
 package org.gitbounty.gitbountybackend.service.codebase.storage;
 
-import java.util.List;
 
 import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,13 +26,9 @@ public class DockerVolumeCodebaseStorageService implements CodebaseStorageServic
     }
 
     @Override
-    public List<CodebaseEntry> listDirectoryContents(String repositoryName, String path, String branch) {
-        return gitService.listDirectoryContents(repositoryName, path, branch);
+    public PathContents getPathContents(String repositoryName, String path, String branch) {
+        return gitService.getPathContents(repositoryName, path, branch);
     }
 
-    @Override
-    public String getFileContents(String repositoryName, String path, String branchName) {
-        return gitService.getFileContents(repositoryName, path, branchName);
-    }
 }
 
