@@ -9,5 +9,7 @@ public interface CodebaseStorageService {
     void deleteRepository(String repositoryName);
 
     List<CodebaseEntry> listDirectoryContents(String repositoryName, String path, String branchName);
+
+    String getFileContents(String repositoryName, String path, String branchName);
 }
 

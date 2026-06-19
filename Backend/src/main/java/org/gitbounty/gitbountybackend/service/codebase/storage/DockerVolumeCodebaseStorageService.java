@@ -30,5 +30,10 @@ public class DockerVolumeCodebaseStorageService implements CodebaseStorageServic
     public List<CodebaseEntry> listDirectoryContents(String repositoryName, String path, String branch) {
         return gitService.listDirectoryContents(repositoryName, path, branch);
     }
+
+    @Override
+    public String getFileContents(String repositoryName, String path, String branchName) {
+        return gitService.getFileContents(repositoryName, path, branchName);
+    }
 }
 

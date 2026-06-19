@@ -144,7 +144,7 @@ public class GitService {
         return entries;
     }
 
-    public String getFileContents(String repositoryName, String path, String branchName) throws IOException {
+    public String getFileContents(String repositoryName, String path, String branchName) {
         Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
 
         try (Repository repository = new FileRepositoryBuilder()
@@ -174,6 +174,8 @@ public class GitService {
                 // Convert bytes to string (assuming UTF-8)
                 return new String(loader.getBytes(), StandardCharsets.UTF_8);
             }
+        } catch (IOException e) {
+            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error accessing repository: " + repositoryName);
         }
     }
 
