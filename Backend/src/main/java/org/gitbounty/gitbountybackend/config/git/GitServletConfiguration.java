@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.config;
+package org.gitbounty.gitbountybackend.config.git;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,6 +31,11 @@ import org.gitbounty.gitbountybackend.service.codebase.git.GitPushHook;
 @Configuration
 public class GitServletConfiguration {
 
+    /**
+     * WARNING: not good idea to use this bean for resolving path.
+     * @param repositoriesRoot
+     * @return
+     */
     @Bean
     public Path resolveRepositoriesRoot(@Value("${git.repositories-root:repositories}") String repositoriesRoot) {
         Path rootPath = Paths.get(repositoriesRoot).toAbsolutePath().normalize();

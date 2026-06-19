@@ -33,9 +33,12 @@ const Navbar: React.FC = () => {
             </Link>
           </li>
           <li className="nav-item">
-            <a href="#bounties" className="nav-link">
+            <Link
+              to="/bounties"
+              className={`nav-link ${isActive('/bounties') ? 'active' : ''}`}
+            >
               Bounties
-            </a>
+            </Link>
           </li>
           <li className="nav-item">
             <a href="#about" className="nav-link">

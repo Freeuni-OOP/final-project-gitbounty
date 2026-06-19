@@ -11,7 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JGitCommitHistoryReaderTests {
+class JGitCommitHistoryReaderTests {
 
 	@Test
 	void readCommits_returnsOldestFirst_whenOldIdIsZero() throws Exception {

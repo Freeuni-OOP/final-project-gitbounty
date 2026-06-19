@@ -1,5 +1,8 @@
 package org.gitbounty.gitbountybackend.service.codebase.codebasemember;
 
+import org.gitbounty.gitbountybackend.exception.CodebaseMemberNotFoundException;
+import org.gitbounty.gitbountybackend.exception.DuplicateCodebaseMemberException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.model.CodebaseRole;
@@ -12,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -89,7 +91,7 @@ class CodebaseMemberServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> memberService.addMember(REPO_NAME, USERNAME, CodebaseRole.DEVELOPER))
-                    .isInstanceOf(ResponseStatusException.class)
+                    .isInstanceOf(DuplicateCodebaseMemberException.class)
                     .hasMessageContaining("already a member");
 
             verify(memberRepository, never()).save(any());
@@ -103,7 +105,7 @@ class CodebaseMemberServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> memberService.addMember(REPO_NAME, USERNAME, CodebaseRole.DEVELOPER))
-                    .isInstanceOf(ResponseStatusException.class)
+                    .isInstanceOf(UserNotFoundException.class)
                     .hasMessageContaining("User not found");
 
             verify(memberRepository, never()).save(any());
@@ -144,7 +146,7 @@ class CodebaseMemberServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> memberService.updateMemberRole(REPO_NAME, USERNAME, CodebaseRole.MAINTAINER))
-                    .isInstanceOf(ResponseStatusException.class)
+                    .isInstanceOf(CodebaseMemberNotFoundException.class)
                     .hasMessageContaining("Membership association not found");
         }
     }
@@ -176,7 +178,7 @@ class CodebaseMemberServiceTest {
 
             // Act & Assert
             assertThatThrownBy(() -> memberService.removeMember(REPO_NAME, USERNAME))
-                    .isInstanceOf(ResponseStatusException.class);
+                    .isInstanceOf(CodebaseMemberNotFoundException.class);
         }
     }
 

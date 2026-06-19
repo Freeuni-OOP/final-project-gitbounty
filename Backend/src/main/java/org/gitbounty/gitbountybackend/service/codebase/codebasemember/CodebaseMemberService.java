@@ -1,16 +1,17 @@
 package org.gitbounty.gitbountybackend.service.codebase.codebasemember;
 
 import lombok.RequiredArgsConstructor;
+import org.gitbounty.gitbountybackend.exception.CodebaseMemberNotFoundException;
+import org.gitbounty.gitbountybackend.exception.DuplicateCodebaseMemberException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -33,8 +34,7 @@ public class CodebaseMemberService {
         User user = resolveUser(username);
 
         if (memberRepository.existsByCodebaseIdAndUserId(codebase.getId(), user.getId())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
+            throw new DuplicateCodebaseMemberException(
                     String.format("User '%s' is already a member of this codebase.", user.getUsername())
             );
         }
@@ -57,8 +57,7 @@ public class CodebaseMemberService {
         User user = resolveUser(username);
 
         CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Membership association not found."));
+                .orElseThrow(() -> new CodebaseMemberNotFoundException("Membership association not found."));
 
         member.setRole(newRole);
         return memberRepository.save(member);
@@ -73,8 +72,7 @@ public class CodebaseMemberService {
         User user = resolveUser(username);
 
         CodebaseMember member = memberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Membership association not found."));
+                .orElseThrow(() -> new CodebaseMemberNotFoundException("Membership association not found."));
 
         memberRepository.delete(member);
     }
@@ -90,7 +88,6 @@ public class CodebaseMemberService {
 
     private User resolveUser(String username) {
         return userService.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "User not found: " + username));
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + username));
     }
 }

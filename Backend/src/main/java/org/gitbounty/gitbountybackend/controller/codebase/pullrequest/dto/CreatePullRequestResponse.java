@@ -4,7 +4,7 @@ import org.gitbounty.gitbountybackend.model.PullRequest;
 
 import java.time.LocalDateTime;
 
-public record PullRequestResponse(
+public record CreatePullRequestResponse(
     Long id,
     Integer number,
     String title,
@@ -15,8 +15,8 @@ public record PullRequestResponse(
     String authorUsername,
     LocalDateTime createdAt
 ) {
-    public static PullRequestResponse from(PullRequest pr) {
-        return new PullRequestResponse(
+    public static CreatePullRequestResponse from(PullRequest pr) {
+        return new CreatePullRequestResponse(
             pr.getId(),
             pr.getNumber(),
             pr.getTitle(),
