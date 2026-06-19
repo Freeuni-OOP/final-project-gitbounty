@@ -35,10 +35,10 @@ public class Transaction {
     @JoinColumn(name = "to_user_id", nullable = false)
     private User toUser;
 
-    // Optional reference to the issue this bounty payout is for
+    // Optional reference to the bounty this transaction is for
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "issue_id", nullable = true)
-    private Issue issue;
+    @JoinColumn(name = "bounty_id", nullable = true)
+    private Bounty bounty;
 
     // Number of credits being transferred
     @Column(nullable = false, precision = 10, scale = 2)
