@@ -6,6 +6,8 @@ import org.gitbounty.gitbountybackend.service.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 
@@ -20,13 +22,16 @@ public class BountyController {
 
     //create a new bounty: POST http://localhost:8080/api/bounties
     @PostMapping
-    public ResponseEntity<Bounty> createBounty(@RequestBody Bounty bounty) {
-        try {
-            Bounty created = bountyService.createBounty(bounty);
+    public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
+        //try {
+            String userId = jwt.getSubject();
+            Bounty created = bountyService.createBountyWithPermission(bountyDto, userId);
             return ResponseEntity.ok(created);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build(); //returns 400 Error if amount <= 0
-        }
+        //} catch (IllegalArgumentException | IllegalStateException e) {
+        //    return ResponseEntity.badRequest().body(e.getMessage());
+        //} catch (Exception e) {
+        //    return ResponseEntity.internalServerError().body("Error while creating the bounty");
+        //}
     }
 
     @GetMapping

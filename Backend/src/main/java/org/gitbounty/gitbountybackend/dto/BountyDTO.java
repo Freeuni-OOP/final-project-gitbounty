@@ -7,6 +7,7 @@ import org.gitbounty.gitbountybackend.model.BountyStatus;
 public class BountyDTO {
     private Long id;
     private String title;
+    private String description;
     private Double amount;
     private BountyStatus status;
     private Long issueId; //only id of the issue
