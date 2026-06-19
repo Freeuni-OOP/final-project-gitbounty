@@ -19,6 +19,7 @@ import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
+import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
 import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
@@ -204,7 +205,7 @@ class CodebaseServiceTests {
         CodebaseContentsDTO dto = codebaseService.listCodebaseContents("demo", "src/Main.java", "master");
 
         // 4. Assert
-        assertThat(dto.type()).isEqualTo("FILE");
+        assertThat(dto.type()).isEqualTo(FileType.FILE);
         assertThat(dto.content()).isEqualTo("public class Main {}");
         assertThat(dto.items()).isNull();
     }
@@ -223,7 +224,7 @@ class CodebaseServiceTests {
         CodebaseContentsDTO dto = codebaseService.listCodebaseContents("demo", "src", "master");
 
         // 4. Assert
-        assertThat(dto.type()).isEqualTo("DIRECTORY");
+        assertThat(dto.type()).isEqualTo(FileType.DIRECTORY);
         assertThat(dto.items()).containsExactly("src", "README.md");
         assertThat(dto.content()).isNull();
     }
