@@ -6,9 +6,16 @@ import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
 import org.gitbounty.gitbountybackend.exception.MergeConflictException;
+import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseEntry;
 import org.gitbounty.gitbountybackend.util.codebase.RepositoryLockProvider;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +24,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 
 @Service
@@ -82,6 +91,57 @@ public class GitService {
         });
     }
 
+    public List<CodebaseEntry> listDirectoryContents(String repositoryName, String path, String branchName){
+        List<CodebaseEntry> entries = new ArrayList<>();
+
+        // Construct path to the .git directory
+        Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
+
+        try (Repository repository = new FileRepositoryBuilder()
+            .setGitDir(repoDir.toFile())
+            .build();
+             RevWalk revWalk = new RevWalk(repository)) {
+
+            // Resolve the specific branch
+            ObjectId branchId = repository.resolve(branchName);
+            if (branchId == null) {
+                throw new BranchNotFoundException("Branch not found: " + branchName);
+            }
+
+            //Get the root tree of that branch
+            RevTree tree = revWalk.parseCommit(branchId).getTree();
+
+            try (TreeWalk treeWalk = new TreeWalk(repository)) {
+                treeWalk.addTree(tree);
+                treeWalk.setRecursive(false); // dont list all the subdirectory contents
+
+                if (path != null && !path.isEmpty() && !path.equals("/")) {
+                    String cleanPath = path.startsWith("/") ? path.substring(1) : path;
+                    treeWalk.setFilter(PathFilter.create(cleanPath));
+
+                    if (!treeWalk.next()) {
+                        throw new IllegalArgumentException("Path not found in repository: " + path);
+                    }
+                    if (treeWalk.isSubtree()) {
+                        treeWalk.enterSubtree();
+                    }
+                }
+
+                // Iterate through contents
+                while (treeWalk.next()) {
+                    entries.add(new CodebaseEntry(
+                        treeWalk.getNameString(),
+                        treeWalk.isSubtree() // if the current pointer is a file or directory
+                    ));
+                }
+            }
+        }
+        catch (IOException e) {
+            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error accessing repository: " + repositoryName);
+        }
+        return entries;
+    }
+
     // Functional interface to allow throwing checked exceptions
     @FunctionalInterface
     public interface SupplierWithException<T> {
@@ -94,7 +154,7 @@ public class GitService {
      * @return String path
      */
     private String getRepoPath(String repositoryName) {
-        Path repoPath = repositoriesRoot.resolve(repositoryName).normalize();
+        Path repoPath = repositoriesRoot.resolve(repositoryName + ".git");
 
         if (!repoPath.startsWith(repositoriesRoot) || !Files.exists(repoPath)) {
             throw new IllegalArgumentException("Invalid or non-existent repository: " + repositoryName);
@@ -142,8 +202,65 @@ public class GitService {
     }
 
 
+    public void createRepository(String repositoryName) {
+        Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
+        if (!repositoryPath.startsWith(repositoriesRoot)) {
+            throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
+        }
+
+        if (Files.exists(repositoryPath)) {
+            throw new IllegalStateException("Repository directory already exists: " + repositoryName);
+        }
+
+        try {
+            Files.createDirectories(repositoriesRoot);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to create repository", e);
+        }
+
+        try (Git git = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
+            // Touch repository to avoid an empty try block while still relying on JGit resource cleanup.
+            git.getRepository();
+        } catch (GitAPIException e) {
+            cleanupRepositoryDirectory(repositoryPath);
+            throw new IllegalStateException("Unable to create repository", e);
+        } catch (RuntimeException e) {
+            cleanupRepositoryDirectory(repositoryPath);
+            throw e;
+        }
+    }
+
+    public void deleteRepository(String repositoryName) {
+        Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
+        if (!repositoryPath.startsWith(repositoriesRoot)) {
+            throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
+        }
+        cleanupRepositoryDirectory(repositoryPath);
+    }
+
+    private void cleanupRepositoryDirectory(Path repositoryPath) {
+        if (!Files.exists(repositoryPath)) {
+            return;
+        }
+
+        try (var paths = Files.walk(repositoryPath)) {
+            paths.sorted(java.util.Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Unable to clean up repository directory", e);
+                    }
+                });
+        } catch (IOException e) {
+            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error cleaning up repository directory: " + repositoryPath);
+        }
+    }
+
+
     private boolean isValidBranchName(String name) {
         // Basic regex: allow only alphanumeric, hyphens, underscores, forward slashes
         return name != null && name.matches("^[a-zA-Z0-9/_\\-]+$");
     }
+
 }

@@ -3,14 +3,17 @@ package org.gitbounty.gitbountybackend.service.codebase.git;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeResult;
 import org.gitbounty.gitbountybackend.exception.MergeConflictException;
+import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseEntry;
 import org.gitbounty.gitbountybackend.util.codebase.LocalRepositoryLockProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,7 +27,7 @@ class GitServiceTests {
     void setup(@TempDir Path tempDir) throws Exception {
         // Use the actual implementation for the test
         gitService = new GitService(tempDir, new LocalRepositoryLockProvider());
-        bareRepoDir = tempDir.resolve(REPO_NAME).toFile();
+        bareRepoDir = tempDir.resolve(REPO_NAME + ".git").toFile();
 
         // 1. Initialize a BARE repository
         try (Git git = Git.init().setDirectory(bareRepoDir).setBare(true).call()) {
@@ -148,11 +151,105 @@ class GitServiceTests {
                 .setCreateBranch(!exists)
                 .setName(branch)
                 .call();
+            Path targetFile = cloneDir.resolve(file);
+            // 2. CREATE PARENT DIRECTORIES if they don't exist
+            if (targetFile.getParent() != null) {
+                Files.createDirectories(targetFile.getParent());
+            }
 
-            Files.writeString(cloneDir.resolve(file), content);
+            Files.writeString(targetFile, content);
             git.add().addFilepattern(file).call();
             git.commit().setMessage("Change to " + file).call();
             git.push().call();
         }
+    }
+
+    @Test
+    void testCreateAndDeleteRepository(){
+        String newRepoName = "new-repo";
+
+        // 1. Test Creation
+        gitService.createRepository(newRepoName);
+        Path repoPath = bareRepoDir.toPath().getParent().resolve(newRepoName + ".git");
+        assertTrue(Files.exists(repoPath), "Repository directory should exist");
+        assertTrue(Files.exists(repoPath.resolve("config")), "Git config should exist");
+
+        // 2. Test Deletion
+        gitService.deleteRepository(newRepoName);
+        assertFalse(Files.exists(repoPath), "Repository directory should be deleted");
+    }
+
+    @Test
+    void testListDirectoryContentsRoot() {
+        // Our setup() created a file named "file.txt" in master
+        List<CodebaseEntry> contents = gitService.listDirectoryContents(REPO_NAME, "/", "master");
+
+        boolean foundFile = contents.stream().anyMatch(e -> e.name().equals("file.txt") && !e.isDirectory());
+        assertTrue(foundFile, "Should list file.txt in root");
+    }
+
+    @Test
+    void testListDirectoryContentsSubdirectory() throws Exception {
+        // 1. Add a file to a subdirectory
+        prepareBranch("master", "docs/readme.txt", "some docs");
+
+        // 2. List contents of "docs"
+        List<CodebaseEntry> contents = gitService.listDirectoryContents(REPO_NAME, "docs", "master");
+
+        assertEquals(1, contents.size());
+        assertEquals("readme.txt", contents.get(0).name());
+        assertFalse(contents.get(0).isDirectory());
+    }
+
+    @Test
+    void testListDirectoryContentsInvalidPath() {
+        assertThrows(Exception.class, () -> {
+            gitService.listDirectoryContents(REPO_NAME, "non-existent-dir", "master");
+        });
+    }
+
+    @Test
+    void testListDirectoryContentsEmptyBranch() {
+        assertThrows(Exception.class, () -> {
+            gitService.listDirectoryContents(REPO_NAME, "/", "non-existent-branch");
+        });
+    }
+    @Test
+    void testCreateRepository_FailOnGitInit() throws IOException {
+        // 1. Create a dummy file where the repo directory should be
+        // This will cause Git.init() to fail because it cannot create a directory
+        Path repoPath = bareRepoDir.toPath().getParent().resolve("bad-repo.git");
+        Files.createFile(repoPath);
+
+        assertThrows(IllegalStateException.class, () -> {
+            gitService.createRepository("bad-repo");
+        });
+    }
+
+    @Test
+    void testCreateRepository_AlreadyExists() {
+        gitService.createRepository("existing-repo");
+        assertThrows(IllegalStateException.class, () -> {
+            gitService.createRepository("existing-repo");
+        });
+    }
+
+    @Test
+    void testCreateRepository_TriggerCleanup() {
+        // 1. Create the repository first to ensure it's "locked" or problematic
+        gitService.createRepository("fail-repo");
+        Path repoPath = bareRepoDir.toPath().getParent().resolve("fail-repo.git");
+
+        // 2. Make the directory read-only so Git.init() or subsequent
+        // internal operations fail.
+        repoPath.toFile().setWritable(false);
+
+        // 3. This will cause an exception inside the try block
+        assertThrows(Exception.class, () -> {
+            gitService.createRepository("new-fail-repo");
+        });
+
+        // Reset permissions so we can clean up
+        repoPath.toFile().setWritable(true);
     }
 }
