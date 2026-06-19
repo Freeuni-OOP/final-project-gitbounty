@@ -24,7 +24,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     /**
      * Find all transactions related to a specific issue
      */
-    List<Transaction> findByIssueId(Long issueId);
+    List<Transaction> findByBountyIssueId(Long issueId);
 
     /**
      * Find all pending transactions (in escrow)
@@ -34,7 +34,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     /**
      * Find a pending transaction for a specific issue
      */
-    Optional<Transaction> findByIssueIdAndStatus(Long issueId, TransactionStatus status);
+    Optional<Transaction> findByBountyIssueIdAndStatus(Long issueId, TransactionStatus status);
 
     /**
      * Find all transactions for a user by status
