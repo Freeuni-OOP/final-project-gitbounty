@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 
 @Setter
 @Getter
@@ -28,13 +27,10 @@ public class Issue {
 
     @Column(columnDefinition = "TEXT")
     private String description;
-    
-    // Bounty amount offered for completing this issue
-    @Column(name = "bounty_amount", nullable = false)
-    private BigDecimal bountyAmount = BigDecimal.ZERO;
 
-//    @Column(nullable = false)
-//    private String status = "OPEN";
+    // 'mappedBy' indicates that the Bounty class owns the foreign key.
+    @OneToOne(mappedBy = "issue", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Bounty bounty;
 
     // changed to using enums
     @Enumerated(EnumType.STRING)
@@ -46,7 +42,7 @@ public class Issue {
     private User author;
 
 
-    // those as well has to be uncommented after implementing the repository entity
+    // those as well have to be uncommented after implementing the repository entity
     @ManyToOne
     @JoinColumn(name = "repository_id", nullable = false)
     private Codebase repository;
