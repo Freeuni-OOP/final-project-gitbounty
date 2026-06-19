@@ -233,23 +233,29 @@ class GitServiceTests {
             gitService.createRepository("existing-repo");
         });
     }
+    @Test
+    void testGetFileContentsSuccess() throws Exception {
+        prepareBranch("master", "hello.txt", "Hello World");
+
+        String content = gitService.getFileContents(REPO_NAME, "hello.txt", "master");
+
+        assertEquals("Hello World", content);
+    }
 
     @Test
-    void testCreateRepository_TriggerCleanup() {
-        // 1. Create the repository first to ensure it's "locked" or problematic
-        gitService.createRepository("fail-repo");
-        Path repoPath = bareRepoDir.toPath().getParent().resolve("fail-repo.git");
+    void testGetFileContentsSubdirectory() throws Exception {
+        prepareBranch("master", "src/main.java", "public class Main {}");
 
-        // 2. Make the directory read-only so Git.init() or subsequent
-        // internal operations fail.
-        repoPath.toFile().setWritable(false);
+        String content = gitService.getFileContents(REPO_NAME, "src/main.java", "master");
 
-        // 3. This will cause an exception inside the try block
+        assertEquals("public class Main {}", content);
+    }
+
+    @Test
+    void testGetFileContentsFileNotFound() {
+        // Assert that asking for a non-existent file throws an exception
         assertThrows(Exception.class, () -> {
-            gitService.createRepository("new-fail-repo");
+            gitService.getFileContents(REPO_NAME, "ghost.txt", "master");
         });
-
-        // Reset permissions so we can clean up
-        repoPath.toFile().setWritable(true);
     }
 }

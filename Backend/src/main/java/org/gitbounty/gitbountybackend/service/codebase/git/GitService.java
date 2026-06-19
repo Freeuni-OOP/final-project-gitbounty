@@ -6,6 +6,7 @@ import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -140,6 +142,39 @@ public class GitService {
             throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error accessing repository: " + repositoryName);
         }
         return entries;
+    }
+
+    public String getFileContents(String repositoryName, String path, String branchName) throws IOException {
+        Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
+
+        try (Repository repository = new FileRepositoryBuilder()
+            .setGitDir(repoDir.toFile())
+            .build();
+             RevWalk revWalk = new RevWalk(repository)) {
+
+            // Resolve the branch to a commit
+            ObjectId branchId = repository.resolve(branchName);
+            if (branchId == null) {
+                throw new IllegalArgumentException("Branch not found: " + branchName);
+            }
+
+            // Get the tree from the commit
+            RevTree tree = revWalk.parseCommit(branchId).getTree();
+
+            // Use TreeWalk to find the file
+            try (TreeWalk treeWalk = TreeWalk.forPath(repository, path, tree)) {
+                if (treeWalk == null) {
+                    throw new IllegalArgumentException("File not found in repository: " + path);
+                }
+
+                // Load the blob object
+                ObjectId blobId = treeWalk.getObjectId(0);
+                ObjectLoader loader = repository.open(blobId);
+
+                // Convert bytes to string (assuming UTF-8)
+                return new String(loader.getBytes(), StandardCharsets.UTF_8);
+            }
+        }
     }
 
     // Functional interface to allow throwing checked exceptions
