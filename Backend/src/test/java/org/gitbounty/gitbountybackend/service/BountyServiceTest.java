@@ -6,6 +6,7 @@ import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -21,6 +22,9 @@ class BountyServiceTest {
 
     @Mock //"fake" repository
     private BountyRepository bountyRepository;
+
+    @Mock
+    private IssueRepository issueRepository;
 
     @InjectMocks //put the repo in our service
     private BountyService bountyService;
@@ -84,6 +88,8 @@ class BountyServiceTest {
 
         assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
         assertEquals(IssueStatus.CLOSED, mockIssue.getStatus(), "The linked issue should be closed when bounty is completed");
+
+        verify(issueRepository, times(1)).save(mockIssue);
     }
 
     @Test

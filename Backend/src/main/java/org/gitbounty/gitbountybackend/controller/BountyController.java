@@ -22,16 +22,16 @@ public class BountyController {
 
     //create a new bounty: POST http://localhost:8080/api/bounties
     @PostMapping
-    public ResponseEntity<?> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
-        try {
+    public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
+        //try {
             String userId = jwt.getSubject();
             Bounty created = bountyService.createBountyWithPermission(bountyDto, userId);
             return ResponseEntity.ok(created);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error while creating the bounty");
-        }
+        //} catch (IllegalArgumentException | IllegalStateException e) {
+        //    return ResponseEntity.badRequest().body(e.getMessage());
+        //} catch (Exception e) {
+        //    return ResponseEntity.internalServerError().body("Error while creating the bounty");
+        //}
     }
 
     @GetMapping
