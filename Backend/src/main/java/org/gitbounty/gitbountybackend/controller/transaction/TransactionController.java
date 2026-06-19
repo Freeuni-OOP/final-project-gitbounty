@@ -9,6 +9,7 @@ import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +34,7 @@ public class TransactionController {
      * POST /api/transactions
      */
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TransactionResponse> createTransaction(
         @RequestBody CreateTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
@@ -55,6 +57,7 @@ public class TransactionController {
      * PATCH /api/transactions/{id}/approve
      */
     @PatchMapping("/{id}/approve")
+    @PreAuthorize("@transactionPermissions.isCreator(#id, authentication.name)")
     public ResponseEntity<TransactionResponse> approveTransaction(
         @PathVariable Long id,
         @AuthenticationPrincipal Jwt jwt) {
@@ -73,6 +76,7 @@ public class TransactionController {
      * PATCH /api/transactions/{id}/reject
      */
     @PatchMapping("/{id}/reject")
+    @PreAuthorize("@transactionPermissions.isCreator(#id, authentication.name)")
     public ResponseEntity<TransactionResponse> rejectTransaction(
         @PathVariable Long id,
         @RequestBody RejectTransactionDto request,
@@ -96,6 +100,7 @@ public class TransactionController {
      * PATCH /api/transactions/{id}/dispute
      */
     @PatchMapping("/{id}/dispute")
+    @PreAuthorize("@transactionPermissions.isInvolved(#id, authentication.name)")
     public ResponseEntity<TransactionResponse> disputeTransaction(
         @PathVariable Long id,
         @RequestBody DisputeTransactionDto request,
@@ -120,6 +125,7 @@ public class TransactionController {
      * GET /api/transactions/{id}
      */
     @GetMapping("/{id}")
+    @PreAuthorize("@transactionPermissions.isInvolved(#id, authentication.name)")
     public ResponseEntity<TransactionResponse> getTransaction(@PathVariable Long id) {
         try {
             Transaction transaction = transactionService.getTransaction(id)
@@ -131,53 +137,23 @@ public class TransactionController {
     }
 
     /**
-     * Get all transactions (with optional filters).
+     * Get all transactions with optional dynamic filters.
      * GET /api/transactions?status=PENDING&userId=1&issueId=5
      */
     @GetMapping
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<List<TransactionResponse>> getTransactions(
-        @RequestParam(required = false) String status,
-        @RequestParam(required = false) Long userId,
-        @RequestParam(required = false) Long issueId) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long issueId) {
         try {
-            List<Transaction> transactions;
+            // Fetch transactions based on provided filters
+            List<Transaction> transactions = transactionService.getFilteredTransactions(status, userId, issueId);
 
-            if (issueId != null) {
-                transactions = transactionService.getTransactionsForIssue(issueId);
-            } else if (userId != null) {
-                transactions = transactionService.getTransactionsForUser(userId);
-            } else {
-                transactions = transactionService.getPendingTransactions();
-            }
-
-            // Filter by status if provided
-            if (status != null && !status.isEmpty()) {
-                transactions = transactions.stream()
-                    .filter(t -> t.getStatus().name().equals(status))
+            List<TransactionResponse> responses = transactions.stream()
+                    .map(TransactionResponse::from)
                     .collect(Collectors.toList());
-            }
 
-            List<TransactionResponse> responses = transactions.stream()
-                .map(TransactionResponse::from)
-                .collect(Collectors.toList());
-
-            return ResponseEntity.ok(responses);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Get all pending transactions (in escrow).
-     * GET /api/transactions/pending
-     */
-    @GetMapping("/pending")
-    public ResponseEntity<List<TransactionResponse>> getPendingTransactions() {
-        try {
-            List<Transaction> transactions = transactionService.getPendingTransactions();
-            List<TransactionResponse> responses = transactions.stream()
-                .map(TransactionResponse::from)
-                .collect(Collectors.toList());
             return ResponseEntity.ok(responses);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -189,6 +165,7 @@ public class TransactionController {
      * GET /api/transactions/users/{userId}/balance
      */
     @GetMapping("/users/{userId}/balance")
+    @PreAuthorize("@userPermissions.isOwner(#userId, authentication.name) or hasRole('admin')")
     public ResponseEntity<CreditBalanceResponse> getCreditBalance(@PathVariable Long userId) {
         try {
             var balance = transactionService.getUserCreditBalance(userId);
@@ -203,6 +180,7 @@ public class TransactionController {
      * GET /api/transactions/users/{userId}/transactions
      */
     @GetMapping("/users/{userId}/transactions")
+    @PreAuthorize("@userPermissions.isOwner(#userId, authentication.name) or hasRole('admin')")
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(@PathVariable Long userId) {
         try {
             List<Transaction> transactions = transactionService.getTransactionsForUser(userId);
