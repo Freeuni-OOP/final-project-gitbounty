@@ -31,7 +31,7 @@ class GitServiceTests {
         bareRepoDir = tempDir.resolve(REPO_NAME + ".git").toFile();
 
         // 1. Initialize a BARE repository
-        try (Git git = Git.init().setDirectory(bareRepoDir).setBare(true).call()) {
+        try (Git ignored = Git.init().setDirectory(bareRepoDir).setBare(true).call()) {
             // 2. To create the initial commit in a bare repo, we must clone it,
             // make changes, and push.
             Path cloneDir = tempDir.resolve("temp-clone");
@@ -74,17 +74,13 @@ class GitServiceTests {
         prepareBranch("master", "file.txt", "master change");
 
         // We verify that our custom exception is thrown
-        assertThrows(MergeConflictException.class, () -> {
-            gitService.mergeBranches(REPO_NAME, "feature", "master");
-        });
+        assertThrows(MergeConflictException.class, () -> gitService.mergeBranches(REPO_NAME, "feature", "master"));
     }
 
     @Test
     void testSecuritySanitization() {
         // Verify that path traversal attempts are blocked by our validation logic
-        assertThrows(IllegalArgumentException.class, () -> {
-            gitService.mergeBranches(REPO_NAME, "../../../etc/passwd", "master");
-        });
+        assertThrows(IllegalArgumentException.class, () -> gitService.mergeBranches(REPO_NAME, "../../../etc/passwd", "master"));
     }
 
     @Test
@@ -118,7 +114,7 @@ class GitServiceTests {
 
         // 4. Verify: Clone again to check the remote state
         Path verificationClone = Files.createTempDirectory("verify-rollback");
-        try (Git git = Git.cloneRepository()
+        try (Git ignored = Git.cloneRepository()
             .setURI(bareRepoDir.getAbsolutePath())
             .setDirectory(verificationClone.toFile())
             .call()) {
@@ -133,9 +129,7 @@ class GitServiceTests {
     void testRollbackWithInvalidCommitId() {
         // Ensure that providing a non-existent commit ID throws an exception
         // (Assuming you handle bad ObjectIds in your service)
-        assertThrows(Exception.class, () -> {
-            gitService.revertMerge(REPO_NAME, org.eclipse.jgit.lib.ObjectId.zeroId());
-        });
+        assertThrows(Exception.class, () -> gitService.revertMerge(REPO_NAME, org.eclipse.jgit.lib.ObjectId.zeroId()));
     }
 
     // Helper to simulate work in a bare repo
@@ -219,9 +213,7 @@ class GitServiceTests {
 
     @Test
     void testGetPathContents_InvalidPath() {
-        assertThrows(Exception.class, () -> {
-            gitService.getPathContents(REPO_NAME, "non-existent-dir", "master");
-        });
+        assertThrows(Exception.class, () -> gitService.getPathContents(REPO_NAME, "non-existent-dir", "master"));
     }
 
     @Test
@@ -229,16 +221,12 @@ class GitServiceTests {
         Path repoPath = bareRepoDir.toPath().getParent().resolve("bad-repo.git");
         Files.createFile(repoPath);
 
-        assertThrows(IllegalStateException.class, () -> {
-            gitService.createRepository("bad-repo");
-        });
+        assertThrows(IllegalStateException.class, () -> gitService.createRepository("bad-repo"));
     }
 
     @Test
     void testCreateRepository_AlreadyExists() {
         gitService.createRepository("existing-repo");
-        assertThrows(IllegalStateException.class, () -> {
-            gitService.createRepository("existing-repo");
-        });
+        assertThrows(IllegalStateException.class, () -> gitService.createRepository("existing-repo"));
     }
 }
