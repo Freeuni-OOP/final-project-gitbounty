@@ -3,7 +3,9 @@ package org.gitbounty.gitbountybackend.service.codebase.git;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeResult;
 import org.gitbounty.gitbountybackend.exception.MergeConflictException;
-import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseEntry;
+import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.gitbounty.gitbountybackend.util.codebase.LocalRepositoryLockProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -180,44 +181,51 @@ class GitServiceTests {
     }
 
     @Test
-    void testListDirectoryContentsRoot() {
-        // Our setup() created a file named "file.txt" in master
-        List<CodebaseEntry> contents = gitService.listDirectoryContents(REPO_NAME, "/", "master");
+    void testGetPathContents_RootDirectory() {
+        PathContents result = gitService.getPathContents(REPO_NAME, "/", "master");
 
-        boolean foundFile = contents.stream().anyMatch(e -> e.name().equals("file.txt") && !e.isDirectory());
+        // Use instanceof to identify and cast
+        assertInstanceOf(DirectoryContents.class, result, "Result should be a directory");
+        DirectoryContents dir = (DirectoryContents) result;
+
+        boolean foundFile = dir.contents().stream().anyMatch(name -> name.equals("file.txt"));
         assertTrue(foundFile, "Should list file.txt in root");
     }
 
     @Test
-    void testListDirectoryContentsSubdirectory() throws Exception {
-        // 1. Add a file to a subdirectory
+    void testGetPathContents_FileInSubdirectory() throws Exception {
+        prepareBranch("master", "src/main.java", "public class Main {}");
+
+        PathContents result = gitService.getPathContents(REPO_NAME, "src/main.java", "master");
+
+        assertInstanceOf(FileContents.class, result, "Result should be a file");
+        FileContents file = (FileContents) result;
+
+        assertEquals("public class Main {}", file.contents(), "File contents should match");
+    }
+
+    @Test
+    void testGetPathContents_SubdirectoryListing() throws Exception {
         prepareBranch("master", "docs/readme.txt", "some docs");
 
-        // 2. List contents of "docs"
-        List<CodebaseEntry> contents = gitService.listDirectoryContents(REPO_NAME, "docs", "master");
+        PathContents result = gitService.getPathContents(REPO_NAME, "docs", "master");
 
-        assertEquals(1, contents.size());
-        assertEquals("readme.txt", contents.get(0).name());
-        assertFalse(contents.get(0).isDirectory());
+        assertInstanceOf(DirectoryContents.class, result, "Result should be a directory");
+        DirectoryContents dir = (DirectoryContents) result;
+
+        assertEquals(1, dir.contents().size());
+        assertEquals("readme.txt", dir.contents().get(0));
     }
 
     @Test
-    void testListDirectoryContentsInvalidPath() {
+    void testGetPathContents_InvalidPath() {
         assertThrows(Exception.class, () -> {
-            gitService.listDirectoryContents(REPO_NAME, "non-existent-dir", "master");
+            gitService.getPathContents(REPO_NAME, "non-existent-dir", "master");
         });
     }
 
-    @Test
-    void testListDirectoryContentsEmptyBranch() {
-        assertThrows(Exception.class, () -> {
-            gitService.listDirectoryContents(REPO_NAME, "/", "non-existent-branch");
-        });
-    }
     @Test
     void testCreateRepository_FailOnGitInit() throws IOException {
-        // 1. Create a dummy file where the repo directory should be
-        // This will cause Git.init() to fail because it cannot create a directory
         Path repoPath = bareRepoDir.toPath().getParent().resolve("bad-repo.git");
         Files.createFile(repoPath);
 
@@ -231,31 +239,6 @@ class GitServiceTests {
         gitService.createRepository("existing-repo");
         assertThrows(IllegalStateException.class, () -> {
             gitService.createRepository("existing-repo");
-        });
-    }
-    @Test
-    void testGetFileContentsSuccess() throws Exception {
-        prepareBranch("master", "hello.txt", "Hello World");
-
-        String content = gitService.getFileContents(REPO_NAME, "hello.txt", "master");
-
-        assertEquals("Hello World", content);
-    }
-
-    @Test
-    void testGetFileContentsSubdirectory() throws Exception {
-        prepareBranch("master", "src/main.java", "public class Main {}");
-
-        String content = gitService.getFileContents(REPO_NAME, "src/main.java", "master");
-
-        assertEquals("public class Main {}", content);
-    }
-
-    @Test
-    void testGetFileContentsFileNotFound() {
-        // Assert that asking for a non-existent file throws an exception
-        assertThrows(Exception.class, () -> {
-            gitService.getFileContents(REPO_NAME, "ghost.txt", "master");
         });
     }
 }

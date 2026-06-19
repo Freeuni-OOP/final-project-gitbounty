@@ -6,17 +6,16 @@ import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.TreeWalk;
-import org.eclipse.jgit.treewalk.filter.PathFilter;
-import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
 import org.gitbounty.gitbountybackend.exception.MergeConflictException;
-import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseEntry;
+import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.gitbounty.gitbountybackend.util.codebase.RepositoryLockProvider;
 import org.springframework.stereotype.Service;
 
@@ -93,90 +92,53 @@ public class GitService {
         });
     }
 
-    public List<CodebaseEntry> listDirectoryContents(String repositoryName, String path, String branchName){
-        List<CodebaseEntry> entries = new ArrayList<>();
-
-        // Construct path to the .git directory
+    public PathContents getPathContents(String repositoryName, String path, String branchName) {
         Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
 
-        try (Repository repository = new FileRepositoryBuilder()
-            .setGitDir(repoDir.toFile())
-            .build();
+        try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir.toFile()).build();
              RevWalk revWalk = new RevWalk(repository)) {
 
-            // Resolve the specific branch
             ObjectId branchId = repository.resolve(branchName);
-            if (branchId == null) {
-                throw new BranchNotFoundException("Branch not found: " + branchName);
-            }
+            if (branchId == null) throw new IllegalArgumentException("Branch not found: " + branchName);
 
-            //Get the root tree of that branch
             RevTree tree = revWalk.parseCommit(branchId).getTree();
 
-            try (TreeWalk treeWalk = new TreeWalk(repository)) {
-                treeWalk.addTree(tree);
-                treeWalk.setRecursive(false); // dont list all the subdirectory contents
-
-                if (path != null && !path.isEmpty() && !path.equals("/")) {
-                    String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-                    treeWalk.setFilter(PathFilter.create(cleanPath));
-
-                    if (!treeWalk.next()) {
-                        throw new IllegalArgumentException("Path not found in repository: " + path);
-                    }
-                    if (treeWalk.isSubtree()) {
-                        treeWalk.enterSubtree();
-                    }
-                }
-
-                // Iterate through contents
-                while (treeWalk.next()) {
-                    entries.add(new CodebaseEntry(
-                        treeWalk.getNameString(),
-                        treeWalk.isSubtree() // if the current pointer is a file or directory
-                    ));
+            // If path is root or empty, list the root tree
+            if (path == null || path.isEmpty() || path.equals("/")) {
+                try (TreeWalk treeWalk = new TreeWalk(repository)) {
+                    treeWalk.addTree(tree);
+                    treeWalk.setRecursive(false);
+                    return new DirectoryContents(path, listDirectory(treeWalk));
                 }
             }
-        }
-        catch (IOException e) {
-            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error accessing repository: " + repositoryName);
-        }
-        return entries;
-    }
 
-    public String getFileContents(String repositoryName, String path, String branchName) {
-        Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
-
-        try (Repository repository = new FileRepositoryBuilder()
-            .setGitDir(repoDir.toFile())
-            .build();
-             RevWalk revWalk = new RevWalk(repository)) {
-
-            // Resolve the branch to a commit
-            ObjectId branchId = repository.resolve(branchName);
-            if (branchId == null) {
-                throw new IllegalArgumentException("Branch not found: " + branchName);
-            }
-
-            // Get the tree from the commit
-            RevTree tree = revWalk.parseCommit(branchId).getTree();
-
-            // Use TreeWalk to find the file
+            // Use TreeWalk to find the specific path
             try (TreeWalk treeWalk = TreeWalk.forPath(repository, path, tree)) {
-                if (treeWalk == null) {
-                    throw new IllegalArgumentException("File not found in repository: " + path);
+                if (treeWalk == null) throw new IllegalArgumentException("Path not found: " + path);
+
+                if (treeWalk.isSubtree()) {
+                    // It's a directory: enter it and list its contents
+                    treeWalk.enterSubtree();
+                    return new DirectoryContents(path, listDirectory(treeWalk));
+                } else {
+                    // It's a file: read the blob
+                    ObjectId blobId = treeWalk.getObjectId(0);
+                    String content = new String(repository.open(blobId).getBytes(), StandardCharsets.UTF_8);
+                    return new FileContents(treeWalk.getNameString(), content);
                 }
-
-                // Load the blob object
-                ObjectId blobId = treeWalk.getObjectId(0);
-                ObjectLoader loader = repository.open(blobId);
-
-                // Convert bytes to string (assuming UTF-8)
-                return new String(loader.getBytes(), StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error accessing repository: " + repositoryName);
+            throw new org.gitbounty.gitbountybackend.exception.GitAPIException("Error: " + e.getMessage());
         }
+    }
+
+    // Helper to extract directory entries
+    private List<String> listDirectory(TreeWalk treeWalk) throws IOException {
+        List<String> list = new ArrayList<>();
+        while (treeWalk.next()) {
+            list.add(treeWalk.getNameString());
+        }
+        return list;
     }
 
     // Functional interface to allow throwing checked exceptions
