@@ -22,7 +22,9 @@ public record TransactionResponse(
             transaction.getId(),
             transaction.getFromUser().getId(),
             transaction.getToUser().getId(),
-            transaction.getIssue() != null ? transaction.getIssue().getId() : null,
+                transaction.getBounty() != null && transaction.getBounty().getIssue() != null
+                        ? transaction.getBounty().getIssue().getId()
+                        : null,
             transaction.getAmount(),
             transaction.getStatus().name(),
             transaction.getDescription(),
