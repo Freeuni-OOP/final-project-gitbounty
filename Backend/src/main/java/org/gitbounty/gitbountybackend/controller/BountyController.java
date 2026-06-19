@@ -25,14 +25,8 @@ public class BountyController {
     @PostMapping
     @PreAuthorize("@bountyPermissions.isIssueRepositoryOwner(#bountyDto.issueId, authentication.name)")
     public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto) {
-        try {
             Bounty created = bountyService.createBountyWithPermission(bountyDto, null);
-            return ResponseEntity.ok(created);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+         return ResponseEntity.ok(created);
     }
 
     @GetMapping
