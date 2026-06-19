@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.transaction;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
+import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.TransactionStatus;
@@ -43,6 +44,7 @@ class TransactionServiceTest {
     private User fromUser;
     private User toUser;
     private Issue issue;
+    private Bounty bounty;
     private Transaction pendingTransaction;
 
     @BeforeEach
@@ -55,20 +57,24 @@ class TransactionServiceTest {
         toUser.setId(2L);
         toUser.setCreditBalance(new BigDecimal("50.00"));
 
+        bounty = new Bounty();
+        bounty.setId(1001L);
+        bounty.setAmount(20.00);
+
         issue = new Issue();
         issue.setId(10L);
         issue.setNumber(42);
         issue.setTitle("Fix Bug");
-        issue.setBountyAmount(new BigDecimal("20.00"));
+        issue.setBounty(bounty);
 
-        // Build base transaction using builder patterns matched from the service code
+        // Build base transaction replacing .issue() with .bounty()
         pendingTransaction = Transaction.builder()
                 .id(100L)
                 .fromUser(fromUser)
                 .toUser(toUser)
                 .amount(new BigDecimal("20.00"))
                 .status(TransactionStatus.PENDING)
-                .issue(issue)
+                .bounty(bounty)
                 .description("Bounty payout for issue #42: Fix Bug")
                 .build();
     }
@@ -81,7 +87,7 @@ class TransactionServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
             when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
             when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
-            when(transactionRepository.findByIssueIdAndStatus(10L, TransactionStatus.PENDING)).thenReturn(Optional.empty());
+            when(transactionRepository.findByBountyIssueIdAndStatus(10L, TransactionStatus.PENDING)).thenReturn(Optional.empty());
             when(transactionRepository.save(any(Transaction.class))).thenReturn(pendingTransaction);
 
             Transaction result = transactionService.createEscrow(1L, 2L, 10L);
@@ -123,7 +129,7 @@ class TransactionServiceTest {
 
         @Test
         void createEscrow_NullBountyAmount_ThrowsIllegalArgumentException() {
-            issue.setBountyAmount(null);
+            bounty.setAmount(null);
             when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
             when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
             when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
@@ -135,7 +141,7 @@ class TransactionServiceTest {
 
         @Test
         void createEscrow_NegativeBountyAmount_ThrowsIllegalArgumentException() {
-            issue.setBountyAmount(new BigDecimal("-5.00"));
+            bounty.setAmount(-5.00);
             when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
             when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
             when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
@@ -162,7 +168,7 @@ class TransactionServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
             when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
             when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
-            when(transactionRepository.findByIssueIdAndStatus(10L, TransactionStatus.PENDING))
+            when(transactionRepository.findByBountyIssueIdAndStatus(10L, TransactionStatus.PENDING))
                     .thenReturn(Optional.of(pendingTransaction));
 
             assertThrows(IllegalArgumentException.class, () ->
@@ -369,12 +375,12 @@ class TransactionServiceTest {
         @Test
         void getTransactionsForIssueTest() {
             List<Transaction> list = List.of(pendingTransaction);
-            when(transactionRepository.findByIssueId(10L)).thenReturn(list);
+            when(transactionRepository.findByBountyIssueId(10L)).thenReturn(list);
 
             List<Transaction> result = transactionService.getTransactionsForIssue(10L);
 
             assertEquals(1, result.size());
-            verify(transactionRepository).findByIssueId(10L);
+            verify(transactionRepository).findByBountyIssueId(10L);
         }
 
         @Test
@@ -385,6 +391,17 @@ class TransactionServiceTest {
 
             assertTrue(result.isPresent());
             assertEquals(100L, result.get().getId());
+        }
+
+        @Test
+        void getFilteredTransactionsTest() {
+            List<Transaction> list = List.of(pendingTransaction);
+            when(transactionRepository.findByBountyIssueId(10L)).thenReturn(list);
+
+            List<Transaction> result = transactionService.getFilteredTransactions("PENDING", null, 10L);
+
+            assertEquals(1, result.size());
+            verify(transactionRepository).findByBountyIssueId(10L);
         }
 
         @Test

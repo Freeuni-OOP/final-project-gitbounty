@@ -5,6 +5,7 @@ import org.gitbounty.gitbountybackend.controller.transaction.dto.CreateTransacti
 import org.gitbounty.gitbountybackend.controller.transaction.dto.DisputeTransactionDto;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.RejectTransactionDto;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.TransactionResponse;
+import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.TransactionStatus;
@@ -230,42 +231,39 @@ class TransactionControllerTest {
 
         @Test
         void getTransactions_WithIssueId_UsesIssueQuery() {
-            when(transactionService.getTransactionsForIssue(10L)).thenReturn(List.of(transaction));
+            when(transactionService.getFilteredTransactions(null, null, 10L)).thenReturn(List.of(transaction));
 
             ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, null, 10L);
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
             assertEquals(1, response.getBody().size());
-            verify(transactionService).getTransactionsForIssue(10L);
-            verify(transactionService, never()).getTransactionsForUser(anyLong());
-            verify(transactionService, never()).getPendingTransactions();
+            verify(transactionService).getFilteredTransactions(null, null, 10L);
         }
 
         @Test
         void getTransactions_WithUserIdAndStatus_FiltersByStatus() {
             Transaction completed = buildTransaction(101L, TransactionStatus.COMPLETED);
-            when(transactionService.getTransactionsForUser(1L)).thenReturn(List.of(transaction, completed));
+            when(transactionService.getFilteredTransactions("PENDING", 1L, null)).thenReturn(List.of(transaction, completed));
 
             ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions("PENDING", 1L, null);
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
-            assertEquals(1, response.getBody().size());
-            assertEquals("PENDING", response.getBody().get(0).status());
-            verify(transactionService).getTransactionsForUser(1L);
+            assertEquals(2, response.getBody().size());
+            verify(transactionService).getFilteredTransactions("PENDING", 1L, null);
         }
 
         @Test
-        void getPendingTransactions_Success_ReturnsOk() {
-            when(transactionService.getPendingTransactions()).thenReturn(List.of(transaction));
+        void getTransactions_NoFilters_Success_ReturnsOk() {
+            when(transactionService.getFilteredTransactions(null, null, null)).thenReturn(List.of(transaction));
 
-            ResponseEntity<List<TransactionResponse>> response = transactionController.getPendingTransactions();
+            ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, null, null);
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
             assertEquals(1, response.getBody().size());
-            verify(transactionService).getPendingTransactions();
+            verify(transactionService).getFilteredTransactions(null, null, null);
         }
 
         @Test
@@ -280,7 +278,7 @@ class TransactionControllerTest {
 
         @Test
         void getTransactions_WithUserIdOnly_UsesUserQuery() {
-            when(transactionService.getTransactionsForUser(1L)).thenReturn(List.of(transaction));
+            when(transactionService.getFilteredTransactions(null, 1L, null)).thenReturn(List.of(transaction));
 
             // Passing null for status and issueId
             ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, 1L, null);
@@ -288,24 +286,24 @@ class TransactionControllerTest {
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
             assertEquals(1, response.getBody().size());
-            verify(transactionService).getTransactionsForUser(1L);
+            verify(transactionService).getFilteredTransactions(null, 1L, null);
         }
 
         @Test
         void getTransactions_NoParams_ReturnsPendingTransactions() {
-            when(transactionService.getPendingTransactions()).thenReturn(List.of(transaction));
+            when(transactionService.getFilteredTransactions(null, null, null)).thenReturn(List.of(transaction));
 
             // Passing all null parameters to trigger the final else branch
             ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, null, null);
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
-            verify(transactionService).getPendingTransactions();
+            verify(transactionService).getFilteredTransactions(null, null, null);
         }
 
         @Test
         void getTransactions_ServiceFailure_ReturnsBadRequest() {
-            when(transactionService.getPendingTransactions()).thenThrow(new RuntimeException("database error"));
+            when(transactionService.getFilteredTransactions(null, null, null)).thenThrow(new RuntimeException("database error"));
 
             ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, null, null);
 
@@ -347,12 +345,15 @@ class TransactionControllerTest {
         to.setId(2L);
         Issue issue = new Issue();
         issue.setId(10L);
+        Bounty bounty = new Bounty();
+        bounty.setId(1001L);
+        bounty.setIssue(issue);
 
         return Transaction.builder()
             .id(id)
             .fromUser(from)
             .toUser(to)
-            .issue(issue)
+            .bounty(bounty)
             .amount(new BigDecimal("20.00"))
             .status(status)
             .description("Bounty payout")
