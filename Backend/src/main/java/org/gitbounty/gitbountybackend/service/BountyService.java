@@ -34,12 +34,6 @@ public class BountyService {
         //validate Issue Existence
         Issue issue = issueRepository.findById(dto.getIssueId()).orElseThrow(() -> new IllegalArgumentException("Issue not found with id: " + dto.getIssueId()));
 
-        String repoOwnerKeycloakId = issue.getRepository().getOwner().getKeycloakId();
-        if (!repoOwnerKeycloakId.equals(userId)) {
-            throw new IllegalStateException("Permission Denied: Only the repository owner can create bounties.");
-        }
-
-
         //User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("User not found with Keycloak ID: " + userId));
 
         //if (owner.getBalance() < dto.getAmount()) {
