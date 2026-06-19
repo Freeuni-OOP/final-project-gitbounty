@@ -54,7 +54,11 @@ public class TransactionService {
         Issue issue = issueRepository.findById(issueId)
             .orElseThrow(() -> new EntityNotFoundException("Issue not found: " + issueId));
 
-        BigDecimal bountyAmount = issue.getBountyAmount();
+        if (issue.getBounty() == null || issue.getBounty().getAmount() == null) {
+            throw new IllegalArgumentException("Issue has no bounty amount configured");
+        }
+
+        BigDecimal bountyAmount = BigDecimal.valueOf(issue.getBounty().getAmount());
 
         // Validate bounty amount
         if (bountyAmount == null || bountyAmount.compareTo(BigDecimal.ZERO) < 0) {
@@ -66,18 +70,18 @@ public class TransactionService {
         }
 
         // Check if there's already a pending transaction for this issue
-        Optional<Transaction> existingPending = transactionRepository.findByIssueIdAndStatus(issueId, TransactionStatus.PENDING);
+        Optional<Transaction> existingPending = transactionRepository.findByBountyIssueIdAndStatus(issueId, TransactionStatus.PENDING);
         if (existingPending.isPresent()) {
             throw new IllegalArgumentException("A pending transaction already exists for this issue");
         }
 
-        // Create transaction in PENDING status (escrow)
+        // Create transaction in PENDING status
         Transaction transaction = Transaction.builder()
             .fromUser(fromUser)
             .toUser(toUser)
             .amount(bountyAmount)
             .status(TransactionStatus.PENDING)
-            .issue(issue)
+            .bounty(issue.getBounty())
             .description("Bounty payout for issue #" + issue.getNumber() + ": " + issue.getTitle())
             .createdAt(LocalDateTime.now())
             .updatedAt(LocalDateTime.now())
@@ -181,32 +185,37 @@ public class TransactionService {
     @Transactional
     public Transaction disputeTransaction(Long transactionId, Long disputantUserId, String reason) {
         Transaction transaction = transactionRepository.findById(transactionId)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
 
-        // Verify transaction is in PENDING status
-        if (!transaction.getStatus().equals(TransactionStatus.PENDING)) {
-            throw new IllegalArgumentException("Can only dispute PENDING transactions. Current status: " + transaction.getStatus());
+        // Must be pending to dispute
+        if (transaction.getStatus() != TransactionStatus.PENDING) {
+            throw new IllegalArgumentException(
+                    "Can only dispute PENDING transactions. Current status: " + transaction.getStatus());
         }
 
-        // Verify disputant is either the creator or the recipient
+        // Transaction must be linked to a bounty
+        if (transaction.getBounty() == null) {
+            throw new IllegalStateException("Transaction is not linked to a bounty");
+        }
+
+        // Disputant must be creator or recipient
         Long fromUserId = transaction.getFromUser().getId();
         Long toUserId = transaction.getToUser().getId();
-
         if (!disputantUserId.equals(fromUserId) && !disputantUserId.equals(toUserId)) {
             throw new IllegalArgumentException("Only the bounty creator or completer can dispute this transaction");
         }
 
-        // Update transaction status to DISPUTED
         transaction.setStatus(TransactionStatus.DISPUTED);
+        transaction.setResolvedAt(LocalDateTime.now());
         transaction.setUpdatedAt(LocalDateTime.now());
 
-        if (reason != null && !reason.isEmpty()) {
-            transaction.setDescription(transaction.getDescription() + " [Disputed: " + reason + "]");
+        if (reason != null && !reason.isBlank()) {
+            String base = transaction.getDescription() == null ? "" : transaction.getDescription();
+            transaction.setDescription(base + " [Disputed: " + reason.trim() + "]");
         }
 
         return transactionRepository.save(transaction);
     }
-
     /**
      * Get all pending transactions (in escrow)
      */
@@ -229,7 +238,7 @@ public class TransactionService {
      * Get all transactions related to a specific issue
      */
     public List<Transaction> getTransactionsForIssue(Long issueId) {
-        return transactionRepository.findByIssueId(issueId);
+        return transactionRepository.findByBountyIssueId(issueId);
     }
 
     /**
@@ -264,5 +273,33 @@ public class TransactionService {
         user.setCreditBalance(newBalance);
         userRepository.save(user);
     }
+
+    /**
+     * Get transactions based on dynamic filters.
+     * This encapsulates the business logic of which data set to pull.
+     */
+    public List<Transaction> getFilteredTransactions(String status, Long userId, Long issueId) {
+        List<Transaction> transactions;
+
+        // Determine base data source
+        if (issueId != null) {
+            transactions = getTransactionsForIssue(issueId);
+        } else if (userId != null) {
+            transactions = getTransactionsForUser(userId);
+        } else {
+            // Depending on what we decided earlier, this might be getPendingTransactions() or a new getAllTransactions()
+            transactions = getPendingTransactions();
+        }
+
+        // Apply status filter if provided
+        if (status != null && !status.isEmpty()) {
+            transactions = transactions.stream()
+                    .filter(t -> t.getStatus().name().equalsIgnoreCase(status))
+                    .toList();
+        }
+
+        return transactions;
+    }
+
 }
 
