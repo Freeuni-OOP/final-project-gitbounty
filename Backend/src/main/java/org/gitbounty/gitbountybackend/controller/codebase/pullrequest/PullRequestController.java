@@ -3,6 +3,7 @@ package org.gitbounty.gitbountybackend.controller.codebase.pullrequest;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestDto;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestResponse;
+import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.CreatePullRequestCommand;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.PullRequestService;
 import org.springframework.http.HttpStatus;
@@ -77,6 +78,17 @@ class PullRequestController {
         @AuthenticationPrincipal Jwt jwt
     ) {
         pullRequestService.deletePullRequestForCodebase(repositoryName, prNumber);
+    }
+    // Delete/Close a Pull Request
+    @PatchMapping("/{prNumber}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, jwt.subject)")
+    public void closePullRequest(
+        @PathVariable String repositoryName,
+        @PathVariable Integer prNumber,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        pullRequestService.updatePRStatus(repositoryName, prNumber, IssueStatus.CLOSED);
     }
     // API endpoint for listing all issues for a repository
     @GetMapping

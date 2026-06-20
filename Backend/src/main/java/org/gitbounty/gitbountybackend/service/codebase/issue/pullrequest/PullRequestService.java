@@ -3,10 +3,7 @@ package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.exception.*;
-import org.gitbounty.gitbountybackend.model.Branch;
-import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.model.PullRequest;
-import org.gitbounty.gitbountybackend.model.User;
+import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
@@ -107,5 +104,13 @@ public class PullRequestService {
         return pullRequestRepository.findByRepositoryAndNumber(
             codebaseService.findByName(repositoryName), prNumber)
             .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+    }
+
+    public void updatePRStatus(String repositoryName, Integer prNumber, IssueStatus issueStatus) {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        persistenceService.updatePRStatus(pr.getId(), issueStatus);
     }
 }
