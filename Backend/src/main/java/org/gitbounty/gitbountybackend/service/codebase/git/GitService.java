@@ -211,39 +211,51 @@ public class GitService {
 
 
     public void createRepository(String repositoryName) {
-        Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
-        if (!repositoryPath.startsWith(repositoriesRoot)) {
-            throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
-        }
-
-        if (Files.exists(repositoryPath)) {
-            throw new IllegalStateException("Repository directory already exists: " + repositoryName);
-        }
-
+        // We lock here to prevent concurrent creation requests for the same repo name
         try {
-            Files.createDirectories(repositoriesRoot);
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to create repository", e);
-        }
+            runLocked(repositoryName, () -> {
+                Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
 
-        try (Git git = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
-            // Touch repository to avoid an empty try block while still relying on JGit resource cleanup.
-            git.getRepository();
-        } catch (GitAPIException e) {
-            cleanupRepositoryDirectory(repositoryPath);
-            throw new IllegalStateException("Unable to create repository", e);
-        } catch (RuntimeException e) {
-            cleanupRepositoryDirectory(repositoryPath);
-            throw e;
+                if (!repositoryPath.startsWith(repositoriesRoot)) {
+                    throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
+                }
+
+                if (Files.exists(repositoryPath)) {
+                    throw new IllegalStateException("Repository directory already exists: " + repositoryName);
+                }
+
+                try {
+                    Files.createDirectories(repositoriesRoot);
+                } catch (IOException e) {
+                    throw new IllegalStateException("Unable to create repository", e);
+                }
+
+                try (Git git = Git.init().setBare(true).setDirectory(repositoryPath.toFile()).call()) {
+                    // Git.init successful
+                } catch (GitAPIException e) {
+                    cleanupRepositoryDirectory(repositoryPath);
+                    throw new IllegalStateException("Unable to create repository", e);
+                }
+                return null; // Required for the functional interface
+            });
+        } catch (GitAPIException | IOException e) {
+            throw new IllegalStateException("Git operation failed during creation", e);
         }
     }
 
     public void deleteRepository(String repositoryName) {
-        Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
-        if (!repositoryPath.startsWith(repositoriesRoot)) {
-            throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
+        try {
+            runLocked(repositoryName, () -> {
+                Path repositoryPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
+                if (!repositoryPath.startsWith(repositoriesRoot)) {
+                    throw new IllegalArgumentException("Invalid repository name: " + repositoryName);
+                }
+                cleanupRepositoryDirectory(repositoryPath);
+                return null; // Required for the functional interface
+            });
+        } catch (GitAPIException | IOException e) {
+            throw new IllegalStateException("Git operation failed during deletion", e);
         }
-        cleanupRepositoryDirectory(repositoryPath);
     }
 
     private void cleanupRepositoryDirectory(Path repositoryPath) {
