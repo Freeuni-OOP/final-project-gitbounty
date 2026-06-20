@@ -1,20 +1,18 @@
 package org.gitbounty.gitbountybackend.config;
 
 import org.gitbounty.gitbountybackend.apis.KeycloakApi;
-import org.gitbounty.gitbountybackend.util.KeycloakJwtConverterUtil;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -26,6 +24,8 @@ public class KeycloakAuthenticationProvider implements AuthenticationProvider {
 
     private final JwtDecoder jwtDecoder;
     private final KeycloakApi keycloakApi;
+    // Inject the standard converter
+    private final JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
 
     public KeycloakAuthenticationProvider(JwtDecoder jwtDecoder, KeycloakApi keycloakApi) {
         this.jwtDecoder = jwtDecoder;
@@ -48,7 +48,7 @@ public class KeycloakAuthenticationProvider implements AuthenticationProvider {
     private Authentication registerSpringAuthUser(String accessToken) {
         try {
             Jwt jwt = jwtDecoder.decode(accessToken);
-            Collection<? extends GrantedAuthority> authorities = KeycloakJwtConverterUtil.convert(jwt);
+            Authentication auth = jwtConverter.convert(jwt);
 
             String principal = jwt.getClaimAsString("preferred_username");
             if (principal == null) {
@@ -56,7 +56,7 @@ public class KeycloakAuthenticationProvider implements AuthenticationProvider {
             }
 
             UsernamePasswordAuthenticationToken result =
-                new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
+                new UsernamePasswordAuthenticationToken(principal, accessToken, auth.getAuthorities());
             result.setDetails(Map.of("access_token", accessToken));
             return result;
         } catch (JwtException je) {

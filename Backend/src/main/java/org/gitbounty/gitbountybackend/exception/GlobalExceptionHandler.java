@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
     // --- 500 INTERNAL SERVER ERROR CATCH-ALL ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected server error occurred.");
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     // Standardized error JSON builder
