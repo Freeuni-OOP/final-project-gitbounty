@@ -2,11 +2,13 @@ package org.gitbounty.gitbountybackend.service.codebase;
 
 import java.security.Principal;
 
+import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
+import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -58,6 +60,17 @@ public class CodebaseService {
             .orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + normalizedRepositoryName));
     }
 
+    public CodebaseContentsDTO listCodebaseContents(String repositoryName, String path, String branchName) {
+        // Verify existence in database
+        // (If you want to ensure the repo is tracked in your system)
+        if (!codebaseRepository.existsByName(repositoryName)) {
+            throw new CodebaseNotFoundException("Codebase not found: " + repositoryName);
+        }
+
+        // Fetch contents from the Git service
+        PathContents entry = codebaseStorageService.getPathContents(repositoryName, path, branchName);
+        return new CodebaseContentsDTO(entry);
+    }
     private User resolveOwner(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");

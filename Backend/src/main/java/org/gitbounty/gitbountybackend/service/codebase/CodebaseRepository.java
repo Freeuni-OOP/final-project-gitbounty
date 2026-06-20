@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 interface CodebaseRepository extends JpaRepository<Codebase, Long> {
 
 	Optional<Codebase> findByName(String name);
+
+	boolean existsByName(String repositoryName);
 }
 
 

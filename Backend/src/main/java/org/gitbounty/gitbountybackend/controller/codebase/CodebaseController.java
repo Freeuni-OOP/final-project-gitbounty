@@ -4,14 +4,17 @@ import java.net.URI;
 import java.security.Principal;
 import java.util.List;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
+import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -59,6 +62,21 @@ public class CodebaseController {
         return ResponseEntity.ok(CodebaseResponse.from(codebase));
     }
 
+    // don't know how to test controllers
+    @GetMapping("/{repositoryName}/contents/**")
+    public ResponseEntity<CodebaseContentsDTO> getContents(
+        @PathVariable String repositoryName,
+        @RequestParam(defaultValue = "master") String branch,
+        HttpServletRequest request
+    ) {
+        // Extract the path after "/contents/"
+        String fullPath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        String prefix = "/api/codebases/" + repositoryName + "/contents/";
+        String path = fullPath.startsWith(prefix) ? fullPath.substring(prefix.length()) : "/";
+
+        CodebaseContentsDTO contents = codebaseService.listCodebaseContents(repositoryName, path, branch);
+        return ResponseEntity.ok(contents);
+    }
     // --- Member endpoints ---
 
     @GetMapping("/{repositoryName}/members")

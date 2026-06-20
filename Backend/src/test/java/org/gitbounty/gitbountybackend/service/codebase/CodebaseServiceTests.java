@@ -10,13 +10,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
+import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
+import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
+import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -133,10 +139,10 @@ class CodebaseServiceTests {
 
     @Test
     void createCodebaseRejectsUnknownAuthenticatedUser() {
-        Principal principal = () -> "missing-user";
+        Principal missingPrincipal = () -> "missing-user";
         when(userService.findByUsername("missing-user")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", principal))
+        assertThatThrownBy(() -> codebaseService.createCodebase("demo", "Demo repository", "http://localhost/git/demo.git", missingPrincipal))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
 
@@ -184,5 +190,55 @@ class CodebaseServiceTests {
             .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
 
         verify(storageService, never()).deleteRepository(any());
+    }
+    @Test
+    void listCodebaseContents_File_ReturnsFileDTO() {
+        // 1. Mock Repository existence
+        when(codebaseRepository.existsByName("demo")).thenReturn(true);
+
+        // 2. Mock Storage Service to return a FileContents
+        FileContents mockFile = new FileContents("Main.java","public class Main {}");
+        when(storageService.getPathContents("demo", "src/Main.java", "master"))
+            .thenReturn(mockFile);
+
+        // 3. Call service
+        CodebaseContentsDTO dto = codebaseService.listCodebaseContents("demo", "src/Main.java", "master");
+
+        // 4. Assert
+        assertThat(dto.type()).isEqualTo(FileType.FILE);
+        assertThat(dto.content()).isEqualTo("public class Main {}");
+        assertThat(dto.items()).isNull();
+    }
+
+    @Test
+    void listCodebaseContents_Directory_ReturnsDirectoryDTO() {
+        // 1. Mock Repository existence
+        when(codebaseRepository.existsByName("demo")).thenReturn(true);
+
+        // 2. Mock Storage Service to return DirectoryContents
+        DirectoryContents mockDir = new DirectoryContents("src/", List.of("src", "README.md"));
+        when(storageService.getPathContents("demo", "src", "master"))
+            .thenReturn(mockDir);
+
+        // 3. Call service
+        CodebaseContentsDTO dto = codebaseService.listCodebaseContents("demo", "src", "master");
+
+        // 4. Assert
+        assertThat(dto.type()).isEqualTo(FileType.DIRECTORY);
+        assertThat(dto.items()).containsExactly("src", "README.md");
+        assertThat(dto.content()).isNull();
+    }
+
+    @Test
+    void listCodebaseContents_ThrowsWhenRepoMissing() {
+        // 1. Mock repository missing
+        when(codebaseRepository.existsByName("unknown")).thenReturn(false);
+
+        // 2. Assert exception
+        assertThatThrownBy(() -> codebaseService.listCodebaseContents("unknown", "/", "master"))
+            .isInstanceOf(CodebaseNotFoundException.class);
+
+        // 3. Verify storage was never touched
+        verify(storageService, never()).getPathContents(any(), any(), any());
     }
 }
