@@ -93,7 +93,7 @@ public class GitService {
     }
 
     public PathContents getPathContents(String repositoryName, String path, String branchName) {
-        Path repoDir = repositoriesRoot.resolve(repositoryName + ".git");
+        Path repoDir = Path.of(getRepoPath(repositoryName));
 
         try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir.toFile()).build();
              RevWalk revWalk = new RevWalk(repository)) {
@@ -153,8 +153,17 @@ public class GitService {
      * @return String path
      */
     private String getRepoPath(String repositoryName) {
-        Path repoPath = repositoriesRoot.resolve(repositoryName + ".git");
+        // 1. Sanitize the input to prevent directory traversal
+        if (repositoryName.contains("..") || repositoryName.contains("/")) {
+            throw new IllegalArgumentException("Invalid repository name format");
+        }
+        Path repoPath = repositoriesRoot.resolve(repositoryName + ".git").normalize();
 
+        // Verify it is strictly inside the root
+        // Using toAbsolutePath().normalize() ensures we are comparing canonical paths
+        if (!repoPath.startsWith(repositoriesRoot.toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Access denied: Illegal path traversal attempt");
+        }
         if (!repoPath.startsWith(repositoriesRoot) || !Files.exists(repoPath)) {
             throw new IllegalArgumentException("Invalid or non-existent repository: " + repositoryName);
         }
