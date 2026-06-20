@@ -4,8 +4,9 @@ import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,9 +14,11 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final UserPermissions userPermissions;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserPermissions userPermissions) {
         this.userService = userService;
+        this.userPermissions = userPermissions;
     }
 
     /**
@@ -33,11 +36,12 @@ public class UserController {
      * Get current authenticated user's profile
      */
     @GetMapping("/profile/me")
-    public ResponseEntity<UserResponse> getCurrentUserProfile(Authentication authentication) {
-        String username = authentication.getName();
+    public ResponseEntity<UserResponse> getCurrentUserProfile(
+        @AuthenticationPrincipal Jwt jwt
+    ) {
 
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException("User profile not found for username: " + username));
+        User user = userService.findByKeycloakId(jwt.getSubject())
+                .orElseThrow(() -> new UserNotFoundException("User profile not found"));
 
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -46,11 +50,14 @@ public class UserController {
      * Update user profile (username and/or email)
      */
     @PutMapping("/{id}")
-    @PreAuthorize("@userPermissions.isOwner(#id, authentication.name)")
     public ResponseEntity<UserResponse> updateUserProfile(
             @PathVariable Long id,
-            @RequestBody UpdateUserRequest updateRequest) {
+            @RequestBody UpdateUserRequest updateRequest,
+            @AuthenticationPrincipal Jwt jwt) {
 
+        if(!userPermissions.isOwnerById(id, jwt.getSubject())) {
+            throw new AccessDeniedException("Access denied");
+        }
         // Clean and explicit. Exceptions propagate to the GlobalExceptionHandler.
         User updatedUser = userService.updateUserProfile(id, updateRequest.username(), updateRequest.email());
         return ResponseEntity.ok(UserResponse.from(updatedUser));

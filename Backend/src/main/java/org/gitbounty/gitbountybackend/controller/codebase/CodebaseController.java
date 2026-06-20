@@ -12,7 +12,9 @@ import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMe
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -23,13 +25,15 @@ public class CodebaseController {
 
     private final CodebaseService codebaseService;
     private final CodebaseMemberService memberService;
+    private final CodebasePermissions codebasePermissions;
 
     public CodebaseController(
             CodebaseService codebaseService,
-            CodebaseMemberService memberService
-    ) {
+            CodebaseMemberService memberService,
+            CodebasePermissions codebasePermissions) {
         this.codebaseService = codebaseService;
         this.memberService = memberService;
+        this.codebasePermissions = codebasePermissions;
     }
 
     @PostMapping
@@ -53,6 +57,7 @@ public class CodebaseController {
         return ResponseEntity.created(URI.create(codebase.getGitUrl()))
                 .body(CodebaseResponse.from(codebase));
     }
+
 
     @GetMapping("/{repositoryName}")
     public ResponseEntity<CodebaseResponse> getCodebase(
@@ -91,32 +96,41 @@ public class CodebaseController {
     }
 
     @PostMapping("/{repositoryName}/members")
-    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<MemberResponse> addMember(
             @PathVariable String repositoryName,
-            @RequestBody AddMemberRequest request
+            @RequestBody AddMemberRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
+        if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to add member");
+        }
         CodebaseMember member = memberService.addMember(repositoryName, request.username(), request.role());
         return ResponseEntity.status(HttpStatus.CREATED).body(MemberResponse.from(member));
     }
 
     @PutMapping("/{repositoryName}/members/{username}")
-    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<MemberResponse> updateMemberRole(
             @PathVariable String repositoryName,
             @PathVariable String username,
-            @RequestBody UpdateMemberRoleRequest request
+            @RequestBody UpdateMemberRoleRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
+        if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to update member");
+        }
         CodebaseMember member = memberService.updateMemberRole(repositoryName, username, request.role());
         return ResponseEntity.ok(MemberResponse.from(member));
     }
 
     @DeleteMapping("/{repositoryName}/members/{username}")
-    @PreAuthorize("@codebasePermissions.isOwner(#repositoryName, authentication.name)")
     public ResponseEntity<Void> removeMember(
             @PathVariable String repositoryName,
-            @PathVariable String username
+            @PathVariable String username,
+            @AuthenticationPrincipal Jwt jwt
     ) {
+        if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to remove member");
+        }
         memberService.removeMember(repositoryName, username);
         return ResponseEntity.noContent().build();
     }

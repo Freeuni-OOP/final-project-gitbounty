@@ -28,6 +28,14 @@ public class UserPermissions {
             .orElse(false);
     }
 
+    public boolean isOwnerById(Long targetUserId, String userId) {
+        if (targetUserId == null || userId == null || userId.isBlank()) {
+            return false;
+        }
+        return userService.findByKeycloakId(userId)
+            .map(user -> targetUserId.equals(user.getId()))
+            .orElse(false);
+    }
     public boolean hasRole(Authentication authentication, String role) {
         if (authentication == null || role == null || role.isBlank()) {
             return false;
