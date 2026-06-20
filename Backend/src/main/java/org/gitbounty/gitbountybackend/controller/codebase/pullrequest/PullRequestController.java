@@ -59,7 +59,7 @@ class PullRequestController {
     // Merge a Pull Request
     @PostMapping("/{prNumber}/merge")
     @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, jwt.subject)")
+    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, #jwt.subject)")
     public void mergePullRequest(
         @PathVariable String repositoryName,
         @PathVariable Integer prNumber,
@@ -71,7 +71,7 @@ class PullRequestController {
     // Delete/Close a Pull Request
     @DeleteMapping("/{prNumber}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, jwt.subject)")
+    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, #jwt.subject)")
     public void deletePullRequest(
         @PathVariable String repositoryName,
         @PathVariable Integer prNumber,
@@ -82,7 +82,7 @@ class PullRequestController {
     // Delete/Close a Pull Request
     @PatchMapping("/{prNumber}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, jwt.subject)")
+    @PreAuthorize("@codebasePermissions.isOwnerBySubject(#repositoryName, #jwt.subject)")
     public void closePullRequest(
         @PathVariable String repositoryName,
         @PathVariable Integer prNumber,
