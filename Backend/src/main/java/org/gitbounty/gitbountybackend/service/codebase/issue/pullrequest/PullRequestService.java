@@ -74,7 +74,7 @@ public class PullRequestService {
     public void mergePullRequestForCodebase(String repositoryName, Integer prNumber) throws IOException, GitAPIException {
         Codebase codebase = codebaseService.findByName(repositoryName);
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
-            .orElseThrow(() -> new ResourceNotFoundException("Pull request not found: " + prNumber + " For repository: " + repositoryName));
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
         // Execute the Git operation inside the locked scope
         gitService.runLocked(repositoryName, () -> {
@@ -93,5 +93,19 @@ public class PullRequestService {
                 throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
             }
         });
+    }
+
+    public void deletePullRequestForCodebase(String repositoryName, Integer prNumber) {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        persistenceService.delete(pr.getId());
+    }
+
+    public PullRequest getPullRequest(String repositoryName, Integer prNumber) {
+        return pullRequestRepository.findByRepositoryAndNumber(
+            codebaseService.findByName(repositoryName), prNumber)
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
     }
 }

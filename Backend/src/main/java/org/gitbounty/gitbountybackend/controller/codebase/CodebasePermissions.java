@@ -29,4 +29,9 @@ public class CodebasePermissions {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
         return authenticatedUsername.equals(codebase.getOwner().getUsername());
     }
+
+    public boolean isOwnerBySubject(String repositoryName, String subject) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        return codebase.getOwner().getKeycloakId().equals(subject);
+    }
 }

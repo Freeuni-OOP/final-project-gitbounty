@@ -37,4 +37,8 @@ public class PullRequestPersistenceService {
         pr.setMergedAt(Instant.now());
         return repository.save(pr);
     }
+
+    public void delete(Long prId) {
+        repository.deleteById(prId);
+    }
 }
