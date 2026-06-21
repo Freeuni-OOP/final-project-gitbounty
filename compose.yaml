@@ -12,23 +12,14 @@ services:
       - SPRING_APPLICATION_NAME=Backend
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty
-      - SPRING_DATASOURCE_USERNAME=dev_user
-      - SPRING_DATASOURCE_PASSWORD=dev_password
-      - SPRING_FLYWAY_USER=root
-      - SPRING_FLYWAY_PASSWORD=root_password
-      - GIT_REPOSITORIES_ROOT=/app/repositories
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080/realms/gitbounty
-      - KEYCLOAK_CLIENT_ID=gitbounty-backend
-      - KEYCLOAK_CLIENT_SECRET=gitbounty-backend-secret
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/gitbounty
     develop:
       watch:
         - path: Backend/src
           action: rebuild
-        - path: Backend/pom.xml
-          action: rebuild
+    depends_on:
+      mysql: { condition: service_healthy }
+      keycloak: { condition: service_started }
     networks:
       - gitbounty-network
     healthcheck:
@@ -89,7 +80,15 @@ services:
       - "80:80"   # Handles the HTTP connection to force a redirect
       - "443:443" # Opens public HTTPS secure line
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
+    develop:
+      watch:
+        - path: ./nginx.conf
+          action: rebuild
+        - path: ./Frontend/gitbounty
+          target: /usr/share/nginx/html
+          action: sync
     depends_on:
       backend:
           condition: service_healthy
