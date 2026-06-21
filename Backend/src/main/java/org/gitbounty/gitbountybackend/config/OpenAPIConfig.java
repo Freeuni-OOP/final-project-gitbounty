@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.*;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,7 @@ public class OpenAPIConfig {
         String tokenUrl = issuerUri + "/protocol/openid-connect/token";
 
         return new OpenAPI()
+            .addServersItem(new Server().url("https://localhost").description("Local Development"))
             .info(new Info()
                 .title("GitBounty API")
                 .version("1.0")
