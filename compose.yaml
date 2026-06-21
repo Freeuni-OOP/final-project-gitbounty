@@ -13,6 +13,13 @@ services:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/gitbounty
+      - SPRING_DATASOURCE_USERNAME=dev_user
+      - SPRING_DATASOURCE_PASSWORD=dev_password
+      - SPRING_FLYWAY_USER=root
+      - SPRING_FLYWAY_PASSWORD=root_password
+      - GIT_REPOSITORIES_ROOT=/app/repositories
+      - KEYCLOAK_CLIENT_ID=gitbounty-backend
+      - KEYCLOAK_CLIENT_SECRET=gitbounty-backend-secret
     develop:
       watch:
         - path: Backend/src
