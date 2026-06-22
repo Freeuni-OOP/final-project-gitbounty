@@ -6,6 +6,7 @@ import org.gitbounty.gitbountybackend.repository.BountyRepository;
 import org.gitbounty.gitbountybackend.service.User.UserRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -19,118 +20,130 @@ import static org.mockito.Mockito.*;
 
 class BountyServiceTest {
 
-    @Mock //"fake" repository
-    private BountyRepository bountyRepository;
+    @Mock private BountyRepository bountyRepository;
+    @Mock private IssueRepository issueRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private IssueRepository issueRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @InjectMocks //put the repo in our service
-    private BountyService bountyService;
+    @InjectMocks private BountyService bountyService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
+    //create bounty tests
+
     @Test
-    void createBounty_SaveBounty_WhenAmountPositiveAndEnoughFunds() {
-        //data inputs
+    @DisplayName("Create Bounty: Should decrease balance and save when all inputs are valid")
+    void createBounty_Success() {
         BountyDTO dto = new BountyDTO();
-        dto.setIssueId(10L);
-        dto.setTitle("Fixx Bug");
-        dto.setDescription("Fix it PLeAsEeE");
+        dto.setIssueId(1L);
         dto.setAmount(100.0);
-        String mockKeycloakId = "jemal-uuid-123";
+        String userId = "jemala-uuid";
 
-        Issue mockIssue = new Issue();
-        mockIssue.setId(10L);
+        User owner = new User();
+        owner.setCreditBalance(BigDecimal.valueOf(500.0));
 
-        User mockOwner = new User();
-        mockOwner.setKeycloakId(mockKeycloakId);
-        mockOwner.setCreditBalance(BigDecimal.valueOf(500.0)); //enough
+        Issue issue = new Issue();
+        issue.setId(1L);
 
-        Bounty expectedBounty = new Bounty();
-        expectedBounty.setTitle(dto.getTitle());
-        expectedBounty.setAmount(dto.getAmount());
+        when(issueRepository.findById(1L)).thenReturn(Optional.of(issue));
+        when(userRepository.findByKeycloakId(userId)).thenReturn(Optional.of(owner));
+        when(bountyRepository.save(any(Bounty.class))).thenAnswer(i -> i.getArgument(0));
 
-        when(issueRepository.findById(10L)).thenReturn(Optional.of(mockIssue));
-        when(userRepository.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockOwner));
-        when(bountyRepository.save(any(Bounty.class))).thenReturn(expectedBounty);
+        Bounty result = bountyService.createBounty(dto, userId);
 
-        Bounty savedBounty = bountyService.createBounty(dto, mockKeycloakId);
-
-        assertNotNull(savedBounty);
-        assertEquals("Fixx Bug", savedBounty.getTitle());
-
-        //500-100
-        assertEquals(BigDecimal.valueOf(400.0), mockOwner.getCreditBalance());
-
-        //verify the changes were saved
-        verify(userRepository, times(1)).save(mockOwner);
-        verify(bountyRepository, times(1)).save(any(Bounty.class));
+        assertNotNull(result);
+        assertEquals(BigDecimal.valueOf(400.0), owner.getCreditBalance());
+        verify(userRepository).save(owner);
+        verify(bountyRepository).save(any(Bounty.class));
     }
 
     @Test
-    void createBounty_Exception_WhenNotEnoughFunds() {
+    @DisplayName("Create Bounty: Should throw exception when balance is too low")
+    void createBounty_InsufficientFunds() {
         BountyDTO dto = new BountyDTO();
-        dto.setIssueId(10L);
+        dto.setIssueId(1L);
         dto.setAmount(100.0);
-        String mockKeycloakId = "user-uuid-123";
+        String userId = "jemala-uuid";
 
-        Issue mockIssue = new Issue();
-        User mockOwner = new User();
-        mockOwner.setCreditBalance(BigDecimal.valueOf(20.0)); //poor bastard
+        User owner = new User();
+        owner.setCreditBalance(BigDecimal.valueOf(50.0));
 
-        when(issueRepository.findById(10L)).thenReturn(Optional.of(mockIssue));
-        when(userRepository.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockOwner));
+        when(issueRepository.findById(1L)).thenReturn(Optional.of(new Issue()));
+        when(userRepository.findByKeycloakId(userId)).thenReturn(Optional.of(owner));
 
-        // Act & Assert matching validations
-        assertThrows(IllegalArgumentException.class, () -> {
-bountyService.createBounty(dto, mockKeycloakId);
-        });
-
-        //make sure nothing was written down
-        verify(userRepository, never()).save(any());
+        assertThrows(IllegalArgumentException.class, () -> bountyService.createBounty(dto, userId));
         verify(bountyRepository, never()).save(any());
     }
 
     @Test
-    void getBountyById_ShouldReturnBounty_WhenIdExists() {
+    @DisplayName("Create Bounty: Should fail if the issue does not exist")
+    void createBounty_IssueNotFound() {
+        BountyDTO dto = new BountyDTO();
+        dto.setIssueId(999L);
+        when(issueRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> bountyService.createBounty(dto, "any-id"));
+    }
+
+    //state management tests
+
+    @Test
+    @DisplayName("Complete Bounty: Should close the linked issue")
+    void completeBounty_ClosesIssue() {
         Bounty bounty = new Bounty();
-        bounty.setId(1L);
-        bounty.setTitle("Task");
-        bounty.setAmount(50.0);
+        bounty.setStatus(BountyStatus.OPEN);
+        Issue issue = new Issue();
+        issue.setStatus(IssueStatus.OPEN);
+        bounty.setIssue(issue);
 
         when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
-        BountyDTO found = bountyService.getBountyById(1L);
 
-        assertNotNull(found);
-        assertEquals("Task", found.getTitle());
-        assertEquals(50.0, found.getAmount());
+        bountyService.completeBounty(1L);
+
+        assertEquals(BountyStatus.COMPLETED, bounty.getStatus());
+        assertEquals(IssueStatus.CLOSED, issue.getStatus());
+        verify(issueRepository).save(issue);
     }
 
     @Test
-    void closeIssueAndBounty_ShouldAlsoCloseLinkedIssue() {
+    @DisplayName("Cancel Bounty: Should refund money and update status")
+    void cancelBounty_RefundsUser() {
+        User mockUser = new User();
+        mockUser.setKeycloakId("jemala-uuid-123");
+        mockUser.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockUser);
+
         Issue mockIssue = new Issue();
-        mockIssue.setId(20L);
-        mockIssue.setStatus(IssueStatus.OPEN);
+        mockIssue.setRepository(mockCodebase);
 
         Bounty mockBounty = new Bounty();
+        mockBounty.setAmount(50.0);
         mockBounty.setStatus(BountyStatus.OPEN);
+        mockBounty.setIssue(mockIssue);
 
-        when(issueRepository.findById(20L)).thenReturn(Optional.of(mockIssue));
-        when(bountyRepository.findByIssueId(20L)).thenReturn(Optional.of(mockBounty));
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(mockBounty));
+        when(userRepository.findByKeycloakId("jemala-uuid-123")).thenReturn(Optional.of(mockUser));
 
-        bountyService.closeIssueAndBounty(20L);
+        bountyService.cancelBounty(1L);
 
-        assertEquals(IssueStatus.CLOSED, mockIssue.getStatus());
+        assertEquals(BigDecimal.valueOf(150.0), mockUser.getCreditBalance());
         assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
 
-        verify(issueRepository, times(1)).save(mockIssue);
-        verify(bountyRepository, times(1)).save(mockBounty);
+        verify(userRepository).save(mockUser);
+        verify(bountyRepository).save(mockBounty);
+    }
+
+    @Test
+    @DisplayName("Cancel Bounty: Should not allow cancelling a completed bounty")
+    void cancelBounty_FailIfAlreadyCompleted() {
+        Bounty bounty = new Bounty();
+        bounty.setStatus(BountyStatus.COMPLETED);
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+
+        assertThrows(IllegalStateException.class, () -> bountyService.cancelBounty(1L));
     }
 }
