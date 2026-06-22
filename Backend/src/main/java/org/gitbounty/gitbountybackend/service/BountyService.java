@@ -26,20 +26,17 @@ public class BountyService {
     }
 
     @Transactional
-    public Bounty createBountyWithPermission(BountyDTO dto, String userId) {
-        //makes sure issue exists as well
+    public Bounty createBounty(BountyDTO dto, String userId) {
         Issue issue = issueRepository.findById(dto.getIssueId()).orElseThrow(() -> new IllegalArgumentException("Issue not found with id: " + dto.getIssueId()));
-
-        User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database with ID: " + userId));
+        User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database"));
 
         java.math.BigDecimal bountyAmount = java.math.BigDecimal.valueOf(dto.getAmount());
 
-        if (owner.getCreditBalance() == null || owner.getCreditBalance().compareTo(bountyAmount) < 0) throw new IllegalArgumentException("Insufficient funds in wallet to put bounty into escrow.");
+        if (owner.getCreditBalance() == null || owner.getCreditBalance().compareTo(bountyAmount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds in wallet to put bounty into escrow.");
+        }
 
-        java.math.BigDecimal newBalance = owner.getCreditBalance().subtract(bountyAmount);
-        owner.setCreditBalance(newBalance);
-
-        //save the updated balance
+        owner.setCreditBalance(owner.getCreditBalance().subtract(bountyAmount));
         userRepository.save(owner);
 
         Bounty bounty = new Bounty();
@@ -53,9 +50,49 @@ public class BountyService {
         return bountyRepository.save(bounty);
     }
 
-    public Bounty createBounty(Bounty bounty) {
-        if (bounty.getAmount() <= 0) { throw new IllegalArgumentException("Bounty amount needs to be greater than 0"); }
-        return bountyRepository.save(bounty);
+    @Transactional
+    public void completeBounty(Long bountyId) {
+        Bounty bounty = bountyRepository.findById(bountyId).orElseThrow(() -> new RuntimeException("Bounty not found"));
+
+        bounty.setStatus(BountyStatus.COMPLETED);
+        bountyRepository.save(bounty);
+
+        if (bounty.getIssue() != null) {
+            Issue issue = bounty.getIssue();
+            issue.setStatus(IssueStatus.CLOSED);
+            issueRepository.save(issue);
+        }
+    }
+
+    @Transactional
+    public void closeIssueAndBounty(Long issueId) {
+        Issue issue = issueRepository.findById(issueId).orElseThrow(() -> new RuntimeException("Issue not found"));
+
+        issue.setStatus(IssueStatus.CLOSED);
+        issueRepository.save(issue);
+
+        bountyRepository.findByIssueId(issueId).ifPresent(bounty -> {
+            bounty.setStatus(BountyStatus.COMPLETED);
+            bountyRepository.save(bounty);
+        });
+    }
+
+    @Transactional
+    public void cancelBounty(Long bountyId) {
+        Bounty bounty = bountyRepository.findById(bountyId).orElseThrow(() -> new RuntimeException("Bounty not found"));
+
+        if (bounty.getStatus() == BountyStatus.COMPLETED) {
+            throw new IllegalStateException("Cannot cancel a completed bounty");
+        }
+
+        User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId()).orElseThrow(() -> new RuntimeException("Paying user not found"));
+
+        //refund
+        owner.setCreditBalance(owner.getCreditBalance().add(java.math.BigDecimal.valueOf(bounty.getAmount())));
+        userRepository.save(owner);
+
+        bounty.setStatus(BountyStatus.COMPLETED); //could create a CANCELLED status as well, should not matter as completely can represent both
+        bountyRepository.save(bounty);
     }
 
     public List<BountyDTO> getAllBounties() {
@@ -79,32 +116,5 @@ public class BountyService {
         dto.setStatus(bounty.getStatus());
         if (bounty.getIssue() != null) dto.setIssueId(bounty.getIssue().getId());
         return dto;
-    }
-
-    private Bounty convertToEntity(BountyDTO dto) {
-        Bounty bounty = new Bounty();
-        bounty.setTitle(dto.getTitle());
-        bounty.setAmount(dto.getAmount());
-        bounty.setStatus(dto.getStatus());
-        return bounty;
-    }
-
-    public void closeBounty(Long bountyId) {
-        Bounty bounty = bountyRepository.findById(bountyId).orElseThrow(() -> new RuntimeException("Bounty not found"));
-        bounty.setStatus(BountyStatus.COMPLETED);
-        bountyRepository.save(bounty);
-
-        if (bounty.getIssue() != null) {
-            Issue issue = bounty.getIssue();
-            issue.setStatus(IssueStatus.CLOSED);
-            issueRepository.save(issue);
-        }
-    }
-
-    public void closeIssue(Long issueId) {
-        bountyRepository.findByIssueId(issueId).ifPresent(bounty -> {
-            bounty.setStatus(BountyStatus.COMPLETED);
-            bountyRepository.save(bounty);
-        });
     }
 }

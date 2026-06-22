@@ -6,9 +6,9 @@ import org.gitbounty.gitbountybackend.service.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -24,9 +24,9 @@ public class BountyController {
     //create a new bounty: POST http://localhost:8080/api/bounties
     @PostMapping
     @PreAuthorize("@bountyPermissions.isIssueRepositoryOwner(#bountyDto.issueId, authentication.name)")
-    public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto) {
-            Bounty created = bountyService.createBountyWithPermission(bountyDto, null);
-         return ResponseEntity.ok(created);
+    public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
+        Bounty created = bountyService.createBounty(bountyDto, jwt.getSubject());
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping
@@ -41,10 +41,6 @@ public class BountyController {
     //get a single bounty: GET http://localhost:8080/api/bounties/{id}
     @GetMapping("/{id}")
     public ResponseEntity<BountyDTO> getBountyById(@PathVariable Long id) {
-        try {
-            return ResponseEntity.ok(bountyService.getBountyById(id));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build(); //returns 404 if id does not exist
-        }
+        return ResponseEntity.ok(bountyService.getBountyById(id));
     }
 }
