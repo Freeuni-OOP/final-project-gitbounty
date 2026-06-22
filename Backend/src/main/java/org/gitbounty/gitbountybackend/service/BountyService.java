@@ -1,11 +1,8 @@
 package org.gitbounty.gitbountybackend.service;
-import org.gitbounty.gitbountybackend.model.Bounty;
-import org.gitbounty.gitbountybackend.model.BountyStatus;
+import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.dto.BountyDTO;
-import org.gitbounty.gitbountybackend.model.Issue;
-import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
-//import org.gitbounty.gitbountybackend.service.User.UserRepository;
+import org.gitbounty.gitbountybackend.service.User.UserRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,31 +16,32 @@ public class BountyService {
 
     private final BountyRepository bountyRepository;
     private final IssueRepository issueRepository;
-    //private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public BountyService(BountyRepository bountyRepository, IssueRepository issueRepository //, UserRepository userRepository
-    ) {
+    public BountyService(BountyRepository bountyRepository, IssueRepository issueRepository, UserRepository userRepository) {
         this.bountyRepository = bountyRepository;
         this.issueRepository = issueRepository;
-        //this.userRepository = userRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
     public Bounty createBountyWithPermission(BountyDTO dto, String userId) {
-        //validate Issue Existence
+        //makes sure issue exists as well
         Issue issue = issueRepository.findById(dto.getIssueId()).orElseThrow(() -> new IllegalArgumentException("Issue not found with id: " + dto.getIssueId()));
 
-        //User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("User not found with Keycloak ID: " + userId));
+        User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database with ID: " + userId));
 
-        //if (owner.getBalance() < dto.getAmount()) {
-        //    throw new IllegalArgumentException("Insufficient funds in wallet to put bounty into escrow.");
-        //}
+        java.math.BigDecimal bountyAmount = java.math.BigDecimal.valueOf(dto.getAmount());
 
-        //owner.setBalance(owner.getBalance()-dto.getAmount());
-        //userRepository.save(owner);
+        if (owner.getCreditBalance() == null || owner.getCreditBalance().compareTo(bountyAmount) < 0) throw new IllegalArgumentException("Insufficient funds in wallet to put bounty into escrow.");
 
-        // create the Bounty Entity
+        java.math.BigDecimal newBalance = owner.getCreditBalance().subtract(bountyAmount);
+        owner.setCreditBalance(newBalance);
+
+        //save the updated balance
+        userRepository.save(owner);
+
         Bounty bounty = new Bounty();
         bounty.setTitle(dto.getTitle());
         bounty.setDescription(dto.getDescription());
