@@ -336,4 +336,45 @@ class IssueServiceTests {
         verify(codebaseService).getCodebase("gitbounty-core");
         verify(issueRepository).findByRepositoryNameAndNumber("gitbounty-core", 99);
     }
+
+    @Test
+    void updateIssueStateShouldUpdateAndSaveIssue() {
+        User author = user("tester");
+        Codebase codebase = codebase("gitbounty-core");
+
+        Issue issue = new Issue();
+        issue.setId(1L);
+        issue.setNumber(7);
+        issue.setTitle("Fix login bug");
+        issue.setDescription("Login fails with token");
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAuthor(author);
+        issue.setRepository(codebase);
+
+        when(codebaseService.getCodebase("gitbounty-core")).thenReturn(codebase);
+        when(issueRepository.findByRepositoryNameAndNumber("gitbounty-core", 7))
+                .thenReturn(Optional.of(issue));
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        Issue result = issueService.updateIssueState("gitbounty-core", 7, IssueStatus.CLOSED);
+
+        assertEquals(IssueStatus.CLOSED, result.getStatus());
+
+        verify(codebaseService).getCodebase("gitbounty-core");
+        verify(issueRepository).findByRepositoryNameAndNumber("gitbounty-core", 7);
+        verify(issueRepository).saveAndFlush(issue);
+    }
+
+    @Test
+    void updateIssueStateShouldThrowBadRequestWhenStatusIsNull() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.updateIssueState("gitbounty-core", 7, null)
+        );
+
+        assertEquals("Issue status is required", exception.getMessage());
+
+        verifyNoInteractions(codebaseService);
+        verifyNoInteractions(issueRepository);
+    }
 }

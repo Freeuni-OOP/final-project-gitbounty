@@ -5,6 +5,9 @@ import java.security.Principal;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.User;
+
+import org.gitbounty.gitbountybackend.model.IssueStatus;
+
 import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 //import org.springframework.http.HttpStatus;
@@ -84,5 +87,17 @@ public class IssueService {
 
         return issueRepository.findByRepositoryNameAndNumber(repositoryName, issueNumber)
                 .orElseThrow(() -> new IssueNotFoundException("Issue not found: #" + issueNumber));
+    }
+
+    @Transactional
+    public Issue updateIssueState(String repositoryName, Integer issueNumber, IssueStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("Issue status is required");
+        }
+
+        Issue issue = getIssue(repositoryName, issueNumber);
+        issue.setStatus(status);
+
+        return issueRepository.saveAndFlush(issue);
     }
 }
