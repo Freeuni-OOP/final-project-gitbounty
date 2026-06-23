@@ -85,13 +85,19 @@ public class BountyService {
             throw new BountyAlreadyCompletedException(bountyId);
         }
 
-        User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId()).orElseThrow(() -> new RuntimeException("Paying user not found"));
+        User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId()).orElseThrow(() -> new UserNotFoundException("Paying user not found"));
 
         owner.setCreditBalance(owner.getCreditBalance().add(java.math.BigDecimal.valueOf(bounty.getAmount())));
         userRepository.save(owner);
 
         bounty.setStatus(BountyStatus.CANCELLED);
         bountyRepository.save(bounty);
+
+        if (bounty.getIssue() != null) {
+            Issue issue = bounty.getIssue();
+            issue.setStatus(IssueStatus.OPEN);
+            issueRepository.save(issue);
+        }
     }
 
     public List<BountyDTO> getAllBounties() {
