@@ -1,6 +1,8 @@
 services:
   backend:
-    image: ghcr.io/freeuni-oop/gitbounty-backend:${BRANCH_NAME}
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
     container_name: gitbounty-backend
     restart: unless-stopped
     ports:
@@ -16,7 +18,7 @@ services:
       - GIT_REPOSITORIES_ROOT=/app/repositories
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
       - SWAGGER_ENABLED=${SWAGGER_ENABLED}
@@ -65,7 +67,11 @@ services:
       - JAVA_OPTS_APPEND=-Xms256m -Xmx512m
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-      - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - KC_DB:mysql
+      - KC_DB_URL_HOST:mysql
+      - KC_DB_URL_PORT:3306
+      - KC_DB_URL_DATABASE:keycloak
+      - KC_DB_URL_PROPERTIES:"?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - KC_DB_USERNAME=keycloak_user
       - KC_DB_PASSWORD=keycloak_password
       - KC_HEALTH_ENABLED=true
@@ -80,8 +86,9 @@ services:
       - gitbounty-network
 
   nginx:
-    image: ghcr.io/freeuni-oop/frontend:${BRANCH_NAME}
-    image: nginx:alpine
+    build:
+        context: .
+        dockerfile: ./Frontend/gitbounty/Dockerfile
     container_name: gitbounty-proxy
     ports:
       - "80:80"   # Handles the HTTP connection to force a redirect

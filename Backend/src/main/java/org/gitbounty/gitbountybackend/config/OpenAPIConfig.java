@@ -13,8 +13,7 @@ import io.swagger.v3.oas.models.info.Info;
 @Configuration
 public class OpenAPIConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
-    private String issuerUri;
+    private final String issuerUri = "http://localhost:8080/realms/gitbounty";
     @Bean
     public OpenAPI customOpenAPI() {
         // Construct the URLs based on your existing Keycloak realm configuration
