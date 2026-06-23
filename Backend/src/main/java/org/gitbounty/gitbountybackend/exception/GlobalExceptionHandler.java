@@ -26,7 +26,9 @@ public class GlobalExceptionHandler {
             UserNotFoundException.class,
             BranchNotFoundException.class,
             CodebaseNotFoundException.class,
-            CodebaseMemberNotFoundException.class
+            CodebaseMemberNotFoundException.class,
+            BountyNotFoundException.class,
+            IssueNotFoundException.class
     })
     public ResponseEntity<Object> handleNotFoundExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -49,7 +51,10 @@ public class GlobalExceptionHandler {
     }
 
     // --- 400 BAD REQUEST HANDLERS ---
-    @ExceptionHandler(IllegalArgumentException.class)
+    @ExceptionHandler({
+            IllegalArgumentException.class,
+            BountyAlreadyCompletedException.class
+    })
     public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
