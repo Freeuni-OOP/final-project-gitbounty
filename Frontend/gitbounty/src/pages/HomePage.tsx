@@ -7,6 +7,7 @@ const STATUS_LABEL: Record<BountyDTO['status'], string> = {
   OPEN: 'Open',
   ASSIGNED: 'Assigned',
   COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
 };
 
 const HomePage = () => {

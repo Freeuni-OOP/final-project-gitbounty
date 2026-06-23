@@ -7,7 +7,7 @@ export interface BountyDTO {
     title: string;
     description: string;
     amount: number;
-    status: 'OPEN' | 'ASSIGNED' | 'COMPLETED';
+    status: 'OPEN' | 'ASSIGNED' | 'COMPLETED' | 'CANCELLED';
     issueId: number;
 }
 

@@ -140,6 +140,11 @@
   color: #6b7280;
 }
 
+.bounty-status--cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 /* Bounty description */
 .bounty-description {
   font-size: 13px;
