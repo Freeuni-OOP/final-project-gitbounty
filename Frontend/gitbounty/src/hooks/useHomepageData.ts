@@ -1,46 +1,48 @@
 import { useState, useEffect } from 'react';
-import type { BountyCardProps, TrendingTopic, TopRepository, ActivityItem } from '../types/Bounty';
-import {
-    mockTrendingBounties,
-    mockPersonalizedBounties,
-    mockTrendingTopics,
-    mockTopRepositories,
-    mockActivityFeed,
-} from '../mocks/homepageMock';
+
+const API_BASE = '';
+
+export interface BountyDTO {
+    id: number;
+    title: string;
+    description: string;
+    amount: number;
+    status: 'OPEN' | 'ASSIGNED' | 'COMPLETED' | 'CANCELLED';
+    issueId: number;
+}
 
 interface HomepageData {
-    trendingBounties: BountyCardProps[];
-    personalizedBounties: BountyCardProps[];
-    trendingTopics: TrendingTopic[];
-    topRepositories: TopRepository[];
-    activityFeed: ActivityItem[];
+    bounties: BountyDTO[];
     isLoading: boolean;
+    error: string | null;
 }
 
 export const useHomepageData = (): HomepageData => {
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState<Omit<HomepageData, 'isLoading'>>({
-        trendingBounties: [],
-        personalizedBounties: [],
-        trendingTopics: [],
-        topRepositories: [],
-        activityFeed: [],
-    });
+    const [error, setError] = useState<string | null>(null);
+    const [bounties, setBounties] = useState<BountyDTO[]>([]);
 
     useEffect(() => {
-        // TODO: replace with real API calls when backend is ready
-        const timer = setTimeout(() => {
-            setData({
-                trendingBounties: mockTrendingBounties,
-                personalizedBounties: mockPersonalizedBounties,
-                trendingTopics: mockTrendingTopics,
-                topRepositories: mockTopRepositories,
-                activityFeed: mockActivityFeed,
-            });
-            setIsLoading(false);
-        }, 300);
-        return () => clearTimeout(timer);
+        let cancelled = false;
+
+        const fetchData = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/bounties`);
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                const data: BountyDTO[] = await res.json();
+                if (!cancelled) setBounties(data);
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Failed to load bounties');
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+
+        fetchData();
+        return () => { cancelled = true; };
     }, []);
 
-    return { ...data, isLoading };
+    return { bounties, isLoading, error };
 };

@@ -1,21 +1,17 @@
 import HeroBanner from '../components/HeroBanner';
 import { useHomepageData } from '../hooks/useHomepageData';
+import type { BountyDTO } from '../hooks/useHomepageData';
 import '../styles/HomePage.css';
 
+const STATUS_LABEL: Record<BountyDTO['status'], string> = {
+  OPEN: 'Open',
+  ASSIGNED: 'Assigned',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
 const HomePage = () => {
-  const { topRepositories, activityFeed, isLoading } = useHomepageData();
-
-  const formatPool = (amount: number, currency: string) =>
-    currency === 'ETH' ? `${amount} ETH` : `$${amount.toLocaleString()}`;
-
-  const timeAgo = (dateString: string) => {
-    const diff = Date.now() - new Date(dateString).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
+  const { bounties, isLoading, error } = useHomepageData();
 
   if (isLoading) {
     return (
@@ -26,55 +22,47 @@ const HomePage = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="explore-loading">
+        <p>Failed to load bounties: {error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="explore-page">
       <HeroBanner />
-      <div className="explore-layout">
-        <main className="explore-main">
-          <div className="coming-soon">
-            <h2>🚀 Bounties Coming Soon</h2>
-            <p>Trending bounties and personalized feeds will appear here.</p>
+      <div className="feed-layout">
+        <div className="feed-section">
+          <div className="section-header">
+            <h2 className="section-title">Bounties</h2>
+            <span className="section-subtitle">{bounties.length} bounty{bounties.length !== 1 ? 's' : ''} available</span>
           </div>
-        </main>
-
-        <aside className="explore-sidebar">
-          <div className="sidebar-card">
-            <h3 className="sidebar-card-title">🏆 Top Rewarding Repos</h3>
-            <div className="repo-leaderboard">
-              {topRepositories.map((repo, index) => (
-                <div key={repo.name} className="repo-leaderboard-item">
-                  <span className="repo-rank">#{index + 1}</span>
-                  <img src={repo.avatarUrl} alt={repo.name} className="repo-mini-avatar" />
-                  <div className="repo-leaderboard-info">
-                    <span className="repo-leaderboard-name">{repo.name}</span>
-                    <span className="repo-leaderboard-bounties">{repo.openBounties} open bounties</span>
+          {bounties.length === 0 ? (
+            <p className="bounties-empty">No bounties found.</p>
+          ) : (
+            <div className="bounties-feed">
+              {bounties.map((bounty) => (
+                <div key={bounty.id} className="bounty-card">
+                  <div className="bounty-card-header">
+                    <span className={`bounty-status bounty-status--${bounty.status.toLowerCase()}`}>
+                      {STATUS_LABEL[bounty.status]}
+                    </span>
+                    <span className="bounty-time">Issue #{bounty.issueId}</span>
                   </div>
-                  <span className="repo-pool">{formatPool(repo.totalBountyPool, repo.currency)}</span>
+                  <h3 className="bounty-issue-title">{bounty.title}</h3>
+                  {bounty.description && (
+                    <p className="bounty-description">{bounty.description}</p>
+                  )}
+                  <div className="bounty-card-footer">
+                    <span className="bounty-reward-badge">${bounty.amount.toLocaleString()}</span>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="sidebar-card">
-            <h3 className="sidebar-card-title">⚡ Live Activity</h3>
-            <div className="activity-feed">
-              {activityFeed.map((item) => (
-                <div key={item.id} className="activity-item">
-                  <div className="activity-dot" />
-                  <div className="activity-text">
-                    <span className="activity-username">@{item.username}</span>{' '}
-                    {item.action} a{' '}
-                    <span className="activity-reward">
-                      {item.currency === 'ETH' ? `${item.amount} ETH` : `$${item.amount}`}
-                    </span>{' '}
-                    bounty on <span className="activity-repo">{item.repoName}</span>
-                  </div>
-                  <span className="activity-time">{timeAgo(item.timestamp)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
+          )}
+        </div>
       </div>
     </div>
   );
