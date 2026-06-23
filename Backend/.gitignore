@@ -35,3 +35,6 @@ build/
 # Runtime Git repositories
 repositories/
 
+
+.DS_Store
+**/.DS_Store

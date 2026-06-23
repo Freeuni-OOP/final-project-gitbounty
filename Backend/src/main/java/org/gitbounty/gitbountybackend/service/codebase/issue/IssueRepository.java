@@ -11,6 +11,8 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
 
     List<Issue> findByRepositoryName(String repositoryName);
 
+    Optional<Issue> findByRepositoryNameAndNumber(String repositoryName, Integer number);
+
     @Query("select max(i.number) from Issue i where i.repository.id = :repositoryId")
     Optional<Integer> findMaxNumberByRepositoryId(Long repositoryId);
 }

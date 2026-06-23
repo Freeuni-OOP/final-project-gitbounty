@@ -102,11 +102,67 @@
   align-items: start;
 }
 
+.feed-layout {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
 .explore-main {
   display: flex;
   flex-direction: column;
   gap: 40px;
   min-width: 0;
+}
+
+/* Bounty status badges */
+.bounty-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bounty-status--open {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.bounty-status--assigned {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.bounty-status--completed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.bounty-status--cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Bounty description */
+.bounty-description {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Empty state */
+.bounties-empty {
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
 }
 
 .feed-section {

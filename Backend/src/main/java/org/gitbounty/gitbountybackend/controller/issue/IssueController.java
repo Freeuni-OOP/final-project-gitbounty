@@ -6,6 +6,7 @@ import java.security.Principal;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,10 @@ public class IssueController {
             @RequestBody CreateIssueRequest request,
             Principal principal
     ) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+
         Issue issue = issueService.createIssue(
                 repositoryName,
                 request.title(),
@@ -48,5 +53,15 @@ public class IssueController {
                 .toList();
 
         return ResponseEntity.ok(issues);
+    }
+
+    @GetMapping("/{issueNumber}")
+    public ResponseEntity<IssueResponse> getIssue(
+            @PathVariable String repositoryName,
+            @PathVariable Integer issueNumber
+    ) {
+        Issue issue = issueService.getIssue(repositoryName, issueNumber);
+
+        return ResponseEntity.ok(IssueResponse.from(issue));
     }
 }
