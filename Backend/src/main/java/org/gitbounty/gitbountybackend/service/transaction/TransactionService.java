@@ -7,7 +7,7 @@ import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.TransactionStatus;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
-import org.gitbounty.gitbountybackend.service.User.UserRepository;
+import org.gitbounty.gitbountybackend.service.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

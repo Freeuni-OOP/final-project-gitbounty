@@ -8,11 +8,9 @@ import org.gitbounty.gitbountybackend.model.User;
 
 import org.gitbounty.gitbountybackend.model.IssueStatus;
 
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
-//import org.springframework.http.HttpStatus;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
-//import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
