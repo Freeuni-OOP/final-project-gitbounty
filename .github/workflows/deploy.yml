@@ -33,12 +33,12 @@ jobs:
 
       - name: Build and Push Backend
         uses: docker/build-push-action@v5
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         with:
           context: ./Backend
           file: ./Backend/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build Frontend Artifacts
@@ -53,6 +53,8 @@ jobs:
           context: ./Frontend/gitbounty
           file: ./Frontend/gitbounty/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build and Push Keycloak
@@ -61,6 +63,8 @@ jobs:
           context: .
           file: ./keycloak/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
 
   deploy:
