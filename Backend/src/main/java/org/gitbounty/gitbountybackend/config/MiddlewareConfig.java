@@ -1,7 +1,7 @@
 package org.gitbounty.gitbountybackend.config;
 
 import org.gitbounty.gitbountybackend.middleware.JwtUserSyncMiddleware;
-import org.gitbounty.gitbountybackend.service.User.UserService;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

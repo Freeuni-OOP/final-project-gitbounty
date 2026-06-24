@@ -5,14 +5,13 @@ on:
     branches:
       - main
       - develop
+      - fix/UserControllerWithinDocker
 
-# Prevents race conditions if you push multiple commits rapidly
 concurrency:
   group: development-deploy
   cancel-in-progress: false
 
 jobs:
-  # BUILD: Happens on GitHub's servers, not VPS
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
@@ -20,24 +19,58 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: x-access-token
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Add this step to create a safe tag name
+      - name: Set Tag Name
+        id: vars
+        run: echo "safe_ref=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
 
-      - name: Build and Push Images
+      #Required for caching images
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Backend
+          file: ./Backend/Dockerfile
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
+
+      - name: Build Frontend Artifacts
+        run: |
+          cd Frontend/gitbounty
+          npm install
+          npm run build
+
+      - name: Build and Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Frontend/gitbounty
+          file: ./Frontend/gitbounty/Dockerfile
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
+
+      - name: Build and Push Keycloak
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./keycloak/Dockerfile
           push: true
-          # Tags the images so your compose file can find them
-          tags: |
-            ghcr.io/freeuni-oop/gitbounty-backend:${{ github.ref_name }}
-            ghcr.io/freeuni-oop/gitbounty-frontend:${{ github.ref_name }} 
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
 
-  # DEPLOY: Only runs if the Build job succeeds
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -49,10 +82,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/${{ secrets.SERVER_USER }}/gitbounty
-            # Pull pre-built images (Fast and low RAM usage)
+            cd /home/gitbounty
+            echo -e "${{ secrets.ENV_FILE_CONTENT }}" > .env
+            # Secure the file
+            chmod 600 .env
+            cat .env
             docker compose pull
-            # Start/Update containers
             docker compose up -d
-            # Clean up dangling images to free space
             docker image prune -f

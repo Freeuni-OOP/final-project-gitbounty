@@ -1,14 +1,14 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
-import java.security.Principal;
 
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,15 +29,16 @@ public class CodebaseService {
         this.userService = userService;
     }
 
-    public Codebase createCodebase(String name, String description, String gitUrl, Principal principal) {
+
+    public Codebase createCodebase(String name, String description, String gitUrl, String userId) { // keycloak Id
         String repositoryName = normalizeRepositoryName(name);
-        User owner = resolveOwner(principal);
+        User owner = userService.findByKeycloakId(userId)
+            .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         if (codebaseRepository.findByName(repositoryName).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Repository already exists: " + repositoryName);
+            throw new IllegalStateException("Repository already exists");
         }
-
-        codebaseStorageService.createRepository(repositoryName);
+            codebaseStorageService.createRepository(repositoryName);
 
         try {
             return codebaseRepository.saveAndFlush(
@@ -70,14 +71,6 @@ public class CodebaseService {
         // Fetch contents from the Git service
         PathContents entry = codebaseStorageService.getPathContents(repositoryName, path, branchName);
         return new CodebaseContentsDTO(entry);
-    }
-    private User resolveOwner(Principal principal) {
-        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
-        }
-
-        return userService.findByUsername(principal.getName())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found"));
     }
 
     private String normalizeRepositoryName(String name) {

@@ -33,3 +33,5 @@ repositories/
 
 # private ssh key to VPS
 gitbounty
+
+.env

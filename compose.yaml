@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/freeuni-oop/gitbounty-backend:${BRANCH_NAME}
+    image: ghcr.io/freeuni-oop/gitbounty-backend:main
     container_name: gitbounty-backend
     restart: unless-stopped
     ports:
@@ -9,14 +9,14 @@ services:
       - gitbounty-repositories:/app/repositories
     environment:
       - SPRING_APPLICATION_NAME=Backend
-      - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_DATASOURCE_URL=${DB_URL}
       - SPRING_FLYWAY_USER=${FLYWAY_USER}
       - SPRING_FLYWAY_PASSWORD=${FLYWAY_PASSWORD}
       - GIT_REPOSITORIES_ROOT=/app/repositories
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
       - SWAGGER_ENABLED=${SWAGGER_ENABLED}
@@ -25,9 +25,6 @@ services:
       watch:
         - path: Backend/src
           action: rebuild
-    depends_on:
-      mysql: { condition: service_healthy }
-      keycloak: { condition: service_started }
     networks:
       - gitbounty-network
     healthcheck:
@@ -35,75 +32,92 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+#
+#  mysql:
+#    image: mysql:8.0
+#    container_name: gitbounty-mysql
+#    environment:
+#      MYSQL_ROOT_PASSWORD: root
+#      MYSQL_USER: ${DB_USER}
+#      MYSQL_PASSWORD: ${DB_PASSWORD}
+#      MYSQL_DATABASE: gitbounty
+#    ports:
+#      - "3306:3306"
+#    volumes:
+#      - mysql-data:/var/lib/mysql
+#      - ./db/init:/docker-entrypoint-initdb.d
+#    healthcheck:
+#      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+#      timeout: 10s
+#      retries: 10
+#      interval: 5s
+#    networks:
+#      - gitbounty-network
 
-  mysql:
-    image: mysql:8.0
-    container_name: gitbounty-mysql
+  keycloak-db:
+    image: postgres:15
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: gitbounty
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      timeout: 10s
-      retries: 10
-      interval: 5s
+      - keycloak_db_data:/var/lib/postgresql/data
     networks:
-      - gitbounty-network
+        - gitbounty-network
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: gitbounty-keycloak
-    command: ${KC_COMMAND:-start-dev} --import-realm
+    command: start-dev --import-realm
+#    build:
+#      context: .
+#      dockerfile: ./keycloak/Dockerfile
     environment:
-      - JAVA_OPTS_APPEND=-Xms256m -Xmx512m
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-      - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
-      - KC_DB_USERNAME=keycloak_user
-      - KC_DB_PASSWORD=keycloak_password
-      - KC_HEALTH_ENABLED=true
+        JAVA_OPTS_APPEND: -Xms256m -Xmx512m
+        KC_DB: postgres
+        KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+        KC_DB_USERNAME: keycloak
+        KC_DB_PASSWORD: password
+        KC_FEATURES: hostname:v2
+        KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
+        KC_HOSTNAME: ${KEYCLOAK_ISSUER_URI}
+        KEYCLOAK_ADMIN: admin
+        KEYCLOAK_ADMIN_PASSWORD: admin
+    depends_on:
+      - keycloak-db
     ports:
       - "8080:8080"
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - gitbounty-network
 
-  nginx:
-    image: ghcr.io/freeuni-oop/frontend:${BRANCH_NAME}
-    image: nginx:alpine
-    container_name: gitbounty-proxy
+  frontend:
+    image: ghcr.io/freeuni-oop/gitbounty-frontend:main
+
+  caddy:
+    image: caddy:latest
     ports:
-      - "80:80"   # Handles the HTTP connection to force a redirect
-      - "443:443" # Opens public HTTPS secure line
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    develop:
-      watch:
-        - path: ./nginx.conf
-          action: rebuild
-        - path: ./Frontend/gitbounty
-          target: /usr/share/nginx/html
-          action: sync
-    depends_on:
-      backend:
-          condition: service_healthy
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
     networks:
-        - gitbounty-network
+      - gitbounty-network
+
+
 volumes:
   mysql-data:
   gitbounty-repositories:
+  keycloak_db_data:
+  caddy_config:
+  caddy_data:
 
 networks:
   gitbounty-network:

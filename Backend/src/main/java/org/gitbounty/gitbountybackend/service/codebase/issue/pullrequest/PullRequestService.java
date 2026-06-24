@@ -7,8 +7,8 @@ import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
-import org.gitbounty.gitbountybackend.service.User.UserService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchRepository;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;

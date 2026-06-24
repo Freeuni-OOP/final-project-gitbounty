@@ -2,7 +2,7 @@ package org.gitbounty.gitbountybackend.controller.user;
 
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.User.UserService;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
