@@ -20,7 +20,8 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4]
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -29,7 +30,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Backend
-      - uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5
         with:
           context: ./Backend
           file: ./Backend/Dockerfile
@@ -43,14 +44,14 @@ jobs:
           npm run build
 
       - name: Build and Push Frontend
-      - uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5
         with:
           context: ./Frontend/gitbounty
           file: ./Frontend/gitbounty/Dockerfile
           push: true
           tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ github.ref_nam
       - name: Build and Push Keycloak
-      - uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./keycloak/Dockerfile
