@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service.User;
+package org.gitbounty.gitbountybackend.service.user;
 
 import org.gitbounty.gitbountybackend.controller.user.UserPermissions;
 import org.gitbounty.gitbountybackend.model.User;

@@ -36,10 +36,10 @@ public class CodebaseController {
         this.codebasePermissions = codebasePermissions;
     }
 
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<CodebaseResponse> createCodebase(
             @RequestBody CreateCodebaseRequest request,
-            Principal principal
+            @AuthenticationPrincipal Jwt jwt
     ) {
         String repositoryName = request.name() == null ? "" : request.name().trim();
         String gitUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -51,7 +51,7 @@ public class CodebaseController {
                 repositoryName,
                 request.description(),
                 gitUrl,
-                principal
+                jwt.getSubject()
         );
 
         return ResponseEntity.created(URI.create(codebase.getGitUrl()))
