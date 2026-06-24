@@ -1,9 +1,8 @@
 services:
   backend:
-    build:
-      context: Backend
-      dockerfile: Dockerfile
+    image: ghcr.io/freeuni-oop/gitbounty-backend:${BRANCH_NAME}
     container_name: gitbounty-backend
+    restart: unless-stopped
     ports:
       - "8081:8081"
     volumes:
@@ -12,14 +11,16 @@ services:
       - SPRING_APPLICATION_NAME=Backend
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/gitbounty
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/gitbounty
-      - SPRING_DATASOURCE_USERNAME=dev_user
-      - SPRING_DATASOURCE_PASSWORD=dev_password
-      - SPRING_FLYWAY_USER=root
-      - SPRING_FLYWAY_PASSWORD=root_password
+      - SPRING_FLYWAY_USER=${FLYWAY_USER}
+      - SPRING_FLYWAY_PASSWORD=${FLYWAY_PASSWORD}
       - GIT_REPOSITORIES_ROOT=/app/repositories
-      - KEYCLOAK_CLIENT_ID=gitbounty-backend
-      - KEYCLOAK_CLIENT_SECRET=gitbounty-backend-secret
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - SWAGGER_ENABLED=${SWAGGER_ENABLED}
+      - SWAGGER_OAUTH_CLIENT_ID=${SWAGGER_OAUTH_CLIENT_ID}
     develop:
       watch:
         - path: Backend/src
@@ -39,10 +40,10 @@ services:
     image: mysql:8.0
     container_name: gitbounty-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: gitbounty
-      MYSQL_USER: dev_user
-      MYSQL_PASSWORD: dev_password
     ports:
       - "3306:3306"
     volumes:
@@ -59,8 +60,9 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: gitbounty-keycloak
-    command: ["start-dev", "--db=mysql", "--import-realm"]
+    command: ${KC_COMMAND:-start-dev} --import-realm
     environment:
+      - JAVA_OPTS_APPEND=-Xms256m -Xmx512m
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
       - KC_DB_URL=jdbc:mysql://mysql:3306/keycloak?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
@@ -78,9 +80,7 @@ services:
       - gitbounty-network
 
   nginx:
-    build:
-      context: .
-      dockerfile: Frontend/gitbounty/Dockerfile
+    image: ghcr.io/freeuni-oop/frontend:${BRANCH_NAME}
     image: nginx:alpine
     container_name: gitbounty-proxy
     ports:
