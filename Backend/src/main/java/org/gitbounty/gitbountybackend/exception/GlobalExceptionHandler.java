@@ -38,6 +38,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             DuplicateUserException.class,
             DuplicateCodebaseMemberException.class,
+            DuplicatePaymentRequestException.class,
             PRBranchesAreSameException.class
     })
     public ResponseEntity<Object> handleConflictExceptions(RuntimeException ex) {

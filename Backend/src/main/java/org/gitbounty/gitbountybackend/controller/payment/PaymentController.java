@@ -8,6 +8,7 @@ import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.payment.CreateCreditTopUpCommand;
 import org.gitbounty.gitbountybackend.service.payment.CreditTopUpPaymentService;
 import org.gitbounty.gitbountybackend.service.user.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -33,20 +34,20 @@ public class PaymentController {
 
     @PostMapping("/credit-topups")
     public ResponseEntity<CreditTopUpPaymentResponse> createCreditTopUp(
-        @RequestBody CreateCreditTopUpRequest request,
+        @Valid @RequestBody CreateCreditTopUpRequest request,
         @AuthenticationPrincipal Jwt jwt
     ) {
         CreditTopUpPaymentResponse response = CreditTopUpPaymentResponse.from(
             paymentService.createMockTopUp(
                 jwt.getSubject(),
                 new CreateCreditTopUpCommand(
-                    request.amountPaid(),
                     request.creditsToPurchase(),
                     request.cardholderName(),
                     request.cardNumber(),
                     request.expiryMonth(),
                     request.expiryYear(),
-                    request.cvv()
+                    request.cvv(),
+                    request.idempotencyKey()
                 )
             )
         );

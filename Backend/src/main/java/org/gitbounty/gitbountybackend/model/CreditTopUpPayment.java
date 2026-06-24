@@ -50,6 +50,9 @@ public class CreditTopUpPayment {
     @Column(name = "expiry_year", nullable = false)
     private Integer expiryYear;
 
+    @Column(name = "idempotency_key", nullable = false, length = 100)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private CreditTopUpPaymentStatus status;
