@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - fix/UserControllerWithinDocker
 
 # Prevents race conditions if you push multiple commits rapidly
 concurrency:
