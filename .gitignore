@@ -35,5 +35,3 @@ repositories/
 gitbounty
 
 .env
-
-.secrets

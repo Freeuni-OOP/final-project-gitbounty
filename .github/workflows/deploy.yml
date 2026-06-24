@@ -26,6 +26,10 @@ jobs:
           registry: ghcr.io
           username: x-access-token
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Add this step to create a safe tag name
+      - name: Set Tag Name
+        id: vars
+        run: echo "safe_ref=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Backend
         uses: docker/build-push-action@v5
@@ -33,7 +37,7 @@ jobs:
           context: ./Backend
           file: ./Backend/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ github.ref_name }}
+          tags: ghcr.io/freeuni-OOP/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build Frontend Artifacts
         run: |
@@ -47,7 +51,7 @@ jobs:
           context: ./Frontend/gitbounty
           file: ./Frontend/gitbounty/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ github.ref_name }}
+          tags: ghcr.io/freeuni-OOP/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build and Push Keycloak
         uses: docker/build-push-action@v5
@@ -55,7 +59,7 @@ jobs:
           context: .
           file: ./keycloak/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ github.ref_name }}
+          tags: ghcr.io/freeuni-OOP/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
 
   deploy:
     needs: build-and-push
