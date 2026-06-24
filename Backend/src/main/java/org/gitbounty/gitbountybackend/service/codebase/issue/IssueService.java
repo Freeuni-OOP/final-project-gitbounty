@@ -56,7 +56,10 @@ public class IssueService {
     }
 
     private User resolveAuthor(Principal principal) {
-        return userService.findByUsername(principal.getName())
+        String principalName = principal.getName();
+
+        return userService.findByKeycloakId(principalName)
+                .or(() -> userService.findByUsername(principalName))
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
     }
 
