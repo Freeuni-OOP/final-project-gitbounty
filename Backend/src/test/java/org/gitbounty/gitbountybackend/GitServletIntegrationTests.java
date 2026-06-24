@@ -100,8 +100,7 @@ class GitServletIntegrationTests {
         // 3. Configure mock rules BEFORE service initialization executes
         mockKeycloakAuthenticationFlow();
 
-        Principal ownerPrincipal = () -> OWNER_USERNAME;
-        codebaseService.createCodebase(REPOSITORY_NAME, "Demo repository", repositoryHttpUrl(), ownerPrincipal);
+        codebaseService.createCodebase(REPOSITORY_NAME, "Demo repository", repositoryHttpUrl(), "id-owner");
 
         FileRepositoryBuilder builder = new FileRepositoryBuilder();
         try (var repository = builder.setGitDir(serverRepository.toFile()).build()) {
