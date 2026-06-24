@@ -46,7 +46,7 @@ public class IssueController {
         );
 
         return ResponseEntity
-                .created(URI.create("/api/codebases/" + repositoryName + "/issues/" + issue.getId()))
+                .created(URI.create("/api/codebases/" + repositoryName + "/issues/" + issue.getNumber()))
                 .body(IssueResponse.from(issue));
     }
 

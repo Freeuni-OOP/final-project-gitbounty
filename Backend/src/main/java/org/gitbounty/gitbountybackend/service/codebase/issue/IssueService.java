@@ -12,7 +12,6 @@ import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
 
 import java.util.List;
@@ -57,7 +56,10 @@ public class IssueService {
     }
 
     private User resolveAuthor(Principal principal) {
-        return userService.findByUsername(principal.getName())
+        String principalName = principal.getName();
+
+        return userService.findByKeycloakId(principalName)
+                .or(() -> userService.findByUsername(principalName))
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
     }
 
