@@ -1,0 +1,7 @@
+{$DOMAIN} {
+     reverse_proxy backend:8081
+ }
+
+auth.{$DOMAIN} {
+     reverse_proxy keycloak:8080
+}

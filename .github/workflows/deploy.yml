@@ -27,15 +27,34 @@ jobs:
           username: x-access-token
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Images
-        uses: docker/build-push-action@v5
+      - name: Build and Push Backend
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./Backend
+          file: ./Backend/Dockerfile
+          push: true
+          tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ github.ref_name }}
+
+      - name: Build Frontend Artifacts
+        run: |
+          cd Frontend/gitbounty
+          npm install
+          npm run build
+
+      - name: Build and Push Frontend
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./Frontend/gitbounty
+          file: ./Frontend/gitbounty/Dockerfile
+          push: true
+          tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ github.ref_nam
+      - name: Build and Push Keycloak
+      - uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./keycloak/Dockerfile
           push: true
-          # Tags the images so your compose file can find them
-          tags: |
-            ghcr.io/freeuni-oop/gitbounty-backend:${{ github.ref_name }}
-            ghcr.io/freeuni-oop/gitbounty-frontend:${{ github.ref_name }} 
+          tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ github.ref_name }}
 
   # DEPLOY: Only runs if the Build job succeeds
   deploy:

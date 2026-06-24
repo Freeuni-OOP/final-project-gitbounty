@@ -72,7 +72,7 @@ class CodebaseControllerTests {
                 eq("gitbounty-core"),
                 eq("Demo repository"),
                 eq("http://localhost/git/gitbounty-core.git"),
-                any(Principal.class)
+                any(String.class)
         )).thenReturn(codebase);
 
         mockMvc.perform(post("/api/codebases")
@@ -108,7 +108,7 @@ class CodebaseControllerTests {
                 eq("gitbounty-core"),
                 eq("Demo repository"),
                 eq("http://localhost/git/gitbounty-core.git"),
-                any(Principal.class)
+                any(String.class)
         )).thenReturn(codebase);
 
         mockMvc.perform(post("/api/codebases")
@@ -133,7 +133,7 @@ class CodebaseControllerTests {
                 eq("existing-repo"),
                 eq("Existing repository"),
                 eq("http://localhost/git/existing-repo.git"),
-                any(Principal.class)
+                any(String.class)
         )).thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Repository already exists"));
 
         mockMvc.perform(post("/api/codebases")
@@ -202,7 +202,7 @@ class CodebaseControllerTests {
                 eq(""),
                 eq("Demo repository"),
                 eq("http://localhost/git/.git"),
-                any(Principal.class)
+                any(String.class)
         )).thenReturn(codebase);
 
         mockMvc.perform(post("/api/codebases")
