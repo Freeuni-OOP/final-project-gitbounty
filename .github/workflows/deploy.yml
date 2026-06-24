@@ -6,6 +6,13 @@ on:
       - main
       - develop
       - fix/UserControllerWithinDocker
+  # This enables manual triggering
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: false
+        default: 'warning'
 
 concurrency:
   group: development-deploy
