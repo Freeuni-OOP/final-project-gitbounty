@@ -37,7 +37,7 @@ jobs:
           context: ./Backend
           file: ./Backend/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-OOP/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
+          tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build Frontend Artifacts
         run: |
@@ -51,7 +51,7 @@ jobs:
           context: ./Frontend/gitbounty
           file: ./Frontend/gitbounty/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-OOP/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
+          tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
 
       - name: Build and Push Keycloak
         uses: docker/build-push-action@v5
@@ -59,7 +59,7 @@ jobs:
           context: .
           file: ./keycloak/Dockerfile
           push: true
-          tags: ghcr.io/freeuni-OOP/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
+          tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
 
   deploy:
     needs: build-and-push
