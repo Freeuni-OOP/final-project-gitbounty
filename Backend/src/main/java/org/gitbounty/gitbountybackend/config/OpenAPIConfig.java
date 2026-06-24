@@ -13,7 +13,8 @@ import io.swagger.v3.oas.models.info.Info;
 @Configuration
 public class OpenAPIConfig {
 
-    private final String issuerUri = "http://localhost:8080/realms/gitbounty";
+    @Value("${keycloak.issuer-uri:http://localhost:8080/realms/gitbounty}")
+    private String issuerUri;
     @Bean
     public OpenAPI customOpenAPI() {
         // Construct the URLs based on your existing Keycloak realm configuration

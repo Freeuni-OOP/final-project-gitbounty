@@ -83,6 +83,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gitbounty
+            echo -e "${{ secrets.ENV_FILE_CONTENT }}" > .env
+            # Secure the file
+            chmod 600 .env
+            cat .env
             docker compose pull
             docker compose up -d
             docker image prune -f
