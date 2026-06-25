@@ -32,6 +32,6 @@ repositories/
 **/.DS_Store
 
 # private ssh key to VPS
-gitbounty
+/gitbounty
 
 .env
