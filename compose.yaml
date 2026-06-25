@@ -1,26 +1,14 @@
 services:
   backend:
-    image: ghcr.io/freeuni-oop/gitbounty-backend:main
+    image: ghcr.io/freeuni-oop/gitbounty-backend:${BRANCH_NAME:-latest}
     container_name: gitbounty-backend
     restart: unless-stopped
     ports:
       - "8081:8081"
     volumes:
       - gitbounty-repositories:/app/repositories
-    environment:
-      - SPRING_APPLICATION_NAME=Backend
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
-      - SPRING_DATASOURCE_URL=${DB_URL}
-      - SPRING_FLYWAY_USER=${FLYWAY_USER}
-      - SPRING_FLYWAY_PASSWORD=${FLYWAY_PASSWORD}
-      - GIT_REPOSITORIES_ROOT=/app/repositories
-      - SPRING_DATASOURCE_USERNAME=${DB_USER}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-      - SWAGGER_ENABLED=${SWAGGER_ENABLED}
-      - SWAGGER_OAUTH_CLIENT_ID=${SWAGGER_OAUTH_CLIENT_ID}
+    env_file:
+      - .env
     develop:
       watch:
         - path: Backend/src
@@ -66,27 +54,30 @@ services:
       - keycloak_db_data:/var/lib/postgresql/data
     networks:
         - gitbounty-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: ghcr.io/freeuni-oop/gitbounty-keycloak:${BRANCH_NAME:-latest}
     container_name: gitbounty-keycloak
-    command: start-dev --import-realm
+    env_file:
+      - .env
 #    build:
 #      context: .
 #      dockerfile: ./keycloak/Dockerfile
     environment:
-        JAVA_OPTS_APPEND: -Xms256m -Xmx512m
-        KC_DB: postgres
+        KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
         KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
         KC_DB_USERNAME: keycloak
         KC_DB_PASSWORD: password
-        KC_FEATURES: hostname:v2
-        KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
-        KC_HOSTNAME: ${KEYCLOAK_ISSUER_URI}
         KEYCLOAK_ADMIN: admin
         KEYCLOAK_ADMIN_PASSWORD: admin
     depends_on:
-      - keycloak-db
+      keycloak-db:
+        condition: service_healthy
     ports:
       - "8080:8080"
     volumes:
@@ -95,7 +86,7 @@ services:
       - gitbounty-network
 
   frontend:
-    image: ghcr.io/freeuni-oop/gitbounty-frontend:main
+    image: ghcr.io/freeuni-oop/gitbounty-frontend:${BRANCH_NAME:-latest}
 
   caddy:
     image: caddy:latest

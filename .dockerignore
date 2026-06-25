@@ -1,0 +1,31 @@
+# Git
+.git/
+Backend/.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Local Build Artifacts (Keep these IGNORED)
+target/
+build/
+bin/
+out/
+.mvn/wrapper/maven-wrapper.jar
+
+# Node (If you have a frontend in the same repo)
+node_modules/
+dist/
+
+# Misc
+*.log
+.DS_Store
+README.md
+HELP.md
+
+# IMPORTANT: REMOVE Dockerfile and docker-compose.yaml from here!
+# Ensure they are NOT listed here so Docker can access them.

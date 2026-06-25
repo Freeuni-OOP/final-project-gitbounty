@@ -4,89 +4,57 @@ on:
   push:
     branches:
       - main
-      - develop
-      - fix/UserControllerWithinDocker
-
-concurrency:
-  group: development-deploy
-  cancel-in-progress: false
+  workflow_run:
+    workflows: ["Build and Push"]
+    types: [completed]
+  workflow_dispatch:
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: x-access-token
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # Add this step to create a safe tag name
-      - name: Set Tag Name
-        id: vars
-        run: echo "safe_ref=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
-
-      #Required for caching images
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./Backend
-          file: ./Backend/Dockerfile
-          push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ghcr.io/freeuni-oop/gitbounty-backend:${{ steps.vars.outputs.safe_ref }}
-
-      - name: Build Frontend Artifacts
-        run: |
-          cd Frontend/gitbounty
-          npm install
-          npm run build
-
-      - name: Build and Push Frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./Frontend/gitbounty
-          file: ./Frontend/gitbounty/Dockerfile
-          push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ghcr.io/freeuni-oop/gitbounty-frontend:${{ steps.vars.outputs.safe_ref }}
-
-      - name: Build and Push Keycloak
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./keycloak/Dockerfile
-          push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ghcr.io/freeuni-oop/gitbounty-keycloak:${{ steps.vars.outputs.safe_ref }}
-
   deploy:
-    needs: build-and-push
+    # Only run if the Build workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to VPS
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Copy the compose file to the server
+      - name: Copy docker compose file
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "compose.yaml,Caddyfile"
+          target: "/home/gitbounty"
+
+      # 2. Setup Server Environment
+      - name: Prepare Server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            mkdir -p /home/gitbounty
+            echo -e "${{ secrets.ENV_FILE_CONTENT }}" > /home/gitbounty/.env
+            chmod 600 /home/gitbounty/.env
+      - name: Deploy to Remote
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Navigate to the directory
             cd /home/gitbounty
-            echo -e "${{ secrets.ENV_FILE_CONTENT }}" > .env
-            # Secure the file
-            chmod 600 .env
-            cat .env
+            
+            # 2. Authenticate the server's Docker daemon to GHCR
+            echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u "${{ secrets.GH_USERNAME }}" --password-stdin
+            
+            # 3. Pull and update
             docker compose pull
             docker compose up -d
+            
+            # 4. Cleanup
             docker image prune -f
