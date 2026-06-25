@@ -1,4 +1,4 @@
-# Stage 1: Build
+# Stage 1: Build (Keep this as is)
 FROM node:24-alpine AS builder
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY . .
 # 4. Run the build
 RUN npm run build
 
-# Stage 2: Runtime (e.g., Nginx)
-FROM nginx:alpine
-# Copy the built assets from the builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Stage 2: Tiny container to hold the files
+FROM alpine:latest
+# Copy the built assets to a directory
+COPY --from=builder /app/dist /www/data
