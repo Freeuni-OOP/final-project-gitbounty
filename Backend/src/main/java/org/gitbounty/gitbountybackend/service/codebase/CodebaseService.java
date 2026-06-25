@@ -6,12 +6,11 @@ import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
+import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.gitbounty.gitbountybackend.service.user.UserService;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class CodebaseService {
@@ -75,20 +74,20 @@ public class CodebaseService {
 
     private String normalizeRepositoryName(String name) {
         if (name == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name is required");
+            throw new IllegalArgumentException("Repository name is required");
         }
 
         String trimmedName = name.trim();
         if (trimmedName.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name is required");
+            throw new IllegalArgumentException( "Repository name is required");
         }
 
         if (trimmedName.contains("/") || trimmedName.contains("\\") || trimmedName.contains("..")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain path separators");
+            throw new IllegalArgumentException( "Repository name must not contain path separators");
         }
 
         if(trimmedName.contains(".git")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repository name must not contain .git");
+            throw new IllegalArgumentException( "Repository name must not contain .git");
         }
 
         return trimmedName;
@@ -116,6 +115,14 @@ public class CodebaseService {
     }
     public Codebase findById(Long repositoryId) {
         return codebaseRepository.findById(repositoryId).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: Id = " + repositoryId));
+    }
+
+    public Codebase updateCodebase(String repositoryName, UpdateCodebaseCommand command) {
+        Codebase codebase = codebaseRepository.findByName(repositoryName)
+            .orElseThrow(() -> new CodebaseNotFoundException("Codebase not found with name: " + repositoryName));
+
+        command.applyTo(codebase);
+        return codebaseRepository.save(codebase);
     }
 
 }
