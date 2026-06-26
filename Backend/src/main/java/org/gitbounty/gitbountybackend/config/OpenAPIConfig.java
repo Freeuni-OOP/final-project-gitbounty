@@ -13,7 +13,7 @@ import io.swagger.v3.oas.models.info.Info;
 @Configuration
 public class OpenAPIConfig {
 
-    @Value("${keycloak.issuer-uri:http://localhost:8080/realms/gitbounty}")
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
     @Bean
     public OpenAPI customOpenAPI() {
@@ -22,6 +22,7 @@ public class OpenAPIConfig {
         String tokenUrl = issuerUri + "/protocol/openid-connect/token";
 
         return new OpenAPI()
+            .addServersItem(new Server().url("https://api.gitbounty.foo").description("Production API"))
             .addServersItem(new Server().url("https://localhost").description("Local Development"))
             .info(new Info()
                 .title("GitBounty API")
