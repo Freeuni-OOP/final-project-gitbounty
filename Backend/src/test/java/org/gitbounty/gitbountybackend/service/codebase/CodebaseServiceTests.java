@@ -19,6 +19,7 @@ import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
+import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
 import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
@@ -28,8 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CodebaseServiceTests {
@@ -120,8 +119,7 @@ class CodebaseServiceTests {
     @Test
     void createCodebaseRejectsPathSeparatorsInName() {
         assertThatThrownBy(() -> codebaseService.createCodebase("demo/evil", "Demo repository", "http://localhost/git/demo.git", owner.getKeycloakId()))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+            .isInstanceOf(IllegalArgumentException.class);
 
         verify(storageService, never()).createRepository(any());
     }
@@ -170,8 +168,7 @@ class CodebaseServiceTests {
     @Test
     void deleteCodebaseRejectsInvalidName() {
         assertThatThrownBy(() -> codebaseService.deleteCodebase("../evil"))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+            .isInstanceOf(IllegalArgumentException.class);
 
         verify(storageService, never()).deleteRepository(any());
     }
@@ -224,5 +221,53 @@ class CodebaseServiceTests {
 
         // 3. Verify storage was never touched
         verify(storageService, never()).getPathContents(any(), any(), any());
+    }
+    @Test
+    void updateCodebase_updatesFieldsSuccessfully() {
+        // 1. Arrange
+        Codebase existing = new Codebase("demo", "Old desc", "http://old.url", owner);
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.of(existing));
+        when(codebaseRepository.save(existing)).thenReturn(existing);
+
+        UpdateCodebaseCommand command = new UpdateCodebaseCommand("new-name", "New desc", "http://new.url");
+
+        // 2. Act
+        Codebase updated = codebaseService.updateCodebase("demo", command);
+
+        // 3. Assert
+        assertThat(updated.getName()).isEqualTo("new-name");
+        assertThat(updated.getDescription()).isEqualTo("New desc");
+        assertThat(updated.getGitUrl()).isEqualTo("http://new.url");
+        verify(codebaseRepository).save(existing); // Or verify it's updated via dirty checking
+    }
+
+    @Test
+    void updateCodebase_partialUpdate_onlyChangesSpecifiedFields() {
+        // 1. Arrange
+        Codebase existing = new Codebase("demo", "Old desc", "http://old.url", owner);
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.of(existing));
+        when(codebaseRepository.save(existing)).thenReturn(existing);
+
+        // Only provide new description, name and gitUrl are null
+        UpdateCodebaseCommand command = new UpdateCodebaseCommand(null, "New desc", null);
+
+        // 2. Act
+        codebaseService.updateCodebase("demo", command);
+
+        // 3. Assert
+        assertThat(existing.getName()).isEqualTo("demo"); // Should remain unchanged
+        assertThat(existing.getDescription()).isEqualTo("New desc");
+        assertThat(existing.getGitUrl()).isEqualTo("http://old.url"); // Should remain unchanged
+    }
+
+    @Test
+    void updateCodebase_throwsException_whenCodebaseNotFound() {
+        // 1. Arrange
+        when(codebaseRepository.findByName("unknown")).thenReturn(Optional.empty());
+        UpdateCodebaseCommand command = new UpdateCodebaseCommand("new", "desc", "url");
+
+        // 2. Act & Assert
+        assertThatThrownBy(() -> codebaseService.updateCodebase("unknown", command))
+            .isInstanceOf(CodebaseNotFoundException.class);
     }
 }

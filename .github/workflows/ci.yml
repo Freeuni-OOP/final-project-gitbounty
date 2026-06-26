@@ -14,22 +14,6 @@ jobs:
       run:
         working-directory: ./Backend
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root_password
-          MYSQL_DATABASE: gitbounty
-          MYSQL_USER: dev_user
-          MYSQL_PASSWORD: dev_password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u dev_user -pdev_password"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,10 +29,5 @@ jobs:
         run: chmod +x mvnw
 
       - name: Run tests
-        env:
-          SPRING_PROFILES_ACTIVE: dev
-          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/gitbounty
-          SPRING_DATASOURCE_USERNAME: dev_user
-          SPRING_DATASOURCE_PASSWORD: dev_password
         run: ./mvnw -B test
 

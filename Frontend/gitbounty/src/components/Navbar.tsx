@@ -41,6 +41,14 @@ const Navbar: React.FC = () => {
             </Link>
           </li>
           <li className="nav-item">
+            <Link
+              to="/repositories"
+              className={`nav-link ${location.pathname.startsWith('/repositories') ? 'active' : ''}`}
+            >
+              Repositories
+            </Link>
+          </li>
+          <li className="nav-item">
             <a href="#about" className="nav-link">
               About
             </a>
