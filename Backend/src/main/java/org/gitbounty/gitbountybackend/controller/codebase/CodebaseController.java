@@ -1,7 +1,6 @@
 package org.gitbounty.gitbountybackend.controller.codebase;
 
 import java.net.URI;
-import java.security.Principal;
 import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +9,7 @@ import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
+import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -65,6 +65,18 @@ public class CodebaseController {
     ) {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
         return ResponseEntity.ok(CodebaseResponse.from(codebase));
+    }
+    @PatchMapping("/{repositoryName}")
+    public ResponseEntity<CodebaseResponse> updateCodebase(
+        @PathVariable String repositoryName,
+        @RequestBody UpdateCodebaseCommand command,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to update codebase");
+        }
+        Codebase updatedCodebase = codebaseService.updateCodebase(repositoryName, command);
+        return ResponseEntity.ok(CodebaseResponse.from(updatedCodebase));
     }
 
     // don't know how to test controllers
