@@ -1,7 +1,7 @@
 package org.gitbounty.gitbountybackend.controller.codebase.pullrequest;
 
 import org.gitbounty.gitbountybackend.config.KeycloakAuthenticationProvider;
-import org.gitbounty.gitbountybackend.config.SecurityConfig;
+import org.gitbounty.gitbountybackend.config.TestSecurityConfig;
 import org.gitbounty.gitbountybackend.controller.codebase.CodebasePermissions;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.IssueStatus;
@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PullRequestController.class)
-@Import(SecurityConfig.class)
+@Import(TestSecurityConfig.class)
 class PullRequestControllerTests {
 
     @Autowired
