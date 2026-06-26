@@ -23,7 +23,7 @@ public class OpenAPIConfig {
 
         return new OpenAPI()
             .addServersItem(new Server().url("https://api.gitbounty.foo").description("Production API"))
-            .addServersItem(new Server().url("https://localhost").description("Local Development"))
+            .addServersItem(new Server().url("http://localhost:8081").description("Local Development"))
             .info(new Info()
                 .title("GitBounty API")
                 .version("1.0")
