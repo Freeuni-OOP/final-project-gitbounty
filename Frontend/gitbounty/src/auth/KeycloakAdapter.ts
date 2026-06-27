@@ -21,7 +21,12 @@ export class KeycloakAdapter implements AuthProvider {
         keycloak.onTokenExpired = () => {
             keycloak.updateToken(30)
                 .then(() => this.onUpdate())
-                .catch((err) => console.error("Failed to refresh token", err));
+                .catch((err) => {
+                    console.error("Token refresh failed, logging out", err);
+                    // This triggers the UI to re-render, and authenticated
+                    // will now return false because the keycloak session is cleared
+                    this.onUpdate();
+                });
         };
     }
 
@@ -51,7 +56,10 @@ export class KeycloakAdapter implements AuthProvider {
         try {
             await keycloak.updateToken(30);
             return keycloak.token || undefined;
-        } catch {
+        } catch (e) {
+            // Token refresh failed, likely due to session expiry
+            console.warn("Token refresh failed");
+            this.onUpdate(); // Tell React to re-render and see 'authenticated: false'
             return undefined;
         }
     }
