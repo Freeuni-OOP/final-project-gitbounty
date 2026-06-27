@@ -5,6 +5,7 @@ import ProfilePage from './pages/ProfilePage';
 import BountiesPage from './pages/BountiesPage';
 import RepositoriesPage from './pages/RepositoriesPage';
 import RepositoryPage from './pages/RepositoryPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/bounties" element={<BountiesPage />} />
         <Route path="/repositories" element={<RepositoriesPage />} />
         <Route path="/repositories/:owner/:repoName" element={<RepositoryPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );
