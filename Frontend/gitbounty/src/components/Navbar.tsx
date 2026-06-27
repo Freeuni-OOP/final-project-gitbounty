@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import '../styles/Navbar.css';
+import {SignInButton} from "./buttons/auth/SignInButton.tsx";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -56,7 +57,7 @@ const Navbar: React.FC = () => {
         </ul>
 
         <div className="nav-actions">
-          <button className="nav-button-secondary">Sign In</button>
+          <SignInButton/>
           <button className="nav-button-primary">Submit Bounty</button>
         </div>
       </div>
