@@ -2,6 +2,7 @@ import keycloak from './keycloak';
 import type {AuthProvider} from './AuthProvider';
 
 export class KeycloakAdapter implements AuthProvider {
+    get isLoading() {return this.initialized }
     get initialized() { return !!keycloak.token; } // Simplification
     get authenticated() { return keycloak.authenticated; }
     get token() { return keycloak.token; }

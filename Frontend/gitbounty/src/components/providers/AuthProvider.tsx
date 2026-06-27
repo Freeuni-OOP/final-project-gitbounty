@@ -2,7 +2,7 @@ import React, { createContext, useContext } from 'react';
 import type {AuthProvider} from "../../auth/AuthProvider.ts";
 import {KeycloakAdapter} from "../../auth/KeycloakAdapter.ts";
 
-const authService = new KeycloakAdapter();
+export const authService = new KeycloakAdapter();
 const AuthContext = createContext<AuthProvider>(authService);
 
 export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => {

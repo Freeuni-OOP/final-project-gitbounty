@@ -1,4 +1,5 @@
 export interface AuthProvider {
+    isLoading: boolean;
     initialized: boolean;
     authenticated: boolean;
     token: string | undefined;
