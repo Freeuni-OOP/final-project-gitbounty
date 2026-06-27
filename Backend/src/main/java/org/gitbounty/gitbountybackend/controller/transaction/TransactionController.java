@@ -1,7 +1,7 @@
 package org.gitbounty.gitbountybackend.controller.transaction;
 
-import jakarta.persistence.EntityNotFoundException;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.*;
+import org.gitbounty.gitbountybackend.exception.TransactionNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.User;
@@ -38,18 +38,15 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> createTransaction(
         @RequestBody CreateTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
-        try {
-            Long authenticatedUserId = extractUserIdFromJwt(jwt);
 
-            Transaction transaction = transactionService.createEscrow(
-                    authenticatedUserId,
-                request.toUserId(),
-                request.issueId()
-            );
-            return ResponseEntity.status(HttpStatus.CREATED).body(TransactionResponse.from(transaction));
-        } catch (EntityNotFoundException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Long authenticatedUserId = extractUserIdFromJwt(jwt);
+
+        Transaction transaction = transactionService.createEscrow(
+                authenticatedUserId,
+            request.toUserId(),
+            request.issueId()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(TransactionResponse.from(transaction));
     }
 
     /**
@@ -61,14 +58,10 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> approveTransaction(
         @PathVariable Long id,
         @AuthenticationPrincipal Jwt jwt) {
-        try {
-            Long approverUserId = extractUserIdFromJwt(jwt);
 
-            Transaction transaction = transactionService.approveTransaction(id, approverUserId);
-            return ResponseEntity.ok(TransactionResponse.from(transaction));
-        } catch (EntityNotFoundException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Long approverUserId = extractUserIdFromJwt(jwt);
+        Transaction transaction = transactionService.approveTransaction(id, approverUserId);
+        return ResponseEntity.ok(TransactionResponse.from(transaction));
     }
 
     /**
@@ -81,18 +74,10 @@ public class TransactionController {
         @PathVariable Long id,
         @RequestBody RejectTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
-        try {
-            Long rejecterUserId = extractUserIdFromJwt(jwt);
 
-            Transaction transaction = transactionService.rejectTransaction(
-                id,
-                rejecterUserId,
-                request.reason()
-            );
-            return ResponseEntity.ok(TransactionResponse.from(transaction));
-        } catch (EntityNotFoundException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Long rejecterUserId = extractUserIdFromJwt(jwt);
+        Transaction transaction = transactionService.rejectTransaction(id, rejecterUserId, request.reason());
+        return ResponseEntity.ok(TransactionResponse.from(transaction));
     }
 
     /**
@@ -105,19 +90,10 @@ public class TransactionController {
         @PathVariable Long id,
         @RequestBody DisputeTransactionDto request,
         @AuthenticationPrincipal Jwt jwt) {
-        try {
-            Long disputantUserId = extractUserIdFromJwt(jwt);
 
-
-            Transaction transaction = transactionService.disputeTransaction(
-                id,
-                disputantUserId,
-                request.reason()
-            );
-            return ResponseEntity.ok(TransactionResponse.from(transaction));
-        } catch (EntityNotFoundException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Long disputantUserId = extractUserIdFromJwt(jwt);
+        Transaction transaction = transactionService.disputeTransaction(id, disputantUserId, request.reason());
+        return ResponseEntity.ok(TransactionResponse.from(transaction));
     }
 
     /**
@@ -127,13 +103,9 @@ public class TransactionController {
     @GetMapping("/{id}")
     @PreAuthorize("@transactionPermissions.isInvolved(#id, authentication.name)")
     public ResponseEntity<TransactionResponse> getTransaction(@PathVariable Long id) {
-        try {
-            Transaction transaction = transactionService.getTransaction(id)
-                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
-            return ResponseEntity.ok(TransactionResponse.from(transaction));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Transaction transaction = transactionService.getTransaction(id)
+            .orElseThrow(() -> new TransactionNotFoundException(id));
+        return ResponseEntity.ok(TransactionResponse.from(transaction));
     }
 
     /**
@@ -146,18 +118,14 @@ public class TransactionController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long issueId) {
-        try {
-            // Fetch transactions based on provided filters
-            List<Transaction> transactions = transactionService.getFilteredTransactions(status, userId, issueId);
 
-            List<TransactionResponse> responses = transactions.stream()
-                    .map(TransactionResponse::from)
-                    .collect(Collectors.toList());
+        List<Transaction> transactions = transactionService.getFilteredTransactions(status, userId, issueId);
 
-            return ResponseEntity.ok(responses);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        List<TransactionResponse> responses = transactions.stream()
+                .map(TransactionResponse::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(responses);
     }
 
     /**
@@ -167,12 +135,8 @@ public class TransactionController {
     @GetMapping("/users/{userId}/balance")
     @PreAuthorize("@userPermissions.isOwner(#userId, authentication.name) or hasRole('admin')")
     public ResponseEntity<CreditBalanceResponse> getCreditBalance(@PathVariable Long userId) {
-        try {
-            var balance = transactionService.getUserCreditBalance(userId);
-            return ResponseEntity.ok(new CreditBalanceResponse(userId, balance));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
+        var balance = transactionService.getUserCreditBalance(userId);
+        return ResponseEntity.ok(new CreditBalanceResponse(userId, balance));
     }
 
     /**
@@ -182,15 +146,11 @@ public class TransactionController {
     @GetMapping("/users/{userId}/transactions")
     @PreAuthorize("@userPermissions.isOwner(#userId, authentication.name) or hasRole('admin')")
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(@PathVariable Long userId) {
-        try {
-            List<Transaction> transactions = transactionService.getTransactionsForUser(userId);
-            List<TransactionResponse> responses = transactions.stream()
-                .map(TransactionResponse::from)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(responses);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+        List<Transaction> transactions = transactionService.getTransactionsForUser(userId);
+        List<TransactionResponse> responses = transactions.stream()
+            .map(TransactionResponse::from)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
     }
 
     /**
@@ -209,4 +169,3 @@ public class TransactionController {
         return user.getId();
     }
 }
-

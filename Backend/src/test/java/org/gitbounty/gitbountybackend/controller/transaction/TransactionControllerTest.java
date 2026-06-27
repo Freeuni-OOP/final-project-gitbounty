@@ -1,7 +1,9 @@
 package org.gitbounty.gitbountybackend.controller.transaction;
 
-import jakarta.persistence.EntityNotFoundException;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.CreateTransactionDto;
+import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
+import org.gitbounty.gitbountybackend.exception.TransactionNotFoundException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.DisputeTransactionDto;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.RejectTransactionDto;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.TransactionResponse;
@@ -69,27 +71,23 @@ class TransactionControllerTest {
         }
 
         @Test
-        void createTransaction_ServiceThrowsIllegalArgument_ReturnsBadRequest() {
+        void createTransaction_ServiceThrowsIllegalArgument_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             CreateTransactionDto request = new CreateTransactionDto(1L, 2L, 10L);
             when(transactionService.createEscrow(1L, 2L, 10L)).thenThrow(new IllegalArgumentException("bad"));
 
-            ResponseEntity<TransactionResponse> response = transactionController.createTransaction(request, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(IllegalArgumentException.class, () ->
+                transactionController.createTransaction(request, jwt));
         }
 
         @Test
-        void createTransaction_ServiceThrowsEntityNotFound_ReturnsBadRequest() {
+        void createTransaction_ServiceThrowsIssueNotFound_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             CreateTransactionDto request = new CreateTransactionDto(1L, 2L, 10L);
-            when(transactionService.createEscrow(1L, 2L, 10L)).thenThrow(new EntityNotFoundException("missing"));
+            when(transactionService.createEscrow(1L, 2L, 10L)).thenThrow(new IssueNotFoundException(10L));
 
-            ResponseEntity<TransactionResponse> response = transactionController.createTransaction(request, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(IssueNotFoundException.class, () ->
+                transactionController.createTransaction(request, jwt));
         }
     }
 
@@ -111,15 +109,13 @@ class TransactionControllerTest {
         }
 
         @Test
-        void approveTransaction_NotFound_ReturnsBadRequest() {
+        void approveTransaction_NotFound_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             when(transactionService.approveTransaction(100L, 1L))
-                .thenThrow(new EntityNotFoundException("not found"));
+                .thenThrow(new TransactionNotFoundException(100L));
 
-            ResponseEntity<TransactionResponse> response = transactionController.approveTransaction(100L, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(TransactionNotFoundException.class, () ->
+                transactionController.approveTransaction(100L, jwt));
         }
     }
 
@@ -142,29 +138,25 @@ class TransactionControllerTest {
         }
 
         @Test
-        void rejectTransaction_InvalidState_ReturnsBadRequest() {
+        void rejectTransaction_InvalidState_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             RejectTransactionDto request = new RejectTransactionDto(100L, 1L, "Reason");
             when(transactionService.rejectTransaction(100L, 1L, "Reason"))
                 .thenThrow(new IllegalArgumentException("bad state"));
 
-            ResponseEntity<TransactionResponse> response = transactionController.rejectTransaction(100L, request, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(IllegalArgumentException.class, () ->
+                transactionController.rejectTransaction(100L, request, jwt));
         }
 
         @Test
-        void rejectTransaction_EntityNotFound_ReturnsBadRequest() {
+        void rejectTransaction_NotFound_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             RejectTransactionDto request = new RejectTransactionDto(100L, 1L, "Reason");
             when(transactionService.rejectTransaction(100L, 1L, "Reason"))
-                    .thenThrow(new EntityNotFoundException("not found"));
+                .thenThrow(new TransactionNotFoundException(100L));
 
-            ResponseEntity<TransactionResponse> response = transactionController.rejectTransaction(100L, request, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(TransactionNotFoundException.class, () ->
+                transactionController.rejectTransaction(100L, request, jwt));
         }
 
     }
@@ -188,16 +180,14 @@ class TransactionControllerTest {
         }
 
         @Test
-        void disputeTransaction_NotFound_ReturnsBadRequest() {
+        void disputeTransaction_NotFound_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             DisputeTransactionDto request = new DisputeTransactionDto(100L, 1L, "Need review");
             when(transactionService.disputeTransaction(100L, 1L, "Need review"))
-                .thenThrow(new EntityNotFoundException("not found"));
+                .thenThrow(new TransactionNotFoundException(100L));
 
-            ResponseEntity<TransactionResponse> response = transactionController.disputeTransaction(100L, request, jwt);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(TransactionNotFoundException.class, () ->
+                transactionController.disputeTransaction(100L, request, jwt));
         }
     }
 
@@ -216,13 +206,11 @@ class TransactionControllerTest {
         }
 
         @Test
-        void getTransaction_NotFound_ReturnsNotFound() {
+        void getTransaction_NotFound_ThrowsTransactionNotFoundException() {
             when(transactionService.getTransaction(100L)).thenReturn(Optional.empty());
 
-            ResponseEntity<TransactionResponse> response = transactionController.getTransaction(100L);
-
-            assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(TransactionNotFoundException.class, () ->
+                transactionController.getTransaction(100L));
         }
     }
 
@@ -267,13 +255,11 @@ class TransactionControllerTest {
         }
 
         @Test
-        void getUserTransactions_ServiceFailure_ReturnsBadRequest() {
+        void getUserTransactions_ServiceFailure_Propagates() {
             when(transactionService.getTransactionsForUser(1L)).thenThrow(new RuntimeException("boom"));
 
-            ResponseEntity<List<TransactionResponse>> response = transactionController.getUserTransactions(1L);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(RuntimeException.class, () ->
+                transactionController.getUserTransactions(1L));
         }
 
         @Test
@@ -302,13 +288,11 @@ class TransactionControllerTest {
         }
 
         @Test
-        void getTransactions_ServiceFailure_ReturnsBadRequest() {
+        void getTransactions_ServiceFailure_Propagates() {
             when(transactionService.getFilteredTransactions(null, null, null)).thenThrow(new RuntimeException("database error"));
 
-            ResponseEntity<List<TransactionResponse>> response = transactionController.getTransactions(null, null, null);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(RuntimeException.class, () ->
+                transactionController.getTransactions(null, null, null));
         }
     }
 
@@ -328,13 +312,11 @@ class TransactionControllerTest {
         }
 
         @Test
-        void getCreditBalance_NotFound_ReturnsNotFound() {
-            when(transactionService.getUserCreditBalance(1L)).thenThrow(new EntityNotFoundException("not found"));
+        void getCreditBalance_NotFound_Propagates() {
+            when(transactionService.getUserCreditBalance(1L)).thenThrow(new UserNotFoundException("not found"));
 
-            var response = transactionController.getCreditBalance(1L);
-
-            assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-            assertNull(response.getBody());
+            assertThrows(UserNotFoundException.class, () ->
+                transactionController.getCreditBalance(1L));
         }
     }
 

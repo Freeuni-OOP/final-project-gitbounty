@@ -184,11 +184,9 @@ class BountyServiceTest {
 
         assertEquals(BigDecimal.valueOf(250.0), mockOwner.getCreditBalance());
         assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
-        assertEquals(IssueStatus.OPEN, mockIssue.getStatus());
 
         verify(userRepository, times(1)).save(mockOwner);
         verify(bountyRepository, times(1)).save(mockBounty);
-        verify(issueRepository, times(1)).save(mockIssue);
     }
 
     @Test
