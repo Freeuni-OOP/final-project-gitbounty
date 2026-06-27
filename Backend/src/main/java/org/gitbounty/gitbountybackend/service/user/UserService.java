@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.service.user;
 
 import org.gitbounty.gitbountybackend.exception.DuplicateUserException;
+import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.User;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -90,7 +91,7 @@ public class UserService {
     public User updateUserProfile(Long userId, String newUsername, String newEmail)
             throws IllegalArgumentException, DuplicateUserException {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
 
         // Validate new username if provided
         if (newUsername != null && !newUsername.isBlank() && !newUsername.equals(user.getUsername())) {

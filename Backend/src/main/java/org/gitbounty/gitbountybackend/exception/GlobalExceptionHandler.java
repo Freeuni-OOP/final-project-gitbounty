@@ -28,7 +28,9 @@ public class GlobalExceptionHandler {
             CodebaseNotFoundException.class,
             CodebaseMemberNotFoundException.class,
             BountyNotFoundException.class,
-            IssueNotFoundException.class
+            IssueNotFoundException.class,
+            PRNotFoundException.class,
+            TransactionNotFoundException.class
     })
     public ResponseEntity<Object> handleNotFoundExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
