@@ -6,7 +6,6 @@ export class KeycloakAdapter implements AuthProvider {
     private initializedStatus = false;
     private initPromise: Promise<void> | null = null;
 
-    // Use getter for isLoading
     get isLoading() { return !this.initializedStatus; }
     get initialized() { return this.initializedStatus; }
     get authenticated() { return keycloak.authenticated; }
@@ -14,17 +13,13 @@ export class KeycloakAdapter implements AuthProvider {
 
     constructor(onUpdate: () => void) {
         this.onUpdate = onUpdate;
-
-        // Setup listeners
-        keycloak.onAuthSuccess = this.onUpdate;
-        keycloak.onAuthLogout = this.onUpdate;
+        keycloak.onAuthSuccess = () => this.onUpdate();
+        keycloak.onAuthLogout = () => this.onUpdate();
         keycloak.onTokenExpired = () => {
             keycloak.updateToken(30)
                 .then(() => this.onUpdate())
                 .catch((err) => {
                     console.error("Token refresh failed, logging out", err);
-                    // This triggers the UI to re-render, and authenticated
-                    // will now return false because the keycloak session is cleared
                     this.onUpdate();
                 });
         };

@@ -1,6 +1,5 @@
 import axios from 'axios';
-import {authService} from "../components/providers/AuthProvider.tsx";
-
+import {getGlobalAuth} from "../auth/authInstance.ts";
 const apiClient = axios.create({
     baseURL: 'https://api.gitbounty.foo',
     headers: {
@@ -10,12 +9,11 @@ const apiClient = axios.create({
 
 // Interceptor to inject the Authorization header
 apiClient.interceptors.request.use(async (config) => {
-    const token = await authService.getToken();
-
-    if (token) {
+    const auth = getGlobalAuth();
+    if (auth) {
+        const token = await auth.getToken();
         config.headers.Authorization = `Bearer ${token}`;
     }
-
     return config;
 });
 
