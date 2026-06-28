@@ -301,4 +301,29 @@ class CodebaseControllerTest {
 
         verifyNoInteractions(memberService);
     }
+
+    @Test
+    void getAllCodebases_ShouldReturnList() throws Exception {
+        User owner = user(1L, "owner", "kc-owner");
+
+        when(codebaseService.getAllCodebases()).thenReturn(List.of(codebase("my-repo", owner), codebase("other-repo", owner)));
+
+        mockMvc.perform(get("/api/codebases"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("my-repo"))
+                .andExpect(jsonPath("$[1].name").value("other-repo"));
+
+        verify(codebaseService).getAllCodebases();
+    }
+
+    @Test
+    void getAllCodebases_ShouldReturnEmptyList() throws Exception {
+        when(codebaseService.getAllCodebases()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/codebases"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        verify(codebaseService).getAllCodebases();
+    }
 }

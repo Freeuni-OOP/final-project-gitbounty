@@ -1,6 +1,9 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
@@ -57,6 +60,17 @@ public class CodebaseService {
         String repositoryName = normalize(name);
         codebaseRepository.findByName(repositoryName).ifPresent(codebaseRepository::delete);
         codebaseStorageService.deleteRepository(repositoryName);
+    }
+
+    public Codebase findByName(String repositoryName) {
+        return codebaseRepository.findByName(repositoryName).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + repositoryName));
+    }
+    public Codebase findById(Long repositoryId) {
+        return codebaseRepository.findById(repositoryId).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: Id = " + repositoryId));
+    }
+
+    public List<Codebase> getAllCodebases() {
+        return codebaseRepository.findAll();
     }
 
     public Codebase updateCodebase(String repositoryName, UpdateCodebaseCommand command) {
