@@ -132,4 +132,79 @@ class InMemoryMergeHandlerTests {
         // Assert: Ref pointer must match parent 0 (the state of develop right before merge)
         assertEquals(devTip, repo.resolve("refs/heads/develop"), "Branch should rollback exactly to devTip.");
     }
+    @Test
+    void revertMerge_ShouldDropSubsequentCommits_WhenNewCommitsExistAfterMerge() throws Exception {
+        // Arrange: Create history baseline
+        RevWalk walk = new RevWalk(repo);
+        RevCommit base = git.commit().add("file.txt", "initial").create();
+        RevCommit devTip = git.branch("develop").commit().parent(base).add("dev.txt", "1").create();
+        RevCommit featureTip = git.branch("feature").commit().parent(base).add("feat.txt", "2").create();
+        git.update("refs/heads/develop", devTip);
+        git.update("refs/heads/feature", featureTip);
+
+        // Merge feature into develop
+        mergeHandler.executeMerge("feature", "develop");
+        ObjectId mergeCommitId = repo.resolve("refs/heads/develop");
+
+        // Simulate another developer adding a commit on top of the merge commit
+        RevCommit postMergeCommit = git.branch("develop").commit()
+            .parent(walk.parseCommit(mergeCommitId))
+            .message("Accidental post-merge work")
+            .add("extra.txt", "data")
+            .create();
+        git.update("refs/heads/develop", postMergeCommit);
+
+        // Act: Fire the hard reset revert targeting the original merge commit
+        assertDoesNotThrow(() -> mergeHandler.revertMerge("develop", mergeCommitId));
+
+        // Assert: The branch pointer should skip right past postMergeCommit and land squarely on devTip
+        ObjectId finalTip = repo.resolve("refs/heads/develop");
+        assertEquals(devTip, finalTip, "The hard reset must roll back to the original dev tip, erasing subsequent commits.");
+    }
+    @Test
+    void revertMerge_ShouldSucceedWithNoChange_WhenExecutedConsecutively() throws Exception {
+        RevCommit base = git.commit().add("file.txt", "initial").create();
+        RevCommit devTip = git.branch("develop").commit().parent(base).add("dev.txt", "1").create();
+        RevCommit featureTip = git.branch("feature").commit().parent(base).add("feat.txt", "2").create();
+        git.update("refs/heads/develop", devTip);
+        git.update("refs/heads/feature", featureTip);
+
+        mergeHandler.executeMerge("feature", "develop");
+        ObjectId mergeCommitId = repo.resolve("refs/heads/develop");
+
+        // Act: Revert once (moves pointer back to devTip)
+        assertDoesNotThrow(() -> mergeHandler.revertMerge("develop", mergeCommitId));
+
+        // Act Again: Revert a second time immediately (triggers NO_CHANGE state)
+        assertDoesNotThrow(() -> mergeHandler.revertMerge("develop", mergeCommitId),
+            "Executing a duplicate revert should resolve gracefully as NO_CHANGE.");
+
+        assertEquals(devTip, repo.resolve("refs/heads/develop"));
+    }
+    @Test
+    void revertMerge_ShouldThrowIllegalArgumentException_WhenTargetBranchDoesNotExist() throws Exception {
+        RevCommit base = git.commit().create();
+        RevCommit p1 = git.commit().parent(base).create();
+        RevCommit p2 = git.commit().parent(base).create();
+        RevCommit dummyMerge = git.commit().parent(p1).parent(p2).create();
+
+        // Act & Assert: Running against a fake branch name should throw an exception mapped from case NEW
+        assertThrows(IllegalArgumentException.class, () ->
+            mergeHandler.revertMerge("non-existent-branch-name", dummyMerge)
+        );
+    }
+    @Test
+    void revertMerge_ShouldThrowIllegalArgumentException_WhenCommitIsNotAMergeCommit() throws Exception {
+        // Arrange: Create a plain sequential commit (only 1 parent)
+        RevCommit base = git.commit().create();
+        RevCommit standardCommit = git.commit().parent(base).create();
+        git.update("refs/heads/develop", standardCommit);
+
+        // Act & Assert: Cannot execute a merge revert sequence against a non-merge tree configuration
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+            mergeHandler.revertMerge("develop", standardCommit)
+        );
+
+        assertTrue(exception.getMessage().contains("Commit is not a merge commit or has no parents."));
+    }
 }

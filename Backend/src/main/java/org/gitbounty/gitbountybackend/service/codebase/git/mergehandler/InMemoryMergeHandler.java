@@ -48,7 +48,7 @@ public class InMemoryMergeHandler extends AbstractMergeHandler {
             // Clean merge achieved! Return a successful result holding the new HEAD commit ID
             return new MergeResult(
                 mergeCommit,
-                targetId,
+                merger.getBaseCommitId(),
                 new ObjectId[] { targetId, sourceId },
                 MergeResult.MergeStatus.MERGED,
                 MergeStrategy.RECURSIVE,
@@ -68,21 +68,50 @@ public class InMemoryMergeHandler extends AbstractMergeHandler {
         try (RevWalk walk = new RevWalk(repo)) {
             RevCommit mergeCommit = walk.parseCommit(mergeCommitId);
 
-            if (mergeCommit.getParentCount() == 0) {
+            if (mergeCommit.getParentCount() < 2) {
                 throw new IllegalArgumentException("Commit is not a merge commit or has no parents.");
             }
+            // Parent 0 is the mainline branch (the branch that was merged INTO)
             RevCommit mainlineParent = mergeCommit.getParent(0);
 
             RefUpdate refUpdate = repo.updateRef("refs/heads/" + branchName);
             refUpdate.setNewObjectId(mainlineParent);
+
+            // CRITICAL FOR HARD RESET: This forces the pointer backward, bypassing
+            // any subsequent commits that happened after the merge.
             refUpdate.setForceUpdate(true);
 
             RefUpdate.Result result = refUpdate.update();
-            if (result == RefUpdate.Result.LOCK_FAILURE) {
-                throw new IOException("Failed to revert merge due to a reference lock failure.");
+
+            switch (result) {
+                case FORCED:
+                    // Success: The pointer was forcefully moved back to the parent commit.
+                    break;
+                case NO_CHANGE:
+                    // Success: It was already pointing at the parent.
+                    break;
+                case NOT_ATTEMPTED:
+                    throw new IllegalStateException("Failed to hard-reset branch: Revert was not attempter");
+                case LOCK_FAILURE:
+                    throw new IOException("Failed to hard-reset branch: The reference lock could not be acquired.");
+                case FAST_FORWARD:
+                    break;
+                case REJECTED, REJECTED_CURRENT_BRANCH:
+                    throw new IllegalStateException("Failed to hard-reset branch: The update was rejected. " +
+                        "The branch might be currently checked out or restricted.");
+                case NEW:
+                    throw new IllegalArgumentException("Branch '" + branchName + "' did not exist prior to this reset invocation.");
+                case IO_FAILURE:
+                    throw new IOException("Failed to hard-reset branch: IO failure");
+                case RENAMED:
+                    throw new IllegalArgumentException("Failed to hard-reset branch: Branch was renamed");
+                case REJECTED_MISSING_OBJECT:
+                    throw new IllegalArgumentException("Failed to hard-reset branch: Merge Commit does not exist");
+                case REJECTED_OTHER_REASON:
+                    throw new IllegalArgumentException("Failed to hard-reset branch");
             }
         } catch (IOException e) {
-            throw new GitAPIException("In-memory merge revert failed" + e);
+            throw new GitAPIException("In-memory merge revert via hard-reset failed"+e);
         }
     }
 
