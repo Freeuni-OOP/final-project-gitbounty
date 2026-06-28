@@ -68,3 +68,31 @@
     padding: 24px 16px;
   }
 }
+
+.bounty-status-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.bounty-status-badge.status-open {
+  background-color: #dafbe1;
+  color: #1a7f37;
+}
+
+.bounty-status-badge.status-assigned {
+  background-color: #fff8c5;
+  color: #9a6700;
+}
+
+.bounty-status-badge.status-completed {
+  background-color: #ddf4ff;
+  color: #0969da;
+}
+
+.bounty-status-badge.status-cancelled {
+  background-color: #ffebe9;
+  color: #cf222e;
+}

@@ -97,7 +97,7 @@ export default function RepositoryPage() {
       {/* ── Tab content ── */}
       {activeTab === 'Issues' && <IssuesTab owner={owner} repoName={repoName} />}
       {activeTab === 'Pull Requests' && <PullRequestsTab owner={owner} repoName={repoName} />}
-      {activeTab === 'Bounties' && <BountiesTab owner={owner} repoName={repoName} />}
+      {activeTab === 'Bounties' && <BountiesTab repoId={repo.id.toString()} />}
       {activeTab === 'Code' && (
         <div className="repo-browser">
           <div className="breadcrumb">
