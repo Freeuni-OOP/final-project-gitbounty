@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import apiClient from '../api/apiClient';
+import { useAuth } from "../auth/useAuth";
 
 export interface UserResponse {
     id: number;
@@ -26,37 +28,57 @@ export function parseCreatedAt(raw: string | number[]): Date {
 }
 
 export const useProfileData = (): ProfileData => {
+    // Reactive auth state — re-renders this hook automatically whenever
+    // Keycloak's isLoading/authenticated actually changes.
+    const { isLoading: isAuthLoading, authenticated } = useAuth();
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [user, setUser] = useState<UserResponse | null>(null);
     const [isUnauthenticated, setIsUnauthenticated] = useState(false);
 
     useEffect(() => {
+        // Wait until auth has genuinely finished initializing —
+        // this replaces the old 400ms retryTimer guess.
+        if (isAuthLoading) return;
+
+        if (!authenticated) {
+            setIsUnauthenticated(true);
+            setIsLoading(false);
+            return;
+        }
+
         let cancelled = false;
 
         const fetchProfile = async () => {
             try {
-                const res = await fetch('/api/users/profile/me');
-                if (res.status === 401 || res.status === 403) {
-                    if (!cancelled) setIsUnauthenticated(true);
-                    return;
-                }
-                if (!res.ok) throw new Error(`Server error: ${res.status}`);
-                const data: UserResponse = await res.json();
-                if (!cancelled) setUser(data);
-            } catch (err) {
+                const res = await apiClient.get('/api/users/profile/me');
+
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load profile');
+                    setUser(res.data);
+                    setError(null);
+                    setIsUnauthenticated(false);
+                    setIsLoading(false);
                 }
-            } finally {
-                if (!cancelled) setIsLoading(false);
+            } catch (err: any) {
+                if (!cancelled) {
+                    const status = err.response?.status;
+                    if (status === 401 || status === 403) {
+                        setIsUnauthenticated(true);
+                    } else {
+                        setError(err.response?.data?.message || err.message || 'Failed to load profile');
+                    }
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchProfile();
-        return () => { cancelled = true; };
-    }, []);
 
-    return { user, isLoading, error, isUnauthenticated };
+        return () => {
+            cancelled = true;
+        };
+    }, [isAuthLoading, authenticated]); // re-runs automatically when real auth state changes
+
+    return { user, isLoading: isLoading || isAuthLoading, error, isUnauthenticated };
 };
-
