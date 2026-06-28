@@ -10,6 +10,7 @@ public record IssueResponse(
         String description,
         String status,
         Long authorId,
+        Long assignedToId,
         Long repositoryId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -21,6 +22,7 @@ public record IssueResponse(
                 issue.getDescription(),
                 issue.getStatus().name(),
                 issue.getAuthor().getId(),
+                issue.getAssignedTo() == null ? null : issue.getAssignedTo().getId(),
                 issue.getRepository().getId(),
                 issue.getCreatedAt(),
                 issue.getUpdatedAt()
