@@ -113,4 +113,16 @@ public class PullRequestService {
 
         persistenceService.updatePRStatus(pr.getId(), issueStatus);
     }
+    public String getPullRequestDiff(String repositoryName, Integer prNumber) throws IOException {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        // return format aligns with: git diff targetBranch sourceBranch
+        return gitService.getBranchDiff(
+            repositoryName,
+            pr.getSourceBranch().getName(),
+            pr.getTargetBranch().getName()
+        );
+    }
 }

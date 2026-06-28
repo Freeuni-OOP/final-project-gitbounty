@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.controller.codebase.CodebasePermissions;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestDto;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestResponse;
+import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.PullRequestDiffResponse;
 import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.CreatePullRequestCommand;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.PullRequestService;
@@ -57,6 +58,16 @@ class PullRequestController {
         return CreatePullRequestResponse.from(
             pullRequestService.getPullRequest(repositoryName, prNumber)
         );
+    }
+    // Get the raw unified diff text for a specific Pull Request
+    @GetMapping("/{prNumber}/diff")
+    @ResponseStatus(HttpStatus.OK)
+    public PullRequestDiffResponse getPullRequestDiff(
+        @PathVariable String repositoryName,
+        @PathVariable Integer prNumber
+    ) throws IOException {
+        String rawDiff = pullRequestService.getPullRequestDiff(repositoryName, prNumber);
+        return new PullRequestDiffResponse(repositoryName, prNumber, rawDiff);
     }
 
     // Merge a Pull Request
