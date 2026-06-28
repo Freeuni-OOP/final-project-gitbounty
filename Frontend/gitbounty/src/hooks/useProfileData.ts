@@ -59,3 +59,4 @@ export const useProfileData = (): ProfileData => {
 
     return { user, isLoading, error, isUnauthenticated };
 };
+
