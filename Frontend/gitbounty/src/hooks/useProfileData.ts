@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 
 export interface UserResponse {
     id: number;
@@ -33,30 +34,48 @@ export const useProfileData = (): ProfileData => {
 
     useEffect(() => {
         let cancelled = false;
+        let successfullyLoaded = false;
 
         const fetchProfile = async () => {
             try {
-                const res = await fetch('/api/users/profile/me');
-                if (res.status === 401 || res.status === 403) {
-                    if (!cancelled) setIsUnauthenticated(true);
-                    return;
-                }
-                if (!res.ok) throw new Error(`Server error: ${res.status}`);
-                const data: UserResponse = await res.json();
-                if (!cancelled) setUser(data);
-            } catch (err) {
+                const res = await apiClient.get('/api/users/profile/me');
+
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load profile');
+                    setUser(res.data);
+                    setError(null);
+                    setIsUnauthenticated(false);
+                    setIsLoading(false);
+                    successfullyLoaded = true;
                 }
-            } finally {
-                if (!cancelled) setIsLoading(false);
+            } catch (err: any) {
+                if (!cancelled) {
+                    const status = err.response?.status;
+                    if (status === 401 || status === 403) {
+                        setIsUnauthenticated(true);
+                    } else {
+                        setError(err.response?.data?.message || err.message || 'Failed to load profile');
+                    }
+                    setIsLoading(false);
+                }
             }
         };
 
+        // Initial profile request on mount
         fetchProfile();
-        return () => { cancelled = true; };
+
+        // Tab-Refresh safety rule: If a user hard-refreshes the browser directly on /profile,
+        // retry the query a fraction of a second later in case auth provider was still setting up session keys.
+        const retryTimer = setTimeout(() => {
+            if (!cancelled && !successfullyLoaded) {
+                fetchProfile();
+            }
+        }, 400);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(retryTimer);
+        };
     }, []);
 
     return { user, isLoading, error, isUnauthenticated };
 };
-
