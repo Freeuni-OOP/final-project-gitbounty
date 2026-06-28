@@ -15,10 +15,23 @@ function BuyCreditsPage() {
     const [loading, setLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
 
-    useEffect(() => {
+    const fetchPageBalance = () => {
         paymentService.getMyBalance()
-            .then((data: any) => setBalance(data.creditBalance))
-            .catch((err: any) => console.error("Could not fetch balance", err));
+            .then((res: any) => {
+                const data = res?.data && res?.status ? res.data : res;
+                setBalance(data?.creditBalance ?? 0);
+            })
+            .catch((err: any) => console.error("Could not fetch page balance", err));
+    };
+
+    useEffect(() => {
+        // Initial fetch on component mount
+        fetchPageBalance();
+
+        // Refresh safety fallback: retry right after token initialization complete
+        const retryTimer = setTimeout(fetchPageBalance, 400);
+
+        return () => clearTimeout(retryTimer);
     }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +64,11 @@ function BuyCreditsPage() {
 
             setMessage({ type: 'success', text: `Success! Purchased ${response.creditsGranted} credits.` });
 
-            paymentService.getMyBalance().then((data: any) => setBalance(data.creditBalance));
+            // Inform the Navbar component layout to update its wallet number immediately
+            window.dispatchEvent(new Event('balanceUpdated'));
+
+            // Instantly update the local display banner number on this form page
+            fetchPageBalance();
         } catch (error: any) {
             const serverErrorMessage = error.response?.data?.message || "Payment failed. Please check details.";
             setMessage({ type: 'error', text: serverErrorMessage });
@@ -102,7 +119,7 @@ function BuyCreditsPage() {
 
                     {/* Card Number */}
                     <div style={{ marginBottom: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px' }}>Card Number</label>
+                        <label style={{ display: 'block', marginBottom: '5px' }}>Card Number (Mock validation active)</label>
                         <input
                             type="text" name="cardNumber" required placeholder="1234432112344321"
                             value={formData.cardNumber} onChange={handleChange}

@@ -10,18 +10,37 @@ const Navbar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Function to pull the latest user balance
+  // Custom Formatter Rule (e.g., 5000 -> 5k, 1000000+ -> 999k+)
+  const formatBalance = (num: number): string => {
+    if (num >= 1000000) {
+      return '999k+';
+    }
+    if (num >= 1000) {
+      const thousands = num / 1000;
+      // If it's a clean whole number (like 5k), remove trailing decimal zero
+      return thousands % 1 === 0 ? `${thousands}k` : `${thousands.toFixed(1)}k`;
+    }
+    return `${num}`;
+  };
+
   const fetchBalance = () => {
     paymentService.getMyBalance()
-        .then((data: any) => setBalance(data.creditBalance))
+        .then((res: any) => {
+          // Safe unpacking: checks if Axios returned raw response or nested response object
+          const data = res?.data && res?.status ? res.data : res;
+          setBalance(data?.creditBalance ?? 0);
+        })
         .catch((err: any) => console.error("Could not fetch navbar balance", err));
   };
 
   useEffect(() => {
-    // Fetch user balance on initial navbar mount
+    // Initial attempt to load balance
     fetchBalance();
 
-    // Set up listener to automatically catch updates from BuyCreditsPage
+    // Refresh fallback: retry a brief moment later in case Auth was still loading
+    const initialRetryTimer = setTimeout(fetchBalance, 400);
+
+    // Listen for broadcast pings when purchases are submitted successfully
     const handleBalanceUpdate = () => {
       fetchBalance();
     };
@@ -29,6 +48,7 @@ const Navbar: React.FC = () => {
     window.addEventListener('balanceUpdated', handleBalanceUpdate);
 
     return () => {
+      clearTimeout(initialRetryTimer);
       window.removeEventListener('balanceUpdated', handleBalanceUpdate);
     };
   }, []);
@@ -43,26 +63,17 @@ const Navbar: React.FC = () => {
 
           <ul className="nav-menu">
             <li className="nav-item">
-              <Link
-                  to="/"
-                  className={`nav-link ${isActive('/') ? 'active' : ''}`}
-              >
+              <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
                 Home
               </Link>
             </li>
             <li className="nav-item">
-              <Link
-                  to="/profile"
-                  className={`nav-link ${isActive('/profile') ? 'active' : ''}`}
-              >
+              <Link to="/profile" className={`nav-link ${isActive('/profile') ? 'active' : ''}`}>
                 Profile
               </Link>
             </li>
             <li className="nav-item">
-              <Link
-                  to="/bounties"
-                  className={`nav-link ${isActive('/bounties') ? 'active' : ''}`}
-              >
+              <Link to="/bounties" className={`nav-link ${isActive('/bounties') ? 'active' : ''}`}>
                 Bounties
               </Link>
             </li>
@@ -74,12 +85,8 @@ const Navbar: React.FC = () => {
                 Repositories
               </Link>
             </li>
-            {/* Buy Credits link using existing rules */}
             <li className="nav-item">
-              <Link
-                  to="/buy-credits"
-                  className={`nav-link ${isActive('/buy-credits') ? 'active' : ''}`}
-              >
+              <Link to="/buy-credits" className={`nav-link ${isActive('/buy-credits') ? 'active' : ''}`}>
                 Buy Credits
               </Link>
             </li>
@@ -92,21 +99,25 @@ const Navbar: React.FC = () => {
 
           <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
-            {/* Wallet Balance Display Pill */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: '#0B132B',
-              padding: '6px 14px',
-              borderRadius: '20px',
-              border: '1px solid #5BC0BE',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              color: '#5BC0BE',
-              userSelect: 'none'
-            }}>
+            {/* Wallet Element with formatting rules active */}
+            <div
+                title={`Exact Balance: ${balance} Credits`} // Hovering reveals exact unformatted integer
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: '#0B132B',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: '1px solid #5BC0BE',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  color: '#5BC0BE',
+                  userSelect: 'none',
+                  cursor: 'help'
+                }}
+            >
               <span style={{ color: '#CDD6F4', marginRight: '6px', fontWeight: 'normal' }}>Wallet:</span>
-              {balance} cr
+              {formatBalance(balance)} cr
             </div>
 
             <SignInButton/>
