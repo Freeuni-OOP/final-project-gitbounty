@@ -17,10 +17,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -B
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Best Practice: Security optimization (run as non-root)
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-COPY --from=builder --chown=appuser:appgroup /app/target/*.jar app.jar
-USER appuser
+COPY --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]
