@@ -1,10 +1,11 @@
 import type { BountyAPI } from '../types/Bounty';
 
+// We map backend statuses to colors instead of mock difficulties
 const statusColors: Record<BountyAPI['status'], string> = {
-    OPEN: '#10b981',
-    ASSIGNED: '#f59e0b',
-    COMPLETED: '#3b82f6',
-    CANCELLED: '#ef4444',
+    OPEN: '#10b981',       // Green
+    ASSIGNED: '#f59e0b',   // Orange
+    COMPLETED: '#3b82f6',  // Blue
+    CANCELLED: '#ef4444',  // Red
 };
 
 const BountyCard = ({
@@ -16,7 +17,7 @@ const BountyCard = ({
                     }: BountyAPI) => (
     <div className="bounty-card">
         <div className="bounty-card-header">
-            {}
+            {/* Fallback avatar since the backend doesn't send one yet */}
             <div className="repo-avatar" style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: '#374151' }} />
             <span className="repo-name">Issue #{issueId}</span>
         </div>
