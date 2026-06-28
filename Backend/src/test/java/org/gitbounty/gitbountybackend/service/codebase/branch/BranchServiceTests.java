@@ -12,8 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import jakarta.persistence.EntityNotFoundException;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -37,13 +35,13 @@ public class BranchServiceTests {
 
 	@Test
 	void createNewBranch_nullCodebase_throws() {
-		assertThrows(EntityNotFoundException.class, () -> branchService.createNewBranchForCodebase(null, "main"));
+		assertThrows(IllegalArgumentException.class, () -> branchService.createNewBranchForCodebase(null, "main"));
 	}
 
 	@Test
 	void createNewBranch_codebaseWithoutId_throws() {
 		Codebase codebase = new Codebase(); // id is null
-		assertThrows(EntityNotFoundException.class, () -> branchService.createNewBranchForCodebase(codebase, "main"));
+		assertThrows(IllegalArgumentException.class, () -> branchService.createNewBranchForCodebase(codebase, "main"));
 	}
 
 	@Test

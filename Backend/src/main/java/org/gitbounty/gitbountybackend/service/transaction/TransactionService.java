@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.service.transaction;
 
-import jakarta.persistence.EntityNotFoundException;
+import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
+import org.gitbounty.gitbountybackend.exception.TransactionNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.model.Transaction;
@@ -38,7 +39,7 @@ public class TransactionService {
      * @param toUserId ID of the bounty completer (who receives the credits)
      * @param issueId ID of the issue being completed
      * @return the created transaction
-     * @throws EntityNotFoundException if users or issue not found
+     * @throws UserNotFoundException if users not found, IssueNotFoundException if issue not found
      * @throws IllegalArgumentException if bounty amount is invalid or user lacks sufficient credits
      */
     @Transactional
@@ -52,7 +53,7 @@ public class TransactionService {
 
         // Validate issue exists and get bounty amount
         Issue issue = issueRepository.findById(issueId)
-            .orElseThrow(() -> new EntityNotFoundException("Issue not found: " + issueId));
+            .orElseThrow(() -> new IssueNotFoundException(issueId));
 
         if (issue.getBounty() == null || issue.getBounty().getAmount() == null) {
             throw new IllegalArgumentException("Issue has no bounty amount configured");
@@ -97,13 +98,13 @@ public class TransactionService {
      * @param transactionId ID of the transaction to approve
      * @param approverUserId ID of the user approving (should be fromUser)
      * @return the updated transaction
-     * @throws EntityNotFoundException if transaction not found
+     * @throws TransactionNotFoundException if transaction not found
      * @throws IllegalArgumentException if transaction is not PENDING or approver is not the creator
      */
     @Transactional
     public Transaction approveTransaction(Long transactionId, Long approverUserId) {
         Transaction transaction = transactionRepository.findById(transactionId)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+            .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         // Verify transaction is in PENDING status
         if (!transaction.getStatus().equals(TransactionStatus.PENDING)) {
@@ -141,13 +142,13 @@ public class TransactionService {
      * @param rejecterUserId ID of the user rejecting (should be fromUser)
      * @param reason optional reason for rejection
      * @return the updated transaction
-     * @throws EntityNotFoundException if transaction not found
+     * @throws TransactionNotFoundException if transaction not found
      * @throws IllegalArgumentException if transaction is not PENDING or rejecter is not the creator
      */
     @Transactional
     public Transaction rejectTransaction(Long transactionId, Long rejecterUserId, String reason) {
         Transaction transaction = transactionRepository.findById(transactionId)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+            .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         // Verify transaction is in PENDING status
         if (!transaction.getStatus().equals(TransactionStatus.PENDING)) {
@@ -179,13 +180,13 @@ public class TransactionService {
      * @param disputantUserId ID of the user disputing
      * @param reason reason for the dispute
      * @return the updated transaction
-     * @throws EntityNotFoundException if transaction not found
+     * @throws TransactionNotFoundException if transaction not found
      * @throws IllegalArgumentException if transaction is not PENDING
      */
     @Transactional
     public Transaction disputeTransaction(Long transactionId, Long disputantUserId, String reason) {
         Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + transactionId));
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         // Must be pending to dispute
         if (transaction.getStatus() != TransactionStatus.PENDING) {

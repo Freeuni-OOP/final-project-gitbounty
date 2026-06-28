@@ -1,6 +1,7 @@
 package org.gitbounty.gitbountybackend.service.transaction;
 
-import jakarta.persistence.EntityNotFoundException;
+import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
+import org.gitbounty.gitbountybackend.exception.TransactionNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.Issue;
@@ -117,12 +118,12 @@ class TransactionServiceTest {
         }
 
         @Test
-        void createEscrow_IssueNotFound_ThrowsEntityNotFoundException() {
+        void createEscrow_IssueNotFound_ThrowsIssueNotFoundException() {
             when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
             when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
             when(issueRepository.findById(10L)).thenReturn(Optional.empty());
 
-            assertThrows(EntityNotFoundException.class, () ->
+            assertThrows(IssueNotFoundException.class, () ->
                     transactionService.createEscrow(1L, 2L, 10L)
             );
         }
@@ -198,10 +199,10 @@ class TransactionServiceTest {
         }
 
         @Test
-        void approveTransaction_NotFound_ThrowsEntityNotFoundException() {
+        void approveTransaction_NotFound_ThrowsTransactionNotFoundException() {
             when(transactionRepository.findById(100L)).thenReturn(Optional.empty());
 
-            assertThrows(EntityNotFoundException.class, () ->
+            assertThrows(TransactionNotFoundException.class, () ->
                     transactionService.approveTransaction(100L, 1L)
             );
         }
@@ -257,10 +258,10 @@ class TransactionServiceTest {
         }
 
         @Test
-        void rejectTransaction_NotFound_ThrowsEntityNotFoundException() {
+        void rejectTransaction_NotFound_ThrowsTransactionNotFoundException() {
             when(transactionRepository.findById(100L)).thenReturn(Optional.empty());
 
-            assertThrows(EntityNotFoundException.class, () ->
+            assertThrows(TransactionNotFoundException.class, () ->
                     transactionService.rejectTransaction(100L, 1L, "Reason")
             );
         }
@@ -313,10 +314,10 @@ class TransactionServiceTest {
         }
 
         @Test
-        void disputeTransaction_NotFound_ThrowsEntityNotFoundException() {
+        void disputeTransaction_NotFound_ThrowsTransactionNotFoundException() {
             when(transactionRepository.findById(100L)).thenReturn(Optional.empty());
 
-            assertThrows(EntityNotFoundException.class, () ->
+            assertThrows(TransactionNotFoundException.class, () ->
                     transactionService.disputeTransaction(100L, 1L, "Reason")
             );
         }

@@ -1,6 +1,6 @@
 package org.gitbounty.gitbountybackend.service.codebase.branch;
 
-import jakarta.persistence.EntityNotFoundException;
+import org.gitbounty.gitbountybackend.exception.BranchNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Commit;
@@ -47,7 +47,7 @@ public class BranchService {
 	@Transactional
 	public Branch updateBranchLatestCommit(Codebase codebase, String branchName, Commit latestCommit) {
 		Branch branch = findBranchForCodebase(codebase, branchName)
-			.orElseThrow(() -> new EntityNotFoundException("Branch not found: " + branchName));
+			.orElseThrow(() -> new BranchNotFoundException("Branch not found: " + branchName));
 
 		branch.setLatestCommit(latestCommit);
 		return branchRepository.save(branch);
@@ -56,7 +56,7 @@ public class BranchService {
 	@Transactional
 	public void deleteBranchForCodebase(Codebase codebase, String branchName) {
 		Branch branch = findBranchForCodebase(codebase, branchName)
-			.orElseThrow(() -> new EntityNotFoundException("Branch not found: " + branchName));
+			.orElseThrow(() -> new BranchNotFoundException("Branch not found: " + branchName));
 
 		branchRepository.delete(branch);
 	}
@@ -83,7 +83,7 @@ public class BranchService {
 
 	private void assertCodebasePersisted(Codebase codebase) {
 		if (codebase == null || codebase.getId() == null) {
-			throw new EntityNotFoundException("Codebase must be a persisted entity");
+			throw new IllegalArgumentException("Codebase must be a persisted entity");
 		}
 	}
 	private void assertBranchNameValid(String branchName) {

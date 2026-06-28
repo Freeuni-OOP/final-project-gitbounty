@@ -2,9 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './styles/global.css'
+import {AuthContextProvider} from "./components/providers/AuthProvider.tsx";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+      <AuthContextProvider>
+        <App />
+      </AuthContextProvider>
   </StrictMode>,
 )

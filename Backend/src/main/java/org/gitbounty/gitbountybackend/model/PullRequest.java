@@ -2,7 +2,6 @@ package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 
 @Entity
@@ -30,7 +29,7 @@ public class PullRequest extends Issue {
      * Validates and normalizes the title.
      * @param title the title to normalize
      * @return normalized title
-     * @throws ResponseStatusException if title is null or blank
+     * @throws IllegalArgumentException if title is null or blank
      */
     public static String normalizeTitle(String title) {
         if (title == null || title.trim().isBlank()) {

@@ -7,6 +7,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -22,13 +23,20 @@ public class GlobalExceptionHandler {
     }
 
     // --- 404 NOT FOUND HANDLERS ---
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<Object> handleNoHandlerFound(NoHandlerFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "The requested resource was not found.");
+    }
+
     @ExceptionHandler({
             UserNotFoundException.class,
             BranchNotFoundException.class,
             CodebaseNotFoundException.class,
             CodebaseMemberNotFoundException.class,
             BountyNotFoundException.class,
-            IssueNotFoundException.class
+            IssueNotFoundException.class,
+            PRNotFoundException.class,
+            TransactionNotFoundException.class
     })
     public ResponseEntity<Object> handleNotFoundExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
