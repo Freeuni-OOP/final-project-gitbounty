@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { paymentService } from '../api/paymentService';
 import { useAuth } from '../auth/useAuth';
+import { useBalance } from '../context/BalanceContext';
 
 function BuyCreditsPage() {
     const { isLoading: isAuthLoading, authenticated } = useAuth();
+    const { balance, refreshBalance, setBalance } = useBalance();
 
     const [formData, setFormData] = useState({
         creditsToPurchase: '100',
@@ -14,25 +16,15 @@ function BuyCreditsPage() {
         cvv: ''
     });
 
-    const [balance, setBalance] = useState<number>(0);
     const [loading, setLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
-
-    const fetchPageBalance = () => {
-        paymentService.getMyBalance()
-            .then((res: any) => {
-                const data = res?.data && res?.status ? res.data : res;
-                setBalance(data?.creditBalance ?? 0);
-            })
-            .catch((err: any) => console.error("Could not fetch page balance", err));
-    };
 
     useEffect(() => {
         // Don't fetch until Keycloak has actually finished initializing
         // and only if the user is logged in (This replaces the previous 400ms guess).
         if (isAuthLoading || !authenticated) return;
 
-        fetchPageBalance();
+        refreshBalance();
     }, [isAuthLoading, authenticated]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,9 +57,9 @@ function BuyCreditsPage() {
 
             setMessage({ type: 'success', text: `Success! Purchased ${response.creditsGranted} credits.` });
 
-            window.dispatchEvent(new Event('balanceUpdated'));
-
-            fetchPageBalance();
+            // Update the shared balance directly with the value the server already gave us
+            // Navbar updates instantly too, since it reads from the same context.
+            setBalance(balance + response.creditsGranted);
         } catch (error: any) {
             const serverErrorMessage = error.response?.data?.message || "Payment failed. Please check details.";
             setMessage({ type: 'error', text: serverErrorMessage });

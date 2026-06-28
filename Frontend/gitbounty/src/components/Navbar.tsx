@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import '../styles/Navbar.css';
 import { SignInButton } from "./buttons/auth/SignInButton.tsx";
-import { paymentService } from '../api/paymentService';
 import { useAuth } from '../auth/useAuth';
+import { useBalance } from '../context/BalanceContext';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
-  const [balance, setBalance] = useState<number>(0);
   const { isLoading: isAuthLoading, authenticated } = useAuth();
+  const { balance, refreshBalance } = useBalance();
+
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -25,38 +26,14 @@ const Navbar: React.FC = () => {
     return `${num}`;
   };
 
-  const fetchBalance = () => {
-    paymentService.getMyBalance()
-        .then((res: any) => {
-          // Safe unpacking: checks if Axios returned raw response or nested response object
-          const data = res?.data && res?.status ? res.data : res;
-          setBalance(data?.creditBalance ?? 0);
-        })
-        .catch((err: any) => console.error("Could not fetch navbar balance", err));
-  };
-
 
   useEffect(() => {
-    // Don't fetch until auth is confirmed ready. Replaces the old 400ms retry guess.
+    // Don't fetch until auth is confirmed ready.
     if (isAuthLoading || !authenticated) return;
 
-    fetchBalance();
-  }, [isAuthLoading, authenticated]);
+    refreshBalance();
+  }, [isAuthLoading, authenticated, refreshBalance]);
 
-  useEffect(() => {
-    // Listen for broadcast pings when purchases are submitted successfully.
-    // Kept separate from the auth-gated effect above since this listener
-    // should stay registered regardless of auth state changes.
-    const handleBalanceUpdate = () => {
-      fetchBalance();
-    };
-
-    window.addEventListener('balanceUpdated', handleBalanceUpdate);
-
-    return () => {
-      window.removeEventListener('balanceUpdated', handleBalanceUpdate);
-    };
-  }, []);
 
   return (
       <nav className="navbar">

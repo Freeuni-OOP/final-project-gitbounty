@@ -7,20 +7,23 @@ import RepositoriesPage from './pages/RepositoriesPage';
 import RepositoryPage from './pages/RepositoryPage';
 import NotFoundPage from './pages/NotFoundPage';
 import BuyCreditsPage from './pages/BuyCreditsPage';
+import { BalanceProvider } from './context/BalanceContext';
 
 function App() {
   return (
     <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/bounties" element={<BountiesPage />} />
-        <Route path="/repositories" element={<RepositoriesPage />} />
-        <Route path="/repositories/:owner/:repoName" element={<RepositoryPage />} />
-        <Route path="/buy-credits" element={<BuyCreditsPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+        <BalanceProvider>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/bounties" element={<BountiesPage />} />
+            <Route path="/repositories" element={<RepositoriesPage />} />
+            <Route path="/repositories/:owner/:repoName" element={<RepositoryPage />} />
+            <Route path="/buy-credits" element={<BuyCreditsPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </BalanceProvider>
     </Router>
   );
 }
