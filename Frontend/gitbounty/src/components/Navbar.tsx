@@ -3,10 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import '../styles/Navbar.css';
 import { SignInButton } from "./buttons/auth/SignInButton.tsx";
 import { paymentService } from '../api/paymentService';
+import { useAuth } from '../auth/useAuth';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const [balance, setBalance] = useState<number>(0);
+  const { isLoading: isAuthLoading, authenticated } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -33,14 +35,18 @@ const Navbar: React.FC = () => {
         .catch((err: any) => console.error("Could not fetch navbar balance", err));
   };
 
+
   useEffect(() => {
-    // Initial attempt to load balance
+    // Don't fetch until auth is confirmed ready. Replaces the old 400ms retry guess.
+    if (isAuthLoading || !authenticated) return;
+
     fetchBalance();
+  }, [isAuthLoading, authenticated]);
 
-    // Refresh fallback: retry a brief moment later in case Auth was still loading
-    const initialRetryTimer = setTimeout(fetchBalance, 400);
-
-    // Listen for broadcast pings when purchases are submitted successfully
+  useEffect(() => {
+    // Listen for broadcast pings when purchases are submitted successfully.
+    // Kept separate from the auth-gated effect above since this listener
+    // should stay registered regardless of auth state changes.
     const handleBalanceUpdate = () => {
       fetchBalance();
     };
@@ -48,7 +54,6 @@ const Navbar: React.FC = () => {
     window.addEventListener('balanceUpdated', handleBalanceUpdate);
 
     return () => {
-      clearTimeout(initialRetryTimer);
       window.removeEventListener('balanceUpdated', handleBalanceUpdate);
     };
   }, []);

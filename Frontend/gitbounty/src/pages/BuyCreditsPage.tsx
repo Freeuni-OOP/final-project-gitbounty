@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { paymentService } from '../api/paymentService';
+import { useAuth } from '../auth/useAuth';
 
 function BuyCreditsPage() {
+    const { isLoading: isAuthLoading, authenticated } = useAuth();
+
     const [formData, setFormData] = useState({
         creditsToPurchase: '100',
         cardholderName: '',
@@ -25,14 +28,12 @@ function BuyCreditsPage() {
     };
 
     useEffect(() => {
-        // Initial fetch on component mount
+        // Don't fetch until Keycloak has actually finished initializing
+        // and only if the user is logged in (This replaces the previous 400ms guess).
+        if (isAuthLoading || !authenticated) return;
+
         fetchPageBalance();
-
-        // Refresh safety fallback: retry right after token initialization complete
-        const retryTimer = setTimeout(fetchPageBalance, 400);
-
-        return () => clearTimeout(retryTimer);
-    }, []);
+    }, [isAuthLoading, authenticated]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -64,10 +65,8 @@ function BuyCreditsPage() {
 
             setMessage({ type: 'success', text: `Success! Purchased ${response.creditsGranted} credits.` });
 
-            // Inform the Navbar component layout to update its wallet number immediately
             window.dispatchEvent(new Event('balanceUpdated'));
 
-            // Instantly update the local display banner number on this form page
             fetchPageBalance();
         } catch (error: any) {
             const serverErrorMessage = error.response?.data?.message || "Payment failed. Please check details.";
