@@ -65,9 +65,6 @@ public class CodebaseService {
     public Codebase findByName(String repositoryName) {
         return codebaseRepository.findByName(repositoryName).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: " + repositoryName));
     }
-    public Codebase findById(Long repositoryId) {
-        return codebaseRepository.findById(repositoryId).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: Id = " + repositoryId));
-    }
 
     public List<Codebase> getAllCodebases() {
         return codebaseRepository.findAll();
