@@ -14,10 +14,6 @@ jobs:
     defaults:
       run:
         working-directory: ./Backend
-    # OPTIMIZATION: Only run backend tests if backend files changed
-    paths:
-      - 'Backend/**'
-      - '.github/workflows/**'
 
     steps:
       - name: Checkout
@@ -43,10 +39,6 @@ jobs:
     defaults:
       run:
         working-directory: ./Frontend/gitbounty
-    # OPTIMIZATION: Only run frontend verify if frontend files changed
-    paths:
-      - 'Frontend/**'
-      - '.github/workflows/**'
 
     steps:
       - name: Checkout repository
