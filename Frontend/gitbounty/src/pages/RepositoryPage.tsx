@@ -6,6 +6,10 @@ import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/PullRequestsTab';
 import BountiesTab from '../components/BountiesTab';
 import '../styles/RepositoryPage.css';
+import { useEffect, useRef } from 'react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-java'; // Tells Prism how to read Java
+import 'prismjs/themes/prism-tomorrow.css'; // A nice dark mode style
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -42,12 +46,44 @@ function FileIcon() {
   );
 }
 
+interface HighlighterProps {
+  content: string;
+  isDarkMode: boolean;
+}
+
+function SyntaxHighlighter({ content, isDarkMode }: HighlighterProps) {
+  const codeRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      Prism.highlightElement(codeRef.current);
+    }
+  }, [content, isDarkMode]); // Re-runs coloring when text or theme changes
+
+  // Swapping the theme stylesheets dynamically
+  const themeUrl = isDarkMode
+      ? "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" // Dark
+      : "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css";          // Light
+
+  return (
+      <>
+        <link rel="stylesheet" href={themeUrl} />
+        <pre className="file-content">
+        <code ref={codeRef} className="language-java">
+          {content}
+        </code>
+      </pre>
+      </>
+  );
+}
+
 export default function RepositoryPage() {
   const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
   const [activeTab, setActiveTab] = useState<Tab>('Code');
   const [path, setPath] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
 
+  const [isDarkBox, setIsDarkBox] = useState<boolean>(true);
   const repo = mockRepositories.find((r) => r.owner === owner && r.name === repoName);
   const tree = getFileTree(owner, repoName);
   const entries = getDir(tree, path);
@@ -117,15 +153,34 @@ export default function RepositoryPage() {
           </div>
 
           {selectedFile ? (
-            <div className="file-viewer">
-              <div className="file-viewer-header">
-                <span className="file-viewer-name">{selectedFile.name}</span>
-                <span className="file-viewer-lines">
-                  {(selectedFile.content ?? '').split('\n').filter(Boolean).length} lines
-                </span>
+              <div className="file-viewer">
+                <div className="file-viewer-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="file-viewer-name">{selectedFile.name}</span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span className="file-viewer-lines">
+          {(selectedFile.content ?? '').split('\n').filter(Boolean).length} lines
+        </span>
+
+                    <button
+                        onClick={() => setIsDarkBox(!isDarkBox)}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          border: '1px solid #d0d7de',
+                          backgroundColor: '#f6f8fa',
+                          color: '#24292e'
+                        }}
+                    >
+                      {isDarkBox ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                    </button>
+                  </div>
+                </div>
+
+                <SyntaxHighlighter content={selectedFile.content ?? ''} isDarkMode={isDarkBox} />
               </div>
-              <pre className="file-content">{selectedFile.content}</pre>
-            </div>
           ) : (
             <table className="file-table">
               <tbody>
