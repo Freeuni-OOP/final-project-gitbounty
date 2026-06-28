@@ -205,7 +205,6 @@ public class GitService {
         try (ObjectReader reader = repository.newObjectReader()) {
             treeParser.reset(reader, tree.getId());
         }
-        walk.dispose();
         return treeParser;
     }
 
