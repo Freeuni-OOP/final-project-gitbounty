@@ -1,6 +1,8 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
 
+import java.util.List;
+
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
@@ -115,6 +117,10 @@ public class CodebaseService {
     }
     public Codebase findById(Long repositoryId) {
         return codebaseRepository.findById(repositoryId).orElseThrow(() -> new CodebaseNotFoundException("Repository not found: Id = " + repositoryId));
+    }
+
+    public List<Codebase> getAllCodebases() {
+        return codebaseRepository.findAll();
     }
 
     public Codebase updateCodebase(String repositoryName, UpdateCodebaseCommand command) {
