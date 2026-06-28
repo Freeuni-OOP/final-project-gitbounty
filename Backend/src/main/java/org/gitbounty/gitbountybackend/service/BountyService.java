@@ -122,4 +122,11 @@ public class BountyService {
         if (bounty.getIssue() != null) dto.setIssueId(bounty.getIssue().getId());
         return dto;
     }
+
+    public List<BountyDTO> getBountiesByRepository(Long repoId) {
+        return bountyRepository.findAll().stream()
+                .filter(b -> b.getIssue() != null && b.getIssue().getRepository().getId().equals(repoId))
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 }

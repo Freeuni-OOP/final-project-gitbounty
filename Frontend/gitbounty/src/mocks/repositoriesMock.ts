@@ -8,6 +8,7 @@ export type FileNode = {
 };
 
 export type MockRepo = {
+  id: number;
   owner: string;
   name: string;
   description: string;
@@ -20,6 +21,7 @@ export type MockRepo = {
 
 export const mockRepositories: MockRepo[] = [
   {
+    id: 1,
     owner: 'torvalds',
     name: 'linux',
     description: 'Linux kernel source tree',
@@ -30,6 +32,7 @@ export const mockRepositories: MockRepo[] = [
     lastUpdated: '2 hours ago',
   },
   {
+    id: 2,
     owner: 'microsoft',
     name: 'vscode',
     description: 'Visual Studio Code — open-source code editor',
@@ -40,6 +43,7 @@ export const mockRepositories: MockRepo[] = [
     lastUpdated: '1 hour ago',
   },
   {
+    id: 3,
     owner: 'facebook',
     name: 'react',
     description: 'The library for web and native user interfaces',
@@ -50,6 +54,7 @@ export const mockRepositories: MockRepo[] = [
     lastUpdated: '3 hours ago',
   },
   {
+    id: 4,
     owner: 'rust-lang',
     name: 'rust',
     description: 'Empowering everyone to build reliable and efficient software',
@@ -60,6 +65,7 @@ export const mockRepositories: MockRepo[] = [
     lastUpdated: '5 hours ago',
   },
   {
+    id: 5,
     owner: 'golang',
     name: 'go',
     description: 'The Go programming language',

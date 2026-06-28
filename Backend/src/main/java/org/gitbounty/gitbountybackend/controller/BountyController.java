@@ -45,4 +45,9 @@ public class BountyController {
     public ResponseEntity<BountyDTO> getBountyById(@PathVariable Long id) {
         return ResponseEntity.ok(bountyService.getBountyById(id));
     }
+
+    @GetMapping("/repository/{repoId}")
+    public List<BountyDTO> getBountiesByRepository(@PathVariable Long repoId) {
+        return bountyService.getBountiesByRepository(repoId);
+    }
 }

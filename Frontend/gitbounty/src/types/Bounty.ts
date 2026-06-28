@@ -32,3 +32,12 @@ export interface ActivityItem {
     repoName: string;
     timestamp: string;
 }
+
+export interface BountyAPI {
+    id: number;
+    title: string;
+    description: string;
+    amount: number;
+    status: 'OPEN' | 'ASSIGNED' | 'COMPLETED' | 'CANCELLED';
+    issueId: number;
+}
