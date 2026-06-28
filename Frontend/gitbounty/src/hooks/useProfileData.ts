@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import { useAuth } from "../auth/useAuth";
 
 export interface UserResponse {
     id: number;
@@ -27,14 +28,27 @@ export function parseCreatedAt(raw: string | number[]): Date {
 }
 
 export const useProfileData = (): ProfileData => {
+    // Reactive auth state — re-renders this hook automatically whenever
+    // Keycloak's isLoading/authenticated actually changes.
+    const { isLoading: isAuthLoading, authenticated } = useAuth();
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [user, setUser] = useState<UserResponse | null>(null);
     const [isUnauthenticated, setIsUnauthenticated] = useState(false);
 
     useEffect(() => {
+        // Wait until auth has genuinely finished initializing —
+        // this replaces the old 400ms retryTimer guess.
+        if (isAuthLoading) return;
+
+        if (!authenticated) {
+            setIsUnauthenticated(true);
+            setIsLoading(false);
+            return;
+        }
+
         let cancelled = false;
-        let successfullyLoaded = false;
 
         const fetchProfile = async () => {
             try {
@@ -45,7 +59,6 @@ export const useProfileData = (): ProfileData => {
                     setError(null);
                     setIsUnauthenticated(false);
                     setIsLoading(false);
-                    successfullyLoaded = true;
                 }
             } catch (err: any) {
                 if (!cancelled) {
@@ -60,22 +73,12 @@ export const useProfileData = (): ProfileData => {
             }
         };
 
-        // Initial profile request on mount
         fetchProfile();
-
-        // Tab-Refresh safety rule: If a user hard-refreshes the browser directly on /profile,
-        // retry the query a fraction of a second later in case auth provider was still setting up session keys.
-        const retryTimer = setTimeout(() => {
-            if (!cancelled && !successfullyLoaded) {
-                fetchProfile();
-            }
-        }, 400);
 
         return () => {
             cancelled = true;
-            clearTimeout(retryTimer);
         };
-    }, []);
+    }, [isAuthLoading, authenticated]); // re-runs automatically when real auth state changes
 
-    return { user, isLoading, error, isUnauthenticated };
+    return { user, isLoading: isLoading || isAuthLoading, error, isUnauthenticated };
 };
