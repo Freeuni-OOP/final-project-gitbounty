@@ -86,7 +86,7 @@ public class PullRequestService {
                 return persistenceService.finalizeMerge(pr.getId());
             } catch (Exception e) {
                 // ROLLBACK: Revert the specific commit we just pushed
-                gitService.revertMerge(repositoryName, result.getNewHead());
+                gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead());
                 throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
             }
         });

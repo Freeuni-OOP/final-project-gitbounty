@@ -110,7 +110,7 @@ class GitServiceTests {
         assertNotNull(result.getNewHead(), "Merge commit ID should be present");
 
         // 3. Rollback the specific merge commit
-        gitService.revertMerge(REPO_NAME, result.getNewHead());
+        gitService.revertMerge(REPO_NAME, "master", result.getNewHead());
 
         // 4. Verify: Clone again to check the remote state
         Path verificationClone = Files.createTempDirectory("verify-rollback");
@@ -129,7 +129,7 @@ class GitServiceTests {
     void testRollbackWithInvalidCommitId() {
         // Ensure that providing a non-existent commit ID throws an exception
         // (Assuming you handle bad ObjectIds in your service)
-        assertThrows(Exception.class, () -> gitService.revertMerge(REPO_NAME, org.eclipse.jgit.lib.ObjectId.zeroId()));
+        assertThrows(Exception.class, () -> gitService.revertMerge(REPO_NAME, "master", org.eclipse.jgit.lib.ObjectId.zeroId()));
     }
 
     // Helper to simulate work in a bare repo
@@ -228,5 +228,44 @@ class GitServiceTests {
     void testCreateRepository_AlreadyExists() {
         gitService.createRepository("existing-repo");
         assertThrows(IllegalStateException.class, () -> gitService.createRepository("existing-repo"));
+    }
+    @Test
+    void testGetBranchDiff_ShouldReturnValidPatchString_WhenDifferencesExist() throws Exception {
+        // Arrange: Establish a shared baseline on master
+        prepareBranch("master", "shared.txt", "line 1\nline 2\n");
+
+        // Create a feature branch and modify the existing file
+        prepareBranch("feature", "shared.txt", "line 1\nline 2 edited\n");
+
+        // Act: Compute the diff (Equivalent to: git diff master feature)
+        String diffOutput = gitService.getBranchDiff(REPO_NAME, "feature", "master");
+
+        // Assert: Ensure the raw patch content reflects standard unified diff formatting text
+        assertNotNull(diffOutput);
+        assertTrue(diffOutput.contains("--- a/shared.txt"), "Diff header should specify old file path reference.");
+        assertTrue(diffOutput.contains("+++ b/shared.txt"), "Diff header should specify new file path reference.");
+        assertTrue(diffOutput.contains("-line 2"), "Diff should mark deleted lines with a minus sign.");
+        assertTrue(diffOutput.contains("+line 2 edited"), "Diff should mark added lines with a plus sign.");
+    }
+
+    @Test
+    void testGetBranchDiff_ShouldReturnEmptyString_WhenBranchesAreIdentical() throws Exception {
+        // Arrange: Setup master, then sync an identical tracking file structure on a separate branch
+        prepareBranch("master", "sync.txt", "no changes");
+        prepareBranch("feature-identical", "sync.txt", "no changes");
+
+        // Act
+        String diffOutput = gitService.getBranchDiff(REPO_NAME, "feature-identical", "master");
+
+        // Assert: Comparing identical histories produces an empty patch document body
+        assertTrue(diffOutput.isEmpty(), "Diff output must be completely empty when histories match.");
+    }
+
+    @Test
+    void testGetBranchDiff_ShouldThrowIllegalArgumentException_WhenBranchNamesAreMalicious() {
+        // Act & Assert: Verify path injection validation blocks malicious traversal vectors
+        assertThrows(IllegalArgumentException.class, () ->
+            gitService.getBranchDiff(REPO_NAME, "feature", "../heads/master")
+        );
     }
 }

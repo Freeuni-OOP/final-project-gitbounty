@@ -139,7 +139,7 @@ class PullRequestServiceTests {
             .isInstanceOf(DatabaseTransactionException.class);
 
         // Verify Rollback
-        verify(gitService).revertMerge(mockRepoName, commitId);
+        verify(gitService).revertMerge(mockRepoName, mockTargetBranch.getName(),  commitId);
     }
 
     @Test
