@@ -35,3 +35,5 @@ repositories/
 /gitbounty
 
 .env
+
+node_modules
