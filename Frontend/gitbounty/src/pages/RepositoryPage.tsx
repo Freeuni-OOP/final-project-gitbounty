@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getFileTree, mockRepositories } from '../mocks/repositoriesMock';
 import type { FileNode } from '../mocks/repositoriesMock';
@@ -6,7 +6,6 @@ import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/PullRequestsTab';
 import BountiesTab from '../components/BountiesTab';
 import '../styles/RepositoryPage.css';
-import { useEffect, useRef } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-java'; // Tells Prism how to read Java
 import 'prismjs/themes/prism-tomorrow.css'; // A nice dark mode style
@@ -51,7 +50,7 @@ interface HighlighterProps {
   isDarkMode: boolean;
 }
 
-function SyntaxHighlighter({ content, isDarkMode }: HighlighterProps) {
+function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) {
   const codeRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -132,7 +131,7 @@ export default function RepositoryPage() {
 
       {/* ── Tab content ── */}
       {activeTab === 'Issues' && <IssuesTab owner={owner} repoName={repoName} />}
-      {activeTab === 'Pull Requests' && <PullRequestsTab owner={owner} repoName={repoName} />}
+      {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}
       {activeTab === 'Bounties' && <BountiesTab owner={owner} repoName={repoName} />}
       {activeTab === 'Code' && (
         <div className="repo-browser">
