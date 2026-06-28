@@ -1,7 +1,16 @@
-import { useState } from 'react';
-import { getPullRequests } from '../mocks/repositoriesMock';
-import type { PullRequest } from '../mocks/repositoriesMock';
+import { useState, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 import '../styles/RepoTabs.css';
+
+export type PullRequest = {
+  id: number;
+  title: string;
+  author: string;
+  openedAt: string;
+  status: 'open' | 'merged' | 'closed';
+  sourceBranch: string;
+  targetBranch: string;
+};
 
 function OpenPRIcon() {
   return (
@@ -27,7 +36,7 @@ function ClosedPRIcon() {
   );
 }
 
-function PRIcon({ status }: { status: PullRequest['status'] }) {
+function PRIcon({ status }: Readonly<{ status: PullRequest['status'] }>) {
   if (status === 'merged') return <MergedPRIcon />;
   if (status === 'closed') return <ClosedPRIcon />;
   return <OpenPRIcon />;
@@ -35,14 +44,82 @@ function PRIcon({ status }: { status: PullRequest['status'] }) {
 
 type Filter = 'open' | 'merged' | 'closed';
 
-export default function PullRequestsTab({ owner, repoName }: { owner: string; repoName: string }) {
+export default function PullRequestsTab({ repoName }: Readonly<{ repoName: string }>) {
   const [filter, setFilter] = useState<Filter>('open');
-  const all = getPullRequests(owner, repoName);
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPullRequests = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.get<PullRequest[]>(
+          `/api/codebases/${repoName}/pull-requests`
+        );
+        setPullRequests(response.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch pull requests');
+        setPullRequests([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPullRequests();
+  }, [repoName]);
+
+  const all = pullRequests;
   const shown = all.filter((pr) => pr.status === filter);
   const counts = { open: 0, merged: 0, closed: 0 } as Record<Filter, number>;
   all.forEach((pr) => counts[pr.status]++);
 
   const filters: Filter[] = ['open', 'merged', 'closed'];
+
+  if (loading) {
+    return (
+      <div className="tab-panel">
+        <div className="tab-panel-header">
+          {filters.map((f) => (
+            <button
+              key={f}
+              className={`tab-panel-filter ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+              disabled
+            >
+              <span className="pr-status-icon" /> 0 {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <ul className="tab-item-list">
+          <li className="tab-empty">Loading pull requests...</li>
+        </ul>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="tab-panel">
+        <div className="tab-panel-header">
+          {filters.map((f) => (
+            <button
+              key={f}
+              className={`tab-panel-filter ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+              disabled
+            >
+              <span className="pr-status-icon" /> 0 {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <ul className="tab-item-list">
+          <li className="tab-empty">Error: {error}</li>
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className="tab-panel">
