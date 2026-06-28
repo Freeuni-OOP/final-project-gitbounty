@@ -12,7 +12,11 @@ const Navbar: React.FC = () => {
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo">
-          <span className="logo-icon">🎯</span>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="14" cy="14" r="13" fill="#F5A623" stroke="#E8960F" strokeWidth="1.5"/>
+            <circle cx="14" cy="14" r="10" fill="#F7B731" stroke="#E8960F" strokeWidth="0.5"/>
+            <text x="14" y="19" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#7A4F00" fontFamily="serif">$</text>
+          </svg>
           GitBounty
         </Link>
 
@@ -48,11 +52,6 @@ const Navbar: React.FC = () => {
             >
               Repositories
             </Link>
-          </li>
-          <li className="nav-item">
-            <a href="#about" className="nav-link">
-              About
-            </a>
           </li>
         </ul>
 
