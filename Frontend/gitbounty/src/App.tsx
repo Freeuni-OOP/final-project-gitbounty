@@ -7,12 +7,10 @@ import RepositoriesPage from './pages/RepositoriesPage';
 import RepositoryPage from './pages/RepositoryPage';
 import NotFoundPage from './pages/NotFoundPage';
 import BuyCreditsPage from './pages/BuyCreditsPage';
-import { BalanceProvider } from './context/BalanceContext';
 
 function App() {
   return (
     <Router>
-        <BalanceProvider>
           <Navbar />
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -23,7 +21,6 @@ function App() {
             <Route path="/buy-credits" element={<BuyCreditsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </BalanceProvider>
     </Router>
   );
 }
