@@ -1,7 +1,8 @@
 import axios from 'axios';
 import {getGlobalAuth} from "../auth/authInstance.ts";
+import { API_BASE } from './apiBase';
 const apiClient = axios.create({
-    baseURL: 'https://api.gitbounty.foo',
+    baseURL: API_BASE,
     headers: {
         'Content-Type': 'application/json',
     },
