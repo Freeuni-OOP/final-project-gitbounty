@@ -41,6 +41,10 @@ public class Issue {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
+    @ManyToOne
+    @JoinColumn(name = "assigned_to_id")
+    private User assignedTo;
+
 
     // those as well have to be uncommented after implementing the repository entity
     @ManyToOne
