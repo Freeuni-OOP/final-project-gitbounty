@@ -37,8 +37,35 @@ const BountiesPage = () => {
         ? bounties
         : bounties.filter((b) => b.status === statusFilter);
 
-    if (isLoading) return <div className="bounties-loading">Loading live bounties...</div>;
-    if (error) return <div className="bounties-error">{error}</div>;
+    if (isLoading) return (
+        <div
+            className="bounties-loading"
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '50vh'
+            }}
+        >
+            Loading live bounties...
+        </div>
+    );
+
+    if (error) return (
+        <div
+            className="bounties-error"
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '50vh',
+                color: '#ef4444',
+                fontWeight: '500'
+            }}
+        >
+            {error}
+        </div>
+    );
 
     return (
         <div className="bounties-page">
