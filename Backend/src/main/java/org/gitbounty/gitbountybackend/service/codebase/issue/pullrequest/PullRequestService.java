@@ -106,10 +106,10 @@ public class PullRequestService {
                     throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
                 }
             });
-        } catch (RuntimeException e) {
+        } catch (MergeConflictException | DatabaseTransactionException e) {
             throw e;
         } catch (Exception e) {
-            throw new DatabaseTransactionException("Unexpected system failure during branch merge", e);
+            throw new MergeConflictException("Unexpected system failure during branch merge", e);
         }
     }
 
