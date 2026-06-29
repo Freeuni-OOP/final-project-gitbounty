@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.gitbounty.gitbountybackend.exception.DatabaseTransactionException;
 import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
 import org.gitbounty.gitbountybackend.model.Branch;
@@ -37,7 +38,7 @@ class PullRequestServiceTests {
     @Mock private IssueRepository issueRepository;
     @Mock private CodebaseService codebaseService;
     @Mock private GitService gitService;
-    @Mock private PullRequestPersistenceService persistenceService; // The new mock
+    @Mock private PullRequestPersistenceService persistenceService;
 
     @InjectMocks
     private PullRequestService pullRequestService;
@@ -54,17 +55,21 @@ class PullRequestServiceTests {
     void setUp() {
         mockUser = new User();
         mockUser.setId(1L);
+        mockUser.setUsername("bounty-operator");
+        mockUser.setEmail("operator@gitbounty.org");
+
         mockCodebase = new Codebase();
         mockCodebase.setId(10L);
+
         mockSourceBranch = new Branch();
         mockSourceBranch.setName("feature-branch");
+
         mockTargetBranch = new Branch();
         mockTargetBranch.setName("main");
     }
 
     @Test
     void createPullRequest_Success() {
-        // Setup
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
         when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
@@ -72,14 +77,10 @@ class PullRequestServiceTests {
         when(issueRepository.findMaxNumberByRepositoryId(10L)).thenReturn(Optional.of(5));
 
         var command = new CreatePullRequestCommand(mockRepoName, mockKeycloakId, "feature-branch", "main", "Title", "Desc");
-
-        // Mock persistence service
         when(persistenceService.create(any(), any(), any(), any(), any(), anyInt())).thenReturn(new PullRequest());
 
-        // Execute
         pullRequestService.createPullRequest(command);
 
-        // Verify
         verify(persistenceService).create(eq(command), any(), any(), any(), any(), eq(6));
     }
 
@@ -88,25 +89,22 @@ class PullRequestServiceTests {
         MergeResult mockResult = mock(MergeResult.class);
         PullRequest pr = new PullRequest();
         pr.setId(99L);
-
         pr.setSourceBranch(mockSourceBranch);
         pr.setTargetBranch(mockTargetBranch);
 
-        when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+        when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
+        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, 1)).thenReturn(Optional.of(pr));
 
-        // Mock lock
         when(gitService.runLocked(eq(mockRepoName), any())).thenAnswer(i -> {
             GitService.SupplierWithException<?> lambda = i.getArgument(1);
             return lambda.get();
         });
 
-        when(gitService.mergeBranches(anyString(), anyString(), anyString())).thenReturn(mockResult);
+        when(gitService.mergeBranches(anyString(), anyString(), anyString(), any(PersonIdent.class))).thenReturn(mockResult);
 
-        // Execute
-        pullRequestService.mergePullRequestForCodebase(mockRepoName, 1);
+        pullRequestService.mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId);
 
-        // Verify delegation to persistence service
         verify(persistenceService).finalizeMerge(99L);
     }
 
@@ -121,37 +119,31 @@ class PullRequestServiceTests {
         pr.setSourceBranch(mockSourceBranch);
         pr.setTargetBranch(mockTargetBranch);
 
-        when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+        when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
+        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(pullRequestRepository.findByRepositoryAndNumber(any(), any())).thenReturn(Optional.of(pr));
 
-        // Setup lock and persistence failure
         when(gitService.runLocked(eq(mockRepoName), any())).thenAnswer(i -> {
             GitService.SupplierWithException<?> lambda = i.getArgument(1);
             return lambda.get();
         });
-        when(gitService.mergeBranches(anyString(), anyString(), anyString())).thenReturn(mockResult);
 
-        // Throw exception from the persistence service
+        when(gitService.mergeBranches(anyString(), anyString(), anyString(), any(PersonIdent.class))).thenReturn(mockResult);
         when(persistenceService.finalizeMerge(99L)).thenThrow(new RuntimeException("DB Failure"));
 
-        // Execute and Verify
-        assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1))
+        assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId))
             .isInstanceOf(DatabaseTransactionException.class);
 
-        // Verify Rollback
-        verify(gitService).revertMerge(mockRepoName, commitId);
+        verify(gitService).revertMerge(eq(mockRepoName), eq(mockTargetBranch.getName()), eq(commitId), any(PersonIdent.class));
     }
 
     @Test
     void getPullRequestsForCodebase_Success() {
-        // Setup
         when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
         when(pullRequestRepository.findByRepository(mockCodebase)).thenReturn(List.of(new PullRequest()));
 
-        // Execute
         List<PullRequest> result = pullRequestService.getPullRequestsForCodebase(mockRepoName);
 
-        // Verify
         assertThat(result).hasSize(1);
         verify(codebaseService).findByName(mockRepoName);
         verify(pullRequestRepository).findByRepository(mockCodebase);
@@ -159,24 +151,17 @@ class PullRequestServiceTests {
 
     @Test
     void createPullRequest_Throws_WhenBranchesAreSame() {
-        // Setup
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
-
-        // Setup both branches as the same object
-        when(branchRepository.findByCodebaseIdAndName(10L, "same-branch")).thenReturn(Optional.of(mockSourceBranch));
-        // Important: Source and target are the same object reference (mockSourceBranch)
         when(branchRepository.findByCodebaseIdAndName(10L, "same-branch")).thenReturn(Optional.of(mockSourceBranch));
 
         var command = new CreatePullRequestCommand(
             mockRepoName, mockKeycloakId, "same-branch", "same-branch", "Title", "Desc"
         );
 
-        // Execute & Verify
         assertThatThrownBy(() -> pullRequestService.createPullRequest(command))
             .isInstanceOf(PRBranchesAreSameException.class);
 
-        // Ensure persistence service is NEVER called
         verifyNoInteractions(persistenceService);
     }
 }

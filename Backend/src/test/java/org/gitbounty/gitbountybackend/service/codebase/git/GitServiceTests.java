@@ -2,6 +2,11 @@ package org.gitbounty.gitbountybackend.service.codebase.git;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeResult;
+import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.gitbounty.gitbountybackend.exception.MergeConflictException;
 import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
 import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
@@ -15,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -23,12 +29,15 @@ class GitServiceTests {
     private GitService gitService;
     private final String REPO_NAME = "test-repo";
     private File bareRepoDir;
+    private PersonIdent mockUser;
 
     @BeforeEach
     void setup(@TempDir Path tempDir) throws Exception {
-        // Use the actual implementation for the test
         gitService = new GitService(tempDir, new LocalRepositoryLockProvider());
         bareRepoDir = tempDir.resolve(REPO_NAME + ".git").toFile();
+
+        // Define standard operator details for the scope of the tests
+        mockUser = new PersonIdent("Test Operator", "test-operator@gitbounty.org");
 
         // 1. Initialize a BARE repository
         try (Git ignored = Git.init().setDirectory(bareRepoDir).setBare(true).call()) {
@@ -47,7 +56,7 @@ class GitServiceTests {
     }
 
     @Test
-    void testSuccessfulMerge() throws Exception {
+    void testSuccessfulMerge_ShouldStampIdentityAndFreshTimestamp() throws Exception {
         // Clone to prepare the feature branch
         Path cloneDir = Files.createTempDirectory("test-clone");
         try (Git git = Git.cloneRepository().setURI(bareRepoDir.getAbsolutePath())
@@ -60,66 +69,74 @@ class GitServiceTests {
             git.push().call();
         }
 
-        // Test the service (which now handles the clone-merge-push logic internally)
-        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master");
+        long expectedTimeSecs = Instant.now().getEpochSecond();
+
+        // Test the service (passing identity parameters)
+        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master", mockUser);
 
         assertTrue(result.getMergeStatus().isSuccessful());
+        assertNotNull(result.getNewHead());
+
+        // Thoroughly check that our handler stamped the credentials and real-time accurately
+        try (Repository repository = new FileRepositoryBuilder().setGitDir(bareRepoDir).build();
+             RevWalk walk = new RevWalk(repository)) {
+
+            RevCommit mergeCommit = walk.parseCommit(result.getNewHead());
+            assertEquals(mockUser.getName(), mergeCommit.getAuthorIdent().getName());
+            assertEquals(mockUser.getEmailAddress(), mergeCommit.getCommitterIdent().getEmailAddress());
+
+            long commitTimeSecs = mergeCommit.getCommitTime();
+            assertTrue(Math.abs(expectedTimeSecs - commitTimeSecs) < 5, "Timestamp was stale or incorrect.");
+        }
     }
 
     @Test
     void testMergeConflict() throws Exception {
-        // Prepare feature branch with change
         prepareBranch("feature", "file.txt", "feature change");
-        // Prepare master branch with conflicting change
         prepareBranch("master", "file.txt", "master change");
 
-        // We verify that our custom exception is thrown
-        assertThrows(MergeConflictException.class, () -> gitService.mergeBranches(REPO_NAME, "feature", "master"));
+        // Update signature parameters
+        assertThrows(MergeConflictException.class, () ->
+            gitService.mergeBranches(REPO_NAME, "feature", "master", mockUser)
+        );
     }
 
     @Test
     void testSecuritySanitization() {
-        // Verify that path traversal attempts are blocked by our validation logic
-        assertThrows(IllegalArgumentException.class, () -> gitService.mergeBranches(REPO_NAME, "../../../etc/passwd", "master"));
+        assertThrows(IllegalArgumentException.class, () ->
+            gitService.mergeBranches(REPO_NAME, "../../../etc/passwd", "master", mockUser)
+        );
     }
 
     @Test
     void testConcurrencySafety() throws Exception {
-        // This ensures that the lock provider is working
-        // running two merges simultaneously.
-        // Note: This relies on the fact that GitService.runLocked() is utilized.
-
         prepareBranch("f1", "f1.txt", "v1");
         prepareBranch("f2", "f2.txt", "v2");
 
         assertDoesNotThrow(() -> {
-            gitService.mergeBranches(REPO_NAME, "f1", "master");
-            gitService.mergeBranches(REPO_NAME, "f2", "master");
+            gitService.mergeBranches(REPO_NAME, "f1", "master", mockUser);
+            gitService.mergeBranches(REPO_NAME, "f2", "master", mockUser);
         });
     }
 
     @Test
     void testRollbackMergeSuccessful() throws Exception {
-        // 1. Prepare feature with a file that doesn't exist on master
         String fileName = "rollback-test.txt";
         prepareBranch("feature", fileName, "content to be rolled back");
 
-        // 2. Perform merge (this creates a merge commit)
-        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master");
+        MergeResult result = gitService.mergeBranches(REPO_NAME, "feature", "master", mockUser);
         assertTrue(result.getMergeStatus().isSuccessful());
         assertNotNull(result.getNewHead(), "Merge commit ID should be present");
 
-        // 3. Rollback the specific merge commit
-        gitService.revertMerge(REPO_NAME, result.getNewHead());
+        // Pass the identity sequence down into the revert pipeline
+        gitService.revertMerge(REPO_NAME, "master", result.getNewHead(), mockUser);
 
-        // 4. Verify: Clone again to check the remote state
         Path verificationClone = Files.createTempDirectory("verify-rollback");
         try (Git ignored = Git.cloneRepository()
             .setURI(bareRepoDir.getAbsolutePath())
             .setDirectory(verificationClone.toFile())
             .call()) {
 
-            // The file from the feature branch should NOT exist after rollback
             File rolledBackFile = new File(verificationClone.toFile(), fileName);
             assertFalse(rolledBackFile.exists(), "File should not exist after rollback");
         }
@@ -127,18 +144,16 @@ class GitServiceTests {
 
     @Test
     void testRollbackWithInvalidCommitId() {
-        // Ensure that providing a non-existent commit ID throws an exception
-        // (Assuming you handle bad ObjectIds in your service)
-        assertThrows(Exception.class, () -> gitService.revertMerge(REPO_NAME, org.eclipse.jgit.lib.ObjectId.zeroId()));
+        assertThrows(Exception.class, () ->
+            gitService.revertMerge(REPO_NAME, "master", org.eclipse.jgit.lib.ObjectId.zeroId(), mockUser)
+        );
     }
 
-    // Helper to simulate work in a bare repo
     private void prepareBranch(String branch, String file, String content) throws Exception {
         Path cloneDir = Files.createTempDirectory("conflict-clone");
         try (Git git = Git.cloneRepository().setURI(bareRepoDir.getAbsolutePath())
             .setDirectory(cloneDir.toFile()).call()) {
 
-            // Use the safe logic: check if branch exists, otherwise create it
             boolean exists = git.branchList().call().stream()
                 .anyMatch(ref -> ref.getName().equals("refs/heads/" + branch));
 
@@ -147,7 +162,6 @@ class GitServiceTests {
                 .setName(branch)
                 .call();
             Path targetFile = cloneDir.resolve(file);
-            // 2. CREATE PARENT DIRECTORIES if they don't exist
             if (targetFile.getParent() != null) {
                 Files.createDirectories(targetFile.getParent());
             }
@@ -163,13 +177,11 @@ class GitServiceTests {
     void testCreateAndDeleteRepository(){
         String newRepoName = "new-repo";
 
-        // 1. Test Creation
         gitService.createRepository(newRepoName);
         Path repoPath = bareRepoDir.toPath().getParent().resolve(newRepoName + ".git");
         assertTrue(Files.exists(repoPath), "Repository directory should exist");
         assertTrue(Files.exists(repoPath.resolve("config")), "Git config should exist");
 
-        // 2. Test Deletion
         gitService.deleteRepository(newRepoName);
         assertFalse(Files.exists(repoPath), "Repository directory should be deleted");
     }
@@ -178,7 +190,6 @@ class GitServiceTests {
     void testGetPathContents_RootDirectory() {
         PathContents result = gitService.getPathContents(REPO_NAME, "/", "master");
 
-        // Use instanceof to identify and cast
         assertInstanceOf(DirectoryContents.class, result, "Result should be a directory");
         DirectoryContents dir = (DirectoryContents) result;
 
@@ -228,5 +239,36 @@ class GitServiceTests {
     void testCreateRepository_AlreadyExists() {
         gitService.createRepository("existing-repo");
         assertThrows(IllegalStateException.class, () -> gitService.createRepository("existing-repo"));
+    }
+
+    @Test
+    void testGetBranchDiff_ShouldReturnValidPatchString_WhenDifferencesExist() throws Exception {
+        prepareBranch("master", "shared.txt", "line 1\nline 2\n");
+        prepareBranch("feature", "shared.txt", "line 1\nline 2 edited\n");
+
+        String diffOutput = gitService.getBranchDiff(REPO_NAME, "feature", "master");
+
+        assertNotNull(diffOutput);
+        assertTrue(diffOutput.contains("--- a/shared.txt"));
+        assertTrue(diffOutput.contains("+++ b/shared.txt"));
+        assertTrue(diffOutput.contains("-line 2"));
+        assertTrue(diffOutput.contains("+line 2 edited"));
+    }
+
+    @Test
+    void testGetBranchDiff_ShouldReturnEmptyString_WhenBranchesAreIdentical() throws Exception {
+        prepareBranch("master", "sync.txt", "no changes");
+        prepareBranch("feature-identical", "sync.txt", "no changes");
+
+        String diffOutput = gitService.getBranchDiff(REPO_NAME, "feature-identical", "master");
+
+        assertTrue(diffOutput.isEmpty(), "Diff output must be completely empty when histories match.");
+    }
+
+    @Test
+    void testGetBranchDiff_ShouldThrowIllegalArgumentException_WhenBranchNamesAreMalicious() {
+        assertThrows(IllegalArgumentException.class, () ->
+            gitService.getBranchDiff(REPO_NAME, "feature", "../heads/master")
+        );
     }
 }

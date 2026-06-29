@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.gitbounty.gitbountybackend.controller.codebase.CodebasePermissions;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestDto;
 import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.CreatePullRequestResponse;
+import org.gitbounty.gitbountybackend.controller.codebase.pullrequest.dto.PullRequestDiffResponse;
 import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.CreatePullRequestCommand;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.PullRequestService;
@@ -58,6 +59,16 @@ class PullRequestController {
             pullRequestService.getPullRequest(repositoryName, prNumber)
         );
     }
+    // Get the raw unified diff text for a specific Pull Request
+    @GetMapping("/{prNumber}/diff")
+    @ResponseStatus(HttpStatus.OK)
+    public PullRequestDiffResponse getPullRequestDiff(
+        @PathVariable String repositoryName,
+        @PathVariable Integer prNumber
+    ) throws IOException {
+        String rawDiff = pullRequestService.getPullRequestDiff(repositoryName, prNumber);
+        return new PullRequestDiffResponse(repositoryName, prNumber, rawDiff);
+    }
 
     // Merge a Pull Request
     @PostMapping("/{prNumber}/merge")
@@ -70,7 +81,7 @@ class PullRequestController {
         if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
             throw new AccessDeniedException("Only the codebase owner can merge pull requests.");
         }
-        pullRequestService.mergePullRequestForCodebase(repositoryName, prNumber);
+        pullRequestService.mergePullRequestForCodebase(repositoryName, prNumber, jwt.getSubject());
     }
 
     // Delete/Close a Pull Request

@@ -2,6 +2,7 @@ package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
-
 
 @Service
 public class PullRequestService {
@@ -32,7 +32,8 @@ public class PullRequestService {
         UserService userService,
         IssueRepository issueRepository,
         CodebaseService codebaseService,
-        GitService gitService, PullRequestPersistenceService persistenceService
+        GitService gitService,
+        PullRequestPersistenceService persistenceService
     ) {
         this.pullRequestRepository = pullRequestRepository;
         this.branchRepository = branchRepository;
@@ -59,7 +60,6 @@ public class PullRequestService {
         Integer nextNumber = issueRepository.findMaxNumberByRepositoryId(codebase.getId())
             .map(n -> n + 1).orElse(1);
 
-        // Delegation to Persistence Service
         return persistenceService.create(request, author, codebase, source, target, nextNumber);
     }
 
@@ -68,25 +68,32 @@ public class PullRequestService {
         return pullRequestRepository.findByRepository(codebase);
     }
 
-    public void mergePullRequestForCodebase(String repositoryName, Integer prNumber) throws IOException, GitAPIException {
-        Codebase codebase = codebaseService.findByName(repositoryName);
+    public void mergePullRequestForCodebase(String repositoryName, Integer prNumber, String userId) throws IOException, GitAPIException {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
             .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        // Get the active operator tracking details
+        User mergerUser = userService.findByKeycloakId(userId)
+            .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+
+        // Build a baseline identity object (GitService will apply fresh timestamps upon commit creation)
+        PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
         // Execute the Git operation inside the locked scope
         gitService.runLocked(repositoryName, () -> {
             MergeResult result = gitService.mergeBranches(
                 repositoryName,
                 pr.getSourceBranch().getName(),
-                pr.getTargetBranch().getName()
+                pr.getTargetBranch().getName(),
+                mergeIdentity
             );
 
             try {
-                // Update DB while inside the lock
                 return persistenceService.finalizeMerge(pr.getId());
             } catch (Exception e) {
-                // ROLLBACK: Revert the specific commit we just pushed
-                gitService.revertMerge(repositoryName, result.getNewHead());
+                // ROLLBACK: Revert the specific commit using the same identity context
+                gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
                 throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
             }
         });
@@ -102,7 +109,7 @@ public class PullRequestService {
 
     public PullRequest getPullRequest(String repositoryName, Integer prNumber) {
         return pullRequestRepository.findByRepositoryAndNumber(
-            codebaseService.findByName(repositoryName), prNumber)
+                codebaseService.findByName(repositoryName), prNumber)
             .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
     }
 
@@ -112,5 +119,17 @@ public class PullRequestService {
             .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
         persistenceService.updatePRStatus(pr.getId(), issueStatus);
+    }
+
+    public String getPullRequestDiff(String repositoryName, Integer prNumber) throws IOException {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        return gitService.getBranchDiff(
+            repositoryName,
+            pr.getSourceBranch().getName(),
+            pr.getTargetBranch().getName()
+        );
     }
 }
