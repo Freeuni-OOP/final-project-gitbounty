@@ -3,6 +3,7 @@ package org.gitbounty.gitbountybackend.service;
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
+import org.gitbounty.gitbountybackend.service.bounty.BountyService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.service.user.UserRepository;

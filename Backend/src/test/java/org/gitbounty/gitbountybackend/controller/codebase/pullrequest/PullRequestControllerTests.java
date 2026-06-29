@@ -57,7 +57,7 @@ class PullRequestControllerTests {
 
         User author = new User();
         author.setUsername("user-123");
-        // Populate the PullRequest
+
         PullRequest pr = new PullRequest();
         pr.setSourceBranch(source);
         pr.setTargetBranch(target);
@@ -76,7 +76,6 @@ class PullRequestControllerTests {
 
     @Test
     void mergePullRequest_ShouldBeForbidden_WhenNotOwner() throws Exception {
-        // Mock permission check to return false
         when(codebasePermissions.isOwnerBySubject("my-repo", "user-123")).thenReturn(false);
 
         mockMvc.perform(post("/api/codebases/my-repo/pull-requests/1/merge")
@@ -92,7 +91,8 @@ class PullRequestControllerTests {
                 .with(jwt().jwt(builder -> builder.subject("user-123"))))
             .andExpect(status().isOk());
 
-        verify(pullRequestService).mergePullRequestForCodebase("my-repo", 1);
+        // FIXED: The verification must expect the user ID passed from the JWT principal mapping layer
+        verify(pullRequestService).mergePullRequestForCodebase("my-repo", 1, "user-123");
     }
 
     @Test

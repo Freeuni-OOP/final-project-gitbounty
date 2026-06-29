@@ -64,7 +64,15 @@ public class SecurityConfig {
                 // Open Public routes
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/bounties", "/api/bounties/status/**", "/api/codebases").permitAll()
+                    .requestMatchers(HttpMethod.GET,
+                            "/api/bounties",
+                            "/api/bounties/{id}",
+                            "/api/bounties/status/**",
+                            "/api/bounties/repository/{repoId}",
+                            "/api/codebases",
+                            "/api/codebases/*",
+                            "/api/codebases/*/contents/**"
+                    ).permitAll()
 
                 // Secure API endpoints
                 .requestMatchers("/api/**").authenticated()

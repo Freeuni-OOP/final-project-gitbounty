@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.controller;
+package org.gitbounty.gitbountybackend.controller.bounty;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Issue;

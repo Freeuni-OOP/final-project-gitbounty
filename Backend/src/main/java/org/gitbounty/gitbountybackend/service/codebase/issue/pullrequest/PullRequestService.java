@@ -1,6 +1,8 @@
 package org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest;
 
 import org.eclipse.jgit.api.MergeResult;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
@@ -11,6 +13,7 @@ import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
 
 @Service
@@ -62,18 +65,28 @@ public class PullRequestService {
         return pullRequestRepository.findByRepository(codebase);
     }
 
-    public void mergePullRequestForCodebase(String repositoryName, Integer prNumber) {
-        Codebase codebase = codebaseService.findByName(repositoryName);
-        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber).orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+    public void mergePullRequestForCodebase(String repositoryName, Integer prNumber, String userId) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        // Get the active operator tracking details (from develop)
+        User mergerUser = userService.findByKeycloakId(userId)
+                .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+
+        // Build a baseline identity object
+        PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
         try {
             gitService.runLocked(repositoryName, () -> {
                 MergeResult result;
                 try {
+                    // Merged logic: execute git operation with mergeIdentity
                     result = gitService.mergeBranches(
                             repositoryName,
                             pr.getSourceBranch().getName(),
-                            pr.getTargetBranch().getName()
+                            pr.getTargetBranch().getName(),
+                            mergeIdentity
                     );
                 } catch (Exception e) {
                     throw new MergeConflictException("Git merge engine execution failed for PR #" + prNumber, e);
@@ -89,9 +102,9 @@ public class PullRequestService {
                 try {
                     return persistenceService.finalizeMerge(pr.getId());
                 } catch (Exception e) {
-                    //revert the commit
-                    if (result != null) {
-                        gitService.revertMerge(repositoryName, result.getNewHead());
+                    // ROLLBACK: Revert the specific commit using the same identity context
+                    if (result != null && result.getNewHead() != null) {
+                        gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
                     }
                     throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
                 }
@@ -110,12 +123,26 @@ public class PullRequestService {
     }
 
     public PullRequest getPullRequest(String repositoryName, Integer prNumber) {
-        return pullRequestRepository.findByRepositoryAndNumber(codebaseService.findByName(repositoryName), prNumber).orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+        return pullRequestRepository.findByRepositoryAndNumber(
+                        codebaseService.findByName(repositoryName), prNumber)
+                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
     }
 
     public void updatePRStatus(String repositoryName, Integer prNumber, IssueStatus issueStatus) {
         Codebase codebase = codebaseService.findByName(repositoryName);
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber).orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
         persistenceService.updatePRStatus(pr.getId(), issueStatus);
+    }
+
+    public String getPullRequestDiff(String repositoryName, Integer prNumber) throws IOException {
+        Codebase codebase = codebaseService.findByName(repositoryName);
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
+                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+
+        return gitService.getBranchDiff(
+                repositoryName,
+                pr.getSourceBranch().getName(),
+                pr.getTargetBranch().getName()
+        );
     }
 }

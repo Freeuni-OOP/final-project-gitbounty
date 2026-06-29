@@ -1,48 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import BountyCard from '../components/BountyCard';
-import { mockTrendingBounties, mockPersonalizedBounties } from '../mocks/homepageMock';
-import type { BountyCardProps } from '../types/Bounty';
+import { bountyApi } from '../services/bountyService';
+import type { BountyAPI } from '../types/Bounty';
 import '../styles/BountiesPage.css';
 
-const ALL_BOUNTIES = [...mockTrendingBounties, ...mockPersonalizedBounties];
-
-const DIFFICULTIES: Array<BountyCardProps['difficulty'] | 'All'> = [
+// Change filters to match your backend ENUM
+const STATUSES: Array<BountyAPI['status'] | 'All'> = [
     'All',
-    'Good First Issue',
-    'Medium',
-    'Advanced',
+    'OPEN',
+    'ASSIGNED',
+    'COMPLETED'
 ];
 
 const BountiesPage = () => {
-    const [difficulty, setDifficulty] = useState<BountyCardProps['difficulty'] | 'All'>('All');
+    const [bounties, setBounties] = useState<BountyAPI[]>([]);
+    // Update state to use Status instead of Difficulty
+    const [statusFilter, setStatusFilter] = useState<BountyAPI['status'] | 'All'>('All');
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const filtered = difficulty === 'All'
-        ? ALL_BOUNTIES
-        : ALL_BOUNTIES.filter((b) => b.difficulty === difficulty);
+    useEffect(() => {
+        bountyApi.getAllBounties()
+            .then((data) => {
+                setBounties(data);
+                setIsLoading(false);
+            })
+            .catch((err) => {
+                console.error("Error fetching global bounties:", err);
+                setError("Failed to load active bounties from server.");
+                setIsLoading(false);
+            });
+    }, []);
+
+    // Filter against the real backend 'status' field
+    const filtered = statusFilter === 'All'
+        ? bounties
+        : bounties.filter((b) => b.status === statusFilter);
+
+    if (isLoading) return (
+        <div
+            className="bounties-loading"
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '50vh'
+            }}
+        >
+            Loading live bounties...
+        </div>
+    );
+
+    if (error) return (
+        <div
+            className="bounties-error"
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '50vh',
+                color: '#ef4444',
+                fontWeight: '500'
+            }}
+        >
+            {error}
+        </div>
+    );
 
     return (
         <div className="bounties-page">
             <div className="bounties-header">
                 <h1 className="bounties-title">Browse Bounties</h1>
-                <p className="bounties-subtitle">{filtered.length} open bounties</p>
+                <p className="bounties-subtitle">{filtered.length} bounties</p>
             </div>
 
             <div className="bounties-filters">
-                {DIFFICULTIES.map((d) => (
+                {STATUSES.map((s) => (
                     <button
-                        key={d}
-                        className={`filter-pill ${difficulty === d ? 'active' : ''}`}
-                        onClick={() => setDifficulty(d)}
+                        key={s}
+                        className={`filter-pill ${statusFilter === s ? 'active' : ''}`}
+                        onClick={() => setStatusFilter(s)}
                     >
-                        {d}
+                        {s}
                     </button>
                 ))}
             </div>
 
             <div className="bounties-list">
-                {filtered.map((bounty) => (
-                    <BountyCard key={bounty.id} {...bounty} />
-                ))}
+                {filtered.length === 0 ? (
+                    <p className="no-bounties">No bounties found matching this status.</p>
+                ) : (
+                    filtered.map((bounty) => (
+                        <BountyCard key={bounty.id} {...bounty} />
+                    ))
+                )}
             </div>
         </div>
     );

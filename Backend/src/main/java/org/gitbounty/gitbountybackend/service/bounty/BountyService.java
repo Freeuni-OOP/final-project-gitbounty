@@ -1,4 +1,4 @@
-package org.gitbounty.gitbountybackend.service;
+package org.gitbounty.gitbountybackend.service.bounty;
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
@@ -121,5 +121,11 @@ public class BountyService {
         dto.setStatus(bounty.getStatus());
         if (bounty.getIssue() != null) dto.setIssueId(bounty.getIssue().getId());
         return dto;
+    }
+
+    public List<BountyDTO> getBountiesByRepository(Long repoId) {
+        return bountyRepository.findByIssue_Repository_Id(repoId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 }
