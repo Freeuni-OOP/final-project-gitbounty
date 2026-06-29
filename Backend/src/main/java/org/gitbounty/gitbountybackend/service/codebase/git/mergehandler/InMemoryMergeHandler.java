@@ -13,8 +13,9 @@ import java.io.IOException;
 
 public class InMemoryMergeHandler extends AbstractMergeHandler {
 
-    public InMemoryMergeHandler(Repository repository) {
-        super(repository);
+
+    public InMemoryMergeHandler(Repository repository, PersonIdent mergerUserId) {
+        super(repository, mergerUserId);
     }
 
     @Override
@@ -121,8 +122,15 @@ public class InMemoryMergeHandler extends AbstractMergeHandler {
 
             commitBuilder.setTreeId(resultTreeId);
             commitBuilder.setParentIds(targetCommit, sourceCommit);
-            commitBuilder.setAuthor(sourceCommit.getAuthorIdent());
-            commitBuilder.setCommitter(sourceCommit.getCommitterIdent());
+
+            PersonIdent accurateTimestampIdentity = new PersonIdent(this.mergerUserId, java.time.Instant.now());
+
+            // the person who wrote the code
+            commitBuilder.setAuthor(accurateTimestampIdentity);
+
+            // the person executing the merge command
+            commitBuilder.setCommitter(accurateTimestampIdentity);
+
             commitBuilder.setMessage(commitMessage);
 
             ObjectId mergeCommitId = inserter.insert(commitBuilder);

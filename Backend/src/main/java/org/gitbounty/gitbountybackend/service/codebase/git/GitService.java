@@ -92,7 +92,7 @@ public class GitService {
     /**
      * Executes an isolated in-memory merge utilizing the detached MergeHandler blueprint.
      */
-    public MergeResult mergeBranches(String repositoryName, String sourceBranch, String targetBranch) throws GitAPIException, IOException {
+    public MergeResult mergeBranches(String repositoryName, String sourceBranch, String targetBranch, PersonIdent mergeUserId) throws GitAPIException, IOException {
         if (!isValidBranchName(sourceBranch) || !isValidBranchName(targetBranch)) {
             throw new IllegalArgumentException("Invalid branch names.");
         }
@@ -100,7 +100,7 @@ public class GitService {
         return runLocked(repositoryName, () -> {
             File repoDir = new File(getRepoPath(repositoryName));
             try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir).build()) {
-                MergeHandler handler = new InMemoryMergeHandler(repository);
+                MergeHandler handler = new InMemoryMergeHandler(repository, mergeUserId);
                 return handler.executeMerge(sourceBranch, targetBranch);
             }
         });
@@ -109,11 +109,11 @@ public class GitService {
     /**
      * Reverts a merge commit reference pointer back to its mainline parent.
      */
-    public void revertMerge(String repositoryName, String branchName, ObjectId mergeCommitId) throws GitAPIException, IOException {
+    public void revertMerge(String repositoryName, String branchName, ObjectId mergeCommitId, PersonIdent userId) throws GitAPIException, IOException {
         runLocked(repositoryName, () -> {
             File repoDir = new File(getRepoPath(repositoryName));
             try (Repository repository = new FileRepositoryBuilder().setGitDir(repoDir).build()) {
-                MergeHandler handler = new InMemoryMergeHandler(repository);
+                MergeHandler handler = new InMemoryMergeHandler(repository, userId);
                 handler.revertMerge(branchName, mergeCommitId);
             }
             return null;

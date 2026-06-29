@@ -81,7 +81,7 @@ class PullRequestController {
         if(!codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
             throw new AccessDeniedException("Only the codebase owner can merge pull requests.");
         }
-        pullRequestService.mergePullRequestForCodebase(repositoryName, prNumber);
+        pullRequestService.mergePullRequestForCodebase(repositoryName, prNumber, jwt.getSubject());
     }
 
     // Delete/Close a Pull Request
