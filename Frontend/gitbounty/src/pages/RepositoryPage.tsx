@@ -1,32 +1,35 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getFileTree, mockRepositories } from '../mocks/repositoriesMock';
-import type { FileNode } from '../mocks/repositoriesMock';
 import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/PullRequestsTab';
 import BountiesTab from '../components/BountiesTab';
 import '../styles/RepositoryPage.css';
 import Prism from 'prismjs';
-import 'prismjs/components/prism-java'; // Tells Prism how to read Java
-import 'prismjs/themes/prism-tomorrow.css'; // A nice dark mode style
+import 'prismjs/components/prism-java';
+import 'prismjs/themes/prism-tomorrow.css';
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
 
-function sortEntries(entries: FileNode[]): FileNode[] {
-  return [...entries].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+interface RepoData {
+  id: number;
+  name: string;
+  description: string;
+  gitUrl: string;
+  ownerUsername: string;
+  createdAt: string;
 }
 
-function getDir(tree: FileNode[], path: string[]): FileNode[] {
-  let cur = tree;
-  for (const seg of path) {
-    const node = cur.find((n) => n.name === seg && n.type === 'dir');
-    cur = node?.children ?? [];
-  }
-  return sortEntries(cur);
+interface ContentsResponse {
+  type: 'FILE' | 'DIRECTORY';
+  content: string | null;
+  items: string[] | null;
+}
+
+function looksLikeFile(name: string): boolean {
+  if (name.startsWith('.')) return false;
+  const last = name.split('/').pop() ?? name;
+  return last.includes('.');
 }
 
 function FolderIcon() {
@@ -45,6 +48,66 @@ function FileIcon() {
   );
 }
 
+function CloneButton({ gitUrl }: { gitUrl: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [open]);
+
+  const copy = () => {
+    navigator.clipboard.writeText(gitUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="clone-wrapper" ref={wrapperRef}>
+      <button className="clone-btn" onClick={() => setOpen(o => !o)}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="m11.28 3.22 4.25 4.25a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 1 1-1.06-1.06L13.94 8l-3.72-3.72a.749.749 0 1 1 1.06-1.06Zm-6.56 0a.749.749 0 1 1 1.06 1.06L2.06 8l3.72 3.72a.749.749 0 1 1-1.06 1.06L.47 8.53a.749.749 0 0 1 0-1.06Z" />
+        </svg>
+        Code
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="clone-dropdown">
+          <p className="clone-label">Clone</p>
+          <div className="clone-url-row">
+            <input
+              className="clone-url-input"
+              value={gitUrl}
+              readOnly
+              onClick={e => (e.target as HTMLInputElement).select()}
+            />
+            <button
+              className={`clone-copy-btn${copied ? ' copied' : ''}`}
+              onClick={copy}
+              aria-label="Copy clone URL"
+            >
+              {copied ? 'Copied!' : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+                  <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface HighlighterProps {
   content: string;
   isDarkMode: boolean;
@@ -57,47 +120,126 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
     if (codeRef.current) {
       Prism.highlightElement(codeRef.current);
     }
-  }, [content, isDarkMode]); // Re-runs coloring when text or theme changes
+  }, [content, isDarkMode]);
 
-  // Swapping the theme stylesheets dynamically
   const themeUrl = isDarkMode
-      ? "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" // Dark
-      : "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css";          // Light
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
+
+  const lines = content.split('\n');
+  // drop trailing blank line that split creates when content ends with \n
+  const lineCount = lines.length > 0 && lines[lines.length - 1] === ''
+    ? lines.length - 1
+    : lines.length;
 
   return (
-      <>
-        <link rel="stylesheet" href={themeUrl} />
+    <>
+      <link rel="stylesheet" href={themeUrl} />
+      <div className="code-viewer" data-theme={isDarkMode ? 'dark' : 'light'}>
+        <div className="line-numbers" aria-hidden="true">
+          {Array.from({ length: lineCount }, (_, i) => (
+            <span key={i + 1}>{i + 1}</span>
+          ))}
+        </div>
         <pre className="file-content">
-        <code ref={codeRef} className="language-java">
-          {content}
-        </code>
-      </pre>
-      </>
+          <code ref={codeRef} className="language-java">
+            {content}
+          </code>
+        </pre>
+      </div>
+    </>
   );
 }
 
 export default function RepositoryPage() {
   const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
   const [activeTab, setActiveTab] = useState<Tab>('Code');
+  const [isDarkBox, setIsDarkBox] = useState(true);
+
+  // Repo metadata
+  const [repo, setRepo] = useState<RepoData | null>(null);
+  const [repoLoading, setRepoLoading] = useState(true);
+  const [repoError, setRepoError] = useState<string | null>(null);
+
+  // Code browser state
   const [path, setPath] = useState<string[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
+  const [dirItems, setDirItems] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; content: string } | null>(null);
+  const [contentsLoading, setContentsLoading] = useState(false);
+  const [contentsError, setContentsError] = useState<string | null>(null);
 
-  const [isDarkBox, setIsDarkBox] = useState<boolean>(true);
-  const repo = mockRepositories.find((r) => r.owner === owner && r.name === repoName);
-  const tree = getFileTree(owner, repoName);
-  const entries = getDir(tree, path);
+  // Fetch repo metadata
+  useEffect(() => {
+    if (!repoName) return;
+    let cancelled = false;
+    setRepoLoading(true);
+    fetch(`/api/codebases/${repoName}`)
+      .then(r => { if (!r.ok) throw new Error(r.status.toString()); return r.json() as Promise<RepoData>; })
+      .then(data => { if (!cancelled) { setRepo(data); setRepoLoading(false); } })
+      .catch((err: Error) => { if (!cancelled) { setRepoError(err.message); setRepoLoading(false); } });
+    return () => { cancelled = true; };
+  }, [repoName]);
 
-  const openDir = (node: FileNode) => { setPath((p) => [...p, node.name]); setSelectedFile(null); };
-  const openFile = (node: FileNode) => setSelectedFile(node);
-  const navTo = (idx: number) => { setPath((p) => p.slice(0, idx)); setSelectedFile(null); };
-  const goRoot = () => { setPath([]); setSelectedFile(null); };
+  // Navigate to a directory path and fetch its contents
+  const fetchDir = useCallback(async (newPath: string[]) => {
+    const pathStr = newPath.join('/');
+    const url = pathStr
+      ? `/api/codebases/${repoName}/contents/${pathStr}`
+      : `/api/codebases/${repoName}/contents`;
+    setContentsLoading(true);
+    setContentsError(null);
+    setSelectedFile(null);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status.toString());
+      const data = await res.json() as ContentsResponse;
+      setDirItems(data.items ?? []);
+      setPath(newPath);
+    } catch (err: any) {
+      setContentsError(err.message);
+    } finally {
+      setContentsLoading(false);
+    }
+  }, [repoName]);
 
+  // Initial directory load
+  useEffect(() => { fetchDir([]); }, [fetchDir]);
+
+  const handleItemClick = async (name: string) => {
+    const newPath = [...path, name];
+    const url = `/api/codebases/${repoName}/contents/${newPath.join('/')}`;
+    setContentsLoading(true);
+    setContentsError(null);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status.toString());
+      const data = await res.json() as ContentsResponse;
+      if (data.type === 'FILE') {
+        setSelectedFile({ name, content: data.content ?? '' });
+      } else {
+        setDirItems(data.items ?? []);
+        setPath(newPath);
+        setSelectedFile(null);
+      }
+    } catch (err: any) {
+      setContentsError(err.message);
+    } finally {
+      setContentsLoading(false);
+    }
+  };
+
+  const navTo = (idx: number) => fetchDir(path.slice(0, idx));
+  const goRoot = () => fetchDir([]);
   const switchTab = (tab: Tab) => { setActiveTab(tab); goRoot(); };
 
-  if (!repo) {
+  if (repoLoading) {
+    return <div className="repo-not-found"><p>Loading repository…</p></div>;
+  }
+
+  if (repoError || !repo) {
     return (
       <div className="repo-not-found">
-        <p>Repository <strong>{owner}/{repoName}</strong> not found.</p>
+        <p>Repository <strong>{repoName}</strong> not found.</p>
         <Link to="/repositories">Back to repositories</Link>
       </div>
     );
@@ -112,6 +254,7 @@ export default function RepositoryPage() {
           <span className="repo-sep">/</span>
           <span className="repo-name">{repoName}</span>
           <span className="repo-visibility-badge">Public</span>
+          <CloneButton gitUrl={repo.gitUrl} />
         </div>
         {repo.description && <p className="repo-description">{repo.description}</p>}
 
@@ -151,55 +294,58 @@ export default function RepositoryPage() {
             )}
           </div>
 
-          {selectedFile ? (
-              <div className="file-viewer">
-                <div className="file-viewer-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="file-viewer-name">{selectedFile.name}</span>
+          {contentsError && <p className="repo-contents-loading">This repository is empty or has no content to display.</p>}
+          {contentsLoading && <p className="repo-contents-loading">Loading…</p>}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span className="file-viewer-lines">
-          {(selectedFile.content ?? '').split('\n').filter(Boolean).length} lines
-        </span>
-
-                    <button
-                        onClick={() => setIsDarkBox(!isDarkBox)}
-                        style={{
-                          padding: '2px 8px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          borderRadius: '4px',
-                          border: '1px solid #d0d7de',
-                          backgroundColor: '#f6f8fa',
-                          color: '#24292e'
-                        }}
-                    >
-                      {isDarkBox ? '☀️ Light Mode' : '🌙 Dark Mode'}
-                    </button>
-                  </div>
+          {!contentsLoading && !contentsError && selectedFile ? (
+            <div className="file-viewer">
+              <div className="file-viewer-header">
+                <span className="file-viewer-name">{selectedFile.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="file-viewer-lines">
+                    {selectedFile.content.split('\n').filter(Boolean).length} lines
+                  </span>
+                  <button
+                    onClick={() => setIsDarkBox(!isDarkBox)}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      border: '1px solid #d0d7de',
+                      backgroundColor: '#f6f8fa',
+                      color: '#24292e',
+                    }}
+                  >
+                    {isDarkBox ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                  </button>
                 </div>
-
-                <SyntaxHighlighter content={selectedFile.content ?? ''} isDarkMode={isDarkBox} />
               </div>
-          ) : (
+              <SyntaxHighlighter content={selectedFile.content} isDarkMode={isDarkBox} />
+            </div>
+          ) : !contentsLoading && !contentsError && (
             <table className="file-table">
               <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.name} className="file-row">
+                {dirItems.map((name) => (
+                  <tr key={name} className="file-row">
                     <td className="file-icon-cell">
-                      {entry.type === 'dir' ? <FolderIcon /> : <FileIcon />}
+                      {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
                     </td>
                     <td className="file-name-cell">
                       <button
                         className="file-name-btn"
-                        onClick={() => entry.type === 'dir' ? openDir(entry) : openFile(entry)}
+                        onClick={() => handleItemClick(name)}
                       >
-                        {entry.name}
+                        {name}
                       </button>
                     </td>
-                    <td className="file-commit-cell">{entry.lastCommit}</td>
-                    <td className="file-time-cell">{entry.commitTime}</td>
                   </tr>
                 ))}
+                {dirItems.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="file-empty">This directory is empty.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
