@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiClient from "../api/apiClient.ts";
 
 export interface ApiRepo {
   id: number;
@@ -22,24 +23,22 @@ export function useRepositoriesData(): RepositoriesData {
 
   useEffect(() => {
     let cancelled = false;
-
-    fetch('/api/codebases')
-      .then(res => {
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.json() as Promise<ApiRepo[]>;
-      })
-      .then(data => {
-        if (!cancelled) {
-          setRepos(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) {
-          setError(err.message);
-          setIsLoading(false);
-        }
-      });
+    apiClient.get<ApiRepo[]>('/api/codebases')
+        .then(response => {
+          // Axios automatically parses JSON and throws on 4xx/5xx responses
+          if (!cancelled) {
+            setRepos(response.data);
+            setIsLoading(false);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            // Axios errors put the message under err.message
+            // If the server returned an error body, it lives under err.response?.data
+            setError(err.message);
+            setIsLoading(false);
+          }
+        });
 
     return () => { cancelled = true; };
   }, []);

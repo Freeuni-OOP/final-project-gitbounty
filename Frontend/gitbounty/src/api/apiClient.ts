@@ -2,7 +2,7 @@ import axios from 'axios';
 import {getGlobalAuth} from "../auth/authInstance.ts";
 
 const apiClient = axios.create({
-    baseURL: 'https://api.gitbounty.foo',
+    baseURL: import.meta.env.PROD ? 'https://api.gitbounty.foo' : '/api',
     headers: {
         'Content-Type': 'application/json',
     },
