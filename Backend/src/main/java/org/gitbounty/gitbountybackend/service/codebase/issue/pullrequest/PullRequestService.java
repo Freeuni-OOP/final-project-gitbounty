@@ -67,11 +67,9 @@ public class PullRequestService {
 
     public void mergePullRequestForCodebase(String repositoryName, Integer prNumber, String userId) {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
-        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
-                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber).orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
-        User mergerUser = userService.findByKeycloakId(userId)
-                .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+        User mergerUser = userService.findByKeycloakId(userId).orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
 
         PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
@@ -106,10 +104,11 @@ public class PullRequestService {
                     throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
                 }
             });
-        } catch (MergeConflictException | DatabaseTransactionException e) {
-            throw e;
         } catch (Exception e) {
-            throw new MergeConflictException("Unexpected system failure during branch merge", e);
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new RuntimeException("Unexpected system failure during branch merge", e);
         }
     }
 
