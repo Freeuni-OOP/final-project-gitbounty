@@ -30,12 +30,18 @@ jobs:
           - service: backend
             context: ./Backend
             file: ./Backend/Dockerfile
+            cache_path: /tmp/maven-cache
+            cache_target: /root/.m2
           - service: frontend
             context: ./Frontend/gitbounty
             file: ./Frontend/gitbounty/Dockerfile
+            cache_path: /tmp/npm-cache
+            cache_target: /root/.npm
           - service: keycloak
             context: .
             file: ./keycloak/Dockerfile
+            cache_path: /tmp/keycloak-cache
+            cache_target: /opt/keycloak/cache # Fallback/Dummy if not explicitly mounting a layer
 
     name: Build ${{ matrix.service }}
     steps:
@@ -50,6 +56,28 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      # Restore the host machine path using GitHub's native cache engine
+      - name: Restore BuildKit Cache Mount from Host
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.cache_path }}
+          key: buildkit-${{ matrix.service }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            buildkit-${{ matrix.service }}-${{ github.ref_name }}-
+            buildkit-${{ matrix.service }}-
+
+      # Inject files from the extracted host folder into BuildKit's inner runtime
+      - name: Inject Cache Mount into BuildKit Runtime
+        uses: reproducible-containers/buildkit-cache-dance@v3
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          cache-map: |
+            {
+              "${{ matrix.cache_path }}": "${{ matrix.cache_target }}"
+            }
+          cache-dir: /tmp/buildkit-dance-${{ matrix.service }} # Accounting for concurrency
 
       - name: Build and Push Image
         uses: docker/build-push-action@v5

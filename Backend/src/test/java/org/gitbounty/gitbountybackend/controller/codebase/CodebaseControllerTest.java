@@ -303,6 +303,43 @@ class CodebaseControllerTest {
     }
 
     @Test
+    void getAllCodebases_IsPublic_ShouldReturnOk() throws Exception {
+        when(codebaseService.getAllCodebases())
+                .thenReturn(List.of(codebase("my-repo", user(1L, "owner", "kc-owner"))));
+
+        mockMvc.perform(get("/api/codebases"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("my-repo"));
+
+        verify(codebaseService).getAllCodebases();
+    }
+
+    @Test
+    void getCodebase_IsPublic_ShouldReturnOk() throws Exception {
+        when(codebaseService.getCodebase("my-repo"))
+                .thenReturn(codebase("my-repo", user(1L, "owner", "kc-owner")));
+
+        mockMvc.perform(get("/api/codebases/my-repo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("my-repo"));
+
+        verify(codebaseService, atLeastOnce()).getCodebase("my-repo");
+    }
+
+    @Test
+    void getContents_IsPublic_ShouldReturnOk() throws Exception {
+        when(codebaseService.listCodebaseContents("my-repo", "src/Main.java", "master"))
+                .thenReturn(new CodebaseContentsDTO(FileType.FILE, "hello world", null));
+
+        mockMvc.perform(get("/api/codebases/my-repo/contents/src/Main.java")
+                        .param("branch", "master"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("FILE"));
+
+        verify(codebaseService).listCodebaseContents("my-repo", "src/Main.java", "master");
+    }
+
+    @Test
     void getAllCodebases_ShouldReturnList() throws Exception {
         User owner = user(1L, "owner", "kc-owner");
 
