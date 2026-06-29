@@ -27,6 +27,7 @@ interface ContentsResponse {
 }
 
 function looksLikeFile(name: string): boolean {
+  if (name.startsWith('.')) return false;
   const last = name.split('/').pop() ?? name;
   return last.includes('.');
 }

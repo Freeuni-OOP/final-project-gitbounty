@@ -6,10 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'https://api.gitbounty.foo',
-        changeOrigin: true,
-      },
+      '/api': 'http://localhost:8081',
     },
   },
 })
