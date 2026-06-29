@@ -70,18 +70,15 @@ public class PullRequestService {
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
                 .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
-        // Get the active operator tracking details (from develop)
         User mergerUser = userService.findByKeycloakId(userId)
                 .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
 
-        // Build a baseline identity object
         PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
         try {
             gitService.runLocked(repositoryName, () -> {
                 MergeResult result;
                 try {
-                    // Merged logic: execute git operation with mergeIdentity
                     result = gitService.mergeBranches(
                             repositoryName,
                             pr.getSourceBranch().getName(),
@@ -102,7 +99,7 @@ public class PullRequestService {
                 try {
                     return persistenceService.finalizeMerge(pr.getId());
                 } catch (Exception e) {
-                    // ROLLBACK: Revert the specific commit using the same identity context
+                    // Revert the specific commit using the same identity context
                     if (result != null && result.getNewHead() != null) {
                         gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
                     }
