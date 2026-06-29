@@ -79,8 +79,11 @@ public class PullRequestService {
                     throw new MergeConflictException("Git merge engine execution failed for PR #" + prNumber, e);
                 }
 
-                if (result != null && !result.getMergeStatus().isSuccessful()) {
-                    throw new MergeConflictException("Automatic merge failed with status: " + result.getMergeStatus());
+                if (result != null) {
+                    MergeResult.MergeStatus status = result.getMergeStatus();
+                    if (status == null || !status.isSuccessful()) {
+                        throw new MergeConflictException("Automatic merge failed with status: " + (status != null ? status : "UNKNOWN"));
+                    }
                 }
 
                 try {
