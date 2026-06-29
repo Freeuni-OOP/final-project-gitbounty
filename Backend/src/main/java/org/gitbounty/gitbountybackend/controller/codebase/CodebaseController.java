@@ -3,7 +3,6 @@ package org.gitbounty.gitbountybackend.controller.codebase;
 import java.net.URI;
 import java.util.List;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
@@ -16,7 +15,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -89,18 +87,17 @@ public class CodebaseController {
     }
 
     // don't know how to test controllers
-    @GetMapping("/{repositoryName}/contents/**")
+    @GetMapping("/{repositoryName}/contents/{*path}")
     public ResponseEntity<CodebaseContentsDTO> getContents(
         @PathVariable String repositoryName,
-        @RequestParam(defaultValue = "master") String branch,
-        HttpServletRequest request
+        @PathVariable String path,
+        @RequestParam(defaultValue = "master") String branch
     ) {
-        // Extract the path after "/contents/"
-        String fullPath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        String prefix = "/api/codebases/" + repositoryName + "/contents/";
-        String path = fullPath.startsWith(prefix) ? fullPath.substring(prefix.length()) : "/";
+        // Clean up the path if it's empty or null (e.g., when calling just /contents/)
+        String cleanedPath = (path == null || path.isEmpty() || path.equals("/")) ? "/"
+            : path.replaceAll("^/", ""); // removes leading slash if present
 
-        CodebaseContentsDTO contents = codebaseService.listCodebaseContents(repositoryName, path, branch);
+        CodebaseContentsDTO contents = codebaseService.listCodebaseContents(repositoryName, cleanedPath, branch);
         return ResponseEntity.ok(contents);
     }
     // --- Member endpoints ---

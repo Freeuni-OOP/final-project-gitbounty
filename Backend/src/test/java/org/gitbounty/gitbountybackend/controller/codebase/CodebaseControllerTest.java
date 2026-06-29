@@ -10,6 +10,8 @@ import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMe
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
 import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
+import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
+import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -362,5 +364,54 @@ class CodebaseControllerTest {
                 .andExpect(jsonPath("$").isEmpty());
 
         verify(codebaseService).getAllCodebases();
+    }
+
+    @Test
+    void getContents_WithNestedPath_ShouldPassCleanPathToService() throws Exception {
+        PathContents mockPathContents = new DirectoryContents("src/main/java", List.of());
+        CodebaseContentsDTO mockDto = new CodebaseContentsDTO(mockPathContents);
+
+        when(codebaseService.listCodebaseContents("my-repo", "src/main/java", "main"))
+            .thenReturn(mockDto);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/codebases/my-repo/contents/src/main/java")
+                .param("branch", "main")
+                .with(jwt()))
+            .andExpect(status().isOk());
+
+        verify(codebaseService).listCodebaseContents("my-repo", "src/main/java", "main");
+    }
+
+    @Test
+    void getContents_WithRootPath_ShouldPassDefaultSlashToService() throws Exception {
+        PathContents mockPathContents = new DirectoryContents("/", List.of());
+        CodebaseContentsDTO mockDto = new CodebaseContentsDTO(mockPathContents);
+
+        when(codebaseService.listCodebaseContents("my-repo", "/", "master"))
+            .thenReturn(mockDto);
+
+        mockMvc.perform(get("/api/codebases/my-repo/contents/")
+                .with(jwt()))
+            .andExpect(status().isOk());
+
+        verify(codebaseService).listCodebaseContents("my-repo", "/", "master");
+    }
+    @Test
+    void getContents_WithPathTraversalAttack_ShouldSanitizeOrRejectRequest() throws Exception {
+        PathContents mockPathContents = new DirectoryContents("/", List.of());
+        CodebaseContentsDTO mockDto = new CodebaseContentsDTO(mockPathContents);
+
+        // Scenario A: Expecting the application to normalize paths and block execution
+        // Or if you reject with a 400 Bad Request, change the `.andExpect(status().isOk())` to `.isBadRequest()`
+        when(codebaseService.listCodebaseContents(eq("my-repo"), anyString(), eq("master")))
+            .thenReturn(mockDto);
+
+        mockMvc.perform(get("/api/codebases/my-repo/contents/../../etc/passwd")
+                .with(jwt()))
+            .andExpect(status().isBadRequest()); // Assumes your mitigation throws an exception or rejects it
+
+        // Ensure service layer is never invoked with malicious root escapes
+        verify(codebaseService, never()).listCodebaseContents("my-repo", "../../etc/passwd", "master");
     }
 }

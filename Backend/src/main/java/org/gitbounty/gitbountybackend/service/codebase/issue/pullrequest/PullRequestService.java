@@ -99,14 +99,6 @@ public class PullRequestService {
         });
     }
 
-    public void deletePullRequestForCodebase(String repositoryName, Integer prNumber) {
-        Codebase codebase = codebaseService.findByName(repositoryName);
-        PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
-            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
-
-        persistenceService.delete(pr.getId());
-    }
-
     public PullRequest getPullRequest(String repositoryName, Integer prNumber) {
         return pullRequestRepository.findByRepositoryAndNumber(
                 codebaseService.findByName(repositoryName), prNumber)
