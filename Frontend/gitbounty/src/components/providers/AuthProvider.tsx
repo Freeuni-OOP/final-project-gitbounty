@@ -1,32 +1,25 @@
-import React, {createContext, useContext, useEffect, useMemo, useState} from 'react';
-import type {AuthProvider} from "../../auth/AuthProvider.ts";
-import {KeycloakAdapter} from "../../auth/KeycloakAdapter.ts";
-import {setGlobalAuth} from "../../auth/authInstance.ts";
+import React, { createContext, useContext, useMemo } from 'react';
+import type { AuthProvider } from "../../auth/AuthProvider.ts";
+import { useAuth as useExternalAuth } from "../../auth/useAuth.ts";
+import { getGlobalAuth } from "../../auth/authInstance.ts";
 
 const AuthContext = createContext<AuthProvider | null>(null);
 
 export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => {
-    const [tick, setTick] = useState(0);
+    const authSnapshot = useExternalAuth();
 
-    const authService = useMemo(() => {
-        const adapter = new KeycloakAdapter(() => setTick(t => t + 1));
-        setGlobalAuth(adapter);
-        return adapter;
-    }, []);
-
-    useEffect(() => {
-        authService.initialize();
-    }, [authService]);
-
-    const contextValue = useMemo<AuthProvider>(() => ({
-        isLoading: authService.isLoading,
-        initialized: authService.initialized,
-        authenticated: authService.authenticated,
-        token: authService.token,
-        login: () => authService.login(),
-        logout: () => authService.logout(),
-        getToken: () => authService.getToken(),
-    }), [tick, authService]);
+    const contextValue = useMemo<AuthProvider>(() => {
+        const globalAuth = getGlobalAuth();
+        return {
+            isLoading: authSnapshot.isLoading,
+            initialized: authSnapshot.initialized,
+            authenticated: authSnapshot.authenticated,
+            token: authSnapshot.token,
+            login: () => globalAuth?.login(),
+            logout: () => globalAuth?.logout(),
+            getToken: () => globalAuth?.getToken() ?? Promise.resolve(undefined),
+        };
+    }, [authSnapshot]);
 
     return (
         <AuthContext.Provider value={contextValue}>
