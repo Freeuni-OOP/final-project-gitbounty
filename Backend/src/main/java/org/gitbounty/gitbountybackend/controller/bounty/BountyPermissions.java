@@ -1,6 +1,5 @@
-package org.gitbounty.gitbountybackend.controller;
+package org.gitbounty.gitbountybackend.controller.bounty;
 
-import org.gitbounty.gitbountybackend.model.Issue;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.springframework.stereotype.Component;
 

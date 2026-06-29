@@ -1,9 +1,9 @@
-package org.gitbounty.gitbountybackend.controller;
+package org.gitbounty.gitbountybackend.controller.bounty;
 
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.BountyStatus;
 import org.gitbounty.gitbountybackend.dto.BountyDTO;
-import org.gitbounty.gitbountybackend.service.BountyService;
+import org.gitbounty.gitbountybackend.service.bounty.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
