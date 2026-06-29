@@ -47,6 +47,66 @@ function FileIcon() {
   );
 }
 
+function CloneButton({ gitUrl }: { gitUrl: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [open]);
+
+  const copy = () => {
+    navigator.clipboard.writeText(gitUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="clone-wrapper" ref={wrapperRef}>
+      <button className="clone-btn" onClick={() => setOpen(o => !o)}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="m11.28 3.22 4.25 4.25a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 1 1-1.06-1.06L13.94 8l-3.72-3.72a.749.749 0 1 1 1.06-1.06Zm-6.56 0a.749.749 0 1 1 1.06 1.06L2.06 8l3.72 3.72a.749.749 0 1 1-1.06 1.06L.47 8.53a.749.749 0 0 1 0-1.06Z" />
+        </svg>
+        Code
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="clone-dropdown">
+          <p className="clone-label">Clone</p>
+          <div className="clone-url-row">
+            <input
+              className="clone-url-input"
+              value={gitUrl}
+              readOnly
+              onClick={e => (e.target as HTMLInputElement).select()}
+            />
+            <button
+              className={`clone-copy-btn${copied ? ' copied' : ''}`}
+              onClick={copy}
+              aria-label="Copy clone URL"
+            >
+              {copied ? 'Copied!' : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+                  <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface HighlighterProps {
   content: string;
   isDarkMode: boolean;
@@ -193,6 +253,7 @@ export default function RepositoryPage() {
           <span className="repo-sep">/</span>
           <span className="repo-name">{repoName}</span>
           <span className="repo-visibility-badge">Public</span>
+          <CloneButton gitUrl={repo.gitUrl} />
         </div>
         {repo.description && <p className="repo-description">{repo.description}</p>}
 
