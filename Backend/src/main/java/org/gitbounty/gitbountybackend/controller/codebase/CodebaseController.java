@@ -36,6 +36,15 @@ public class CodebaseController {
         this.codebasePermissions = codebasePermissions;
     }
 
+    @GetMapping
+    public ResponseEntity<List<CodebaseResponse>> getAllCodebases() {
+        List<CodebaseResponse> codebases = codebaseService.getAllCodebases()
+                .stream()
+                .map(CodebaseResponse::from)
+                .toList();
+        return ResponseEntity.ok(codebases);
+    }
+
     @PostMapping("/create")
     public ResponseEntity<CodebaseResponse> createCodebase(
             @RequestBody CreateCodebaseRequest request,
