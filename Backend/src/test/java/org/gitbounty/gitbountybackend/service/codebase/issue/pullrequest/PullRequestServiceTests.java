@@ -86,9 +86,11 @@ class PullRequestServiceTests {
     @Test
     void mergePullRequest_Success() throws Exception {
         MergeResult mockResult = mock(MergeResult.class);
+
+        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.MERGED);
+
         PullRequest pr = new PullRequest();
         pr.setId(99L);
-
         pr.setSourceBranch(mockSourceBranch);
         pr.setTargetBranch(mockTargetBranch);
 
@@ -115,6 +117,7 @@ class PullRequestServiceTests {
         MergeResult mockResult = mock(MergeResult.class);
         ObjectId commitId = ObjectId.fromString("1234567890abcdef1234567890abcdef12345678");
         when(mockResult.getNewHead()).thenReturn(commitId);
+        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.MERGED);
 
         PullRequest pr = new PullRequest();
         pr.setId(99L);
@@ -135,8 +138,7 @@ class PullRequestServiceTests {
         when(persistenceService.finalizeMerge(99L)).thenThrow(new RuntimeException("DB Failure"));
 
         // Execute and Verify
-        assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1))
-            .isInstanceOf(DatabaseTransactionException.class);
+        assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1)).isInstanceOf(DatabaseTransactionException.class);
 
         // Verify Rollback
         verify(gitService).revertMerge(mockRepoName, commitId);
