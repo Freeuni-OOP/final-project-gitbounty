@@ -255,6 +255,50 @@
   color: #1f2328;
 }
 
+/* ── Code viewer with line numbers ── */
+
+.code-viewer {
+  display: flex;
+  overflow-x: auto;
+}
+
+.line-numbers {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 3em;
+  padding: 16px 12px;
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  border-right: 1px solid;
+}
+
+.line-numbers span {
+  display: block;
+  line-height: 1.6;
+}
+
+.code-viewer[data-theme="dark"] .line-numbers {
+  background: #2d2d2d;
+  color: #6e7681;
+  border-right-color: #3d3d3d;
+}
+
+.code-viewer[data-theme="light"] .line-numbers {
+  background: #f5f2f0;
+  color: #9a9a9a;
+  border-right-color: #d0d7de;
+}
+
+.code-viewer .file-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .file-content {
   margin: 0;
   padding: 16px;
@@ -266,6 +310,25 @@
   overflow-x: auto;
   white-space: pre;
   tab-size: 4;
+}
+
+.repo-contents-loading,
+.repo-contents-error {
+  padding: 16px;
+  font-size: 14px;
+  color: #656d76;
+  margin: 0;
+}
+
+.repo-contents-error {
+  color: #d1242f;
+}
+
+.file-empty {
+  padding: 16px;
+  font-size: 14px;
+  color: #656d76;
+  text-align: center;
 }
 
 /* ── Not found ── */
