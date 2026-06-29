@@ -5,6 +5,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.CONFLICT)
 public class MergeConflictException extends RuntimeException {
+    public MergeConflictException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
     public MergeConflictException(String message) {
         super(message);
     }

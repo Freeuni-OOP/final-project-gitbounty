@@ -47,7 +47,8 @@ public class GlobalExceptionHandler {
             DuplicateUserException.class,
             DuplicateCodebaseMemberException.class,
             DuplicatePaymentRequestException.class,
-            PRBranchesAreSameException.class
+            PRBranchesAreSameException.class,
+            MergeConflictException.class
     })
     public ResponseEntity<Object> handleConflictExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
@@ -66,6 +67,12 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    // --- 500 INTERNAL SERVER ERROR FOR DOMAIN EXCEPTIONS ---
+    @ExceptionHandler(DatabaseTransactionException.class)
+    public ResponseEntity<Object> handleDatabaseTransactionException(DatabaseTransactionException ex) {
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     // --- 500 INTERNAL SERVER ERROR CATCH-ALL ---
