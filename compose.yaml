@@ -9,6 +9,7 @@ services:
     platform: linux/amd64
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      GIT_REPOSITORIES_ROOT: /app/repositories
     ports:
       - "8081:8081"
     volumes:
