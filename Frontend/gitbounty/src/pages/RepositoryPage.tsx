@@ -7,6 +7,7 @@ import '../styles/RepositoryPage.css';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-java';
 import 'prismjs/themes/prism-tomorrow.css';
+import apiClient from "../api/apiClient.ts";
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -48,7 +49,7 @@ function FileIcon() {
   );
 }
 
-function CloneButton({ gitUrl }: { gitUrl: string }) {
+function CloneButton({ gitUrl }: Readonly<{ gitUrl: string }>) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -128,7 +129,7 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
 
   const lines = content.split('\n');
   // drop trailing blank line that split creates when content ends with \n
-  const lineCount = lines.length > 0 && lines[lines.length - 1] === ''
+  const lineCount = lines.length > 0 && lines.at(-1) === ''
     ? lines.length - 1
     : lines.length;
 
@@ -173,30 +174,45 @@ export default function RepositoryPage() {
     if (!repoName) return;
     let cancelled = false;
     setRepoLoading(true);
-    fetch(`/api/codebases/${repoName}`)
-      .then(r => { if (!r.ok) throw new Error(r.status.toString()); return r.json() as Promise<RepoData>; })
-      .then(data => { if (!cancelled) { setRepo(data); setRepoLoading(false); } })
-      .catch((err: Error) => { if (!cancelled) { setRepoError(err.message); setRepoLoading(false); } });
-    return () => { cancelled = true; };
+
+    apiClient.get<RepoData>(`api/codebases/${repoName}`)
+        .then(response => {
+          if (!cancelled) {
+            setRepo(response.data);
+            setRepoLoading(false);
+          }
+        })
+        .catch((err: any) => {
+          if (!cancelled) {
+            // Axios errors store response statuses/messages under err.response
+            const statusStr = err.response?.status?.toString() || err.message;
+            setRepoError(statusStr);
+            setRepoLoading(false);
+          }
+        });
+
+    return () => {
+      cancelled = true;
+    };
   }, [repoName]);
 
+  // Navigate to a directory path and fetch its contents
   // Navigate to a directory path and fetch its contents
   const fetchDir = useCallback(async (newPath: string[]) => {
     const pathStr = newPath.join('/');
     const url = pathStr
-      ? `/api/codebases/${repoName}/contents/${pathStr}`
-      : `/api/codebases/${repoName}/contents`;
+        ? `/api/codebases/${repoName}/contents/${pathStr}`
+        : `/api/codebases/${repoName}/contents`;
     setContentsLoading(true);
     setContentsError(null);
     setSelectedFile(null);
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status.toString());
-      const data = await res.json() as ContentsResponse;
-      setDirItems(data.items ?? []);
+      const response = await apiClient.get<ContentsResponse>(url);
+      setDirItems(response.data.items ?? []);
       setPath(newPath);
     } catch (err: any) {
-      setContentsError(err.message);
+      const statusStr = err.response?.status?.toString() || err.message;
+      setContentsError(statusStr);
     } finally {
       setContentsLoading(false);
     }
@@ -211,9 +227,9 @@ export default function RepositoryPage() {
     setContentsLoading(true);
     setContentsError(null);
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status.toString());
-      const data = await res.json() as ContentsResponse;
+      const response = await apiClient.get<ContentsResponse>(url);
+      const data = response.data;
+
       if (data.type === 'FILE') {
         setSelectedFile({ name, content: data.content ?? '' });
       } else {
@@ -222,12 +238,12 @@ export default function RepositoryPage() {
         setSelectedFile(null);
       }
     } catch (err: any) {
-      setContentsError(err.message);
+      const statusStr = err.response?.status?.toString() || err.message;
+      setContentsError(statusStr);
     } finally {
       setContentsLoading(false);
     }
   };
-
   const navTo = (idx: number) => fetchDir(path.slice(0, idx));
   const goRoot = () => fetchDir([]);
   const switchTab = (tab: Tab) => { setActiveTab(tab); goRoot(); };
