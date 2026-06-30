@@ -1,3 +1,3 @@
 ALTER TABLE transactions
-    MODIFY COLUMN from_user_id BIGINT NULL,
-    MODIFY COLUMN to_user_id BIGINT NULL;
+    ADD CONSTRAINT chk_transactions_has_participant
+        CHECK (from_user_id IS NOT NULL OR to_user_id IS NOT NULL);
