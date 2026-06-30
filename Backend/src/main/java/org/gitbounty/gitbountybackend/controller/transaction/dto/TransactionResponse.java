@@ -20,8 +20,12 @@ public record TransactionResponse(
     public static TransactionResponse from(Transaction transaction) {
         return new TransactionResponse(
             transaction.getId(),
-            transaction.getFromUser().getId(),
-            transaction.getToUser().getId(),
+                transaction.getFromUser() != null
+                        ? transaction.getFromUser().getId()
+                        : null,
+                transaction.getToUser() != null
+                        ? transaction.getToUser().getId()
+                        : null,
                 transaction.getBounty() != null && transaction.getBounty().getIssue() != null
                         ? transaction.getBounty().getIssue().getId()
                         : null,

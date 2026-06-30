@@ -26,13 +26,13 @@ public class Transaction {
     private Long id;
 
     // Foreign key to users: who sends the credits
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "from_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "from_user_id", nullable = true)
     private User fromUser;
 
     // Foreign key to users: who receives the credits
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "to_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "to_user_id", nullable = true)
     private User toUser;
 
     // Optional reference to the bounty this transaction is for

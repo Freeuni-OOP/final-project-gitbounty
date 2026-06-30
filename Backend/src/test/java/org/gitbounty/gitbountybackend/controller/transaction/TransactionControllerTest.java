@@ -98,20 +98,20 @@ class TransactionControllerTest {
         void approveTransaction_Success_ReturnsOk() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
             Transaction approved = buildTransaction(100L, TransactionStatus.COMPLETED);
-            when(transactionService.approveTransaction(100L, 1L)).thenReturn(approved);
+            when(transactionService.approveBountyPayout(100L, 1L)).thenReturn(approved);
 
             ResponseEntity<TransactionResponse> response = transactionController.approveTransaction(100L, jwt);
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
             assertEquals("COMPLETED", response.getBody().status());
-            verify(transactionService).approveTransaction(100L, 1L);
+            verify(transactionService).approveBountyPayout(100L, 1L);
         }
 
         @Test
         void approveTransaction_NotFound_Propagates() {
             Jwt jwt = authenticatedJwt(1L, "kc-1");
-            when(transactionService.approveTransaction(100L, 1L))
+            when(transactionService.approveBountyPayout(100L, 1L))
                 .thenThrow(new TransactionNotFoundException(100L));
 
             assertThrows(TransactionNotFoundException.class, () ->

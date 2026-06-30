@@ -72,13 +72,12 @@ class BountyServiceTest {
 
         assertNotNull(savedBounty);
         assertEquals("Fixx Bug", savedBounty.getTitle());
-        assertEquals(BigDecimal.valueOf(400.0), mockOwner.getCreditBalance());
 
-        verify(userRepository, times(1)).save(mockOwner);
         verify(bountyRepository, times(1)).save(any(Bounty.class));
 
-        verify(transactionService, times(1)).recordBountyDeposit(
+        verify(transactionService).recordBountyDeposit(
                 eq(mockOwner),
+                eq(savedBounty),
                 eq(BigDecimal.valueOf(100.0)),
                 anyString()
         );
@@ -104,7 +103,7 @@ class BountyServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(bountyRepository, never()).save(any());
-        verify(transactionService, never()).recordBountyDeposit(any(), any(), any());
+        verify(transactionService, never()).recordBountyDeposit(any(), any(), any(), any());
     }
 
     @Test
@@ -183,6 +182,8 @@ class BountyServiceTest {
         mockCodebase.setOwner(mockOwner);
 
         Issue mockIssue = new Issue();
+        mockIssue.setNumber(42);
+        mockIssue.setTitle("Fixx Bug");
         mockIssue.setRepository(mockCodebase);
 
         Bounty mockBounty = new Bounty();
@@ -196,11 +197,15 @@ class BountyServiceTest {
 
         bountyService.cancelBounty(1L);
 
-        assertEquals(BigDecimal.valueOf(250.0), mockOwner.getCreditBalance());
         assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
 
-        verify(userRepository, times(1)).save(mockOwner);
         verify(bountyRepository, times(1)).save(mockBounty);
+        verify(transactionService).recordBountyRefund(
+                eq(mockOwner),
+                eq(mockBounty),
+                eq(BigDecimal.valueOf(150.0)),
+                contains("Bounty refund for issue #42")
+        );
     }
 
     @Test
@@ -217,5 +222,21 @@ class BountyServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(bountyRepository, never()).save(any(Bounty.class));
+    }
+
+    @Test
+    void cancelBounty_ShouldNotRefundAgain_WhenAlreadyCancelled() {
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setStatus(BountyStatus.CANCELLED);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> bountyService.cancelBounty(1L)
+        );
+
+        verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
     }
 }

@@ -3,10 +3,7 @@ package org.gitbounty.gitbountybackend.service.transaction;
 import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
 import org.gitbounty.gitbountybackend.exception.TransactionNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
-import org.gitbounty.gitbountybackend.model.Issue;
-import org.gitbounty.gitbountybackend.model.Transaction;
-import org.gitbounty.gitbountybackend.model.TransactionStatus;
-import org.gitbounty.gitbountybackend.model.User;
+import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.service.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -33,7 +30,8 @@ public class TransactionService {
     }
     /**
      * Create an escrow transaction for a bounty completion.
-     * Creates a PENDING transaction with the bounty amount, held in escrow.
+     * Creates a PENDING payout transaction for bounty funds that were
+     * already placed into escrow when the bounty was created.
      *
      * @param fromUserId ID of the bounty creator (who posts the bounty)
      * @param toUserId ID of the bounty completer (who receives the credits)
@@ -66,9 +64,7 @@ public class TransactionService {
             throw new IllegalArgumentException("Invalid bounty amount: " + bountyAmount);
         }
 
-        if (fromUser.getCreditBalance().compareTo(bountyAmount) < 0) {
-            throw new IllegalArgumentException("Insufficient credits. Required: " + bountyAmount + ", Available: " + fromUser.getCreditBalance());
-        }
+        // Bounty was already funded when created.
 
         // Check if there's already a pending transaction for this issue
         Optional<Transaction> existingPending = transactionRepository.findByBountyIssueIdAndStatus(issueId, TransactionStatus.PENDING);
@@ -92,8 +88,11 @@ public class TransactionService {
     }
 
     /**
-     * Approve a pending escrow transaction and release credits to the recipient.
-     * This can only be called by the bounty creator (fromUser).
+     * Approves a pending bounty payout and releases the already-escrowed
+     * credits to the bounty completer.
+     *
+     * The bounty creator was charged when the bounty was created, so this
+     * method will not deduct the amount from fromUser again.
      *
      * @param transactionId ID of the transaction to approve
      * @param approverUserId ID of the user approving (should be fromUser)
@@ -102,16 +101,24 @@ public class TransactionService {
      * @throws IllegalArgumentException if transaction is not PENDING or approver is not the creator
      */
     @Transactional
-    public Transaction approveTransaction(Long transactionId, Long approverUserId) {
-        Transaction transaction = transactionRepository.findById(transactionId).orElseThrow(() -> new TransactionNotFoundException(transactionId));
+    public Transaction approveBountyPayout(Long transactionId, Long approverUserId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         // Verify transaction is in PENDING status
         if (!transaction.getStatus().equals(TransactionStatus.PENDING)) {
             throw new IllegalArgumentException("Can only approve PENDING transactions. Current status: " + transaction.getStatus());
         }
 
+        // make sure it is bounty payout
+        if (transaction.getBounty() == null || transaction.getToUser() == null) {
+            throw new IllegalArgumentException("Only bounty payout transactions can be approved.");
+        }
+
+        User fromUser = transaction.getFromUser();
+
         // Verify approver is the bounty creator
-        if (!transaction.getFromUser().getId().equals(approverUserId)) {
+        if (fromUser == null || !fromUser.getId().equals(approverUserId)) {
             throw new IllegalArgumentException("Only the bounty creator can approve this transaction");
         }
 
@@ -127,6 +134,7 @@ public class TransactionService {
 
         // the deduction block was removed here, because they were already charged when the bounty was created
 
+        // bounty creator already paid when the bounty was created
         return transactionRepository.save(transaction);
     }
 
@@ -303,15 +311,97 @@ public class TransactionService {
      * Creates a transaction where fromUser is the poster and toUser is null (meaning funds are held by the platform in system escrow).
      */
     @Transactional
-    public Transaction recordBountyDeposit(User user, BigDecimal amount, String description) {
+    public Transaction recordBountyDeposit(
+            User owner,
+            Bounty bounty,
+            BigDecimal amount,
+            String description
+    ) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Bounty owner is required.");
+        }
+
+        if (bounty == null) {
+            throw new IllegalArgumentException("Bounty is required.");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Bounty deposit amount must be greater than zero."
+            );
+        }
+
+        if (owner.getCreditBalance() == null
+                || owner.getCreditBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException(
+                    "Insufficient funds in wallet to put bounty into escrow."
+            );
+        }
+
+        owner.setCreditBalance(
+                owner.getCreditBalance().subtract(amount)
+        );
+        userRepository.save(owner);
+
+        LocalDateTime now = LocalDateTime.now();
+
         Transaction transaction = Transaction.builder()
-                .fromUser(user)
+                .fromUser(owner)
                 .toUser(null)
+                .bounty(bounty)
                 .amount(amount)
-                .status(TransactionStatus.PENDING)
+                .status(TransactionStatus.COMPLETED)
                 .description(description)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(now)
+                .updatedAt(now)
+                .resolvedAt(now)
+                .build();
+
+        return transactionRepository.save(transaction);
+    }
+
+    /**
+     * Returns escrowed bounty funds to the owner and records the refund.
+     */
+    @Transactional
+    public Transaction recordBountyRefund(
+            User owner,
+            Bounty bounty,
+            BigDecimal amount,
+            String description
+    ) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Bounty owner is required.");
+        }
+
+        if (bounty == null) {
+            throw new IllegalArgumentException("Bounty is required.");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Bounty refund amount must be greater than zero.");
+        }
+
+        if (owner.getCreditBalance() == null) {
+            throw new IllegalArgumentException("Bounty owner has no credit balance.");
+        }
+
+        owner.setCreditBalance(owner.getCreditBalance().add(amount));
+
+        userRepository.save(owner);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Transaction transaction = Transaction.builder()
+                .fromUser(null)
+                .toUser(owner)
+                .bounty(bounty)
+                .amount(amount)
+                .status(TransactionStatus.COMPLETED)
+                .description(description)
+                .createdAt(now)
+                .updatedAt(now)
+                .resolvedAt(now)
                 .build();
 
         return transactionRepository.save(transaction);

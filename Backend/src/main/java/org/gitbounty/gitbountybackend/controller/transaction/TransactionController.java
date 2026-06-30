@@ -60,7 +60,7 @@ public class TransactionController {
         @AuthenticationPrincipal Jwt jwt) {
 
         Long approverUserId = extractUserIdFromJwt(jwt);
-        Transaction transaction = transactionService.approveTransaction(id, approverUserId);
+        Transaction transaction = transactionService.approveBountyPayout(id, approverUserId);
         return ResponseEntity.ok(TransactionResponse.from(transaction));
     }
 
