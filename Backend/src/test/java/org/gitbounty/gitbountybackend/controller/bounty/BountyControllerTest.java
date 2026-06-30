@@ -58,29 +58,41 @@ class BountyControllerTest {
     }
 
     @Test
-    void createBounty_ShouldReturnOk() throws Exception {
+    void createBounty_ShouldReturnCreated() throws Exception {
         Bounty created = bounty(1L, "Fix bug", 100.0, BountyStatus.OPEN);
 
-        when(bountyService.createBounty(any(BountyDTO.class), eq("kc-demo"))).thenReturn(created);
+        BountyDTO responseDto = new BountyDTO();
+        responseDto.setId(1L);
+        responseDto.setTitle("Fix bug");
+        responseDto.setDescription("Test bounty description");
+        responseDto.setAmount(100.0);
+        responseDto.setStatus(BountyStatus.OPEN);
+        responseDto.setIssueId(10L);
 
-        mockMvc.perform(post("/api/bounties")
-                        .with(jwt().jwt(builder -> builder.subject("kc-demo")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                            {
-                                "title": "Fix bug",
-                                "description": "Test bounty description",
-                                "amount": 100.0,
-                                "issueId": 10
-                            }
-                            """))
-                .andExpect(status().isOk())
+        when(bountyService.createBounty(any(BountyDTO.class), eq("kc-demo"))).thenReturn(created);
+        when(bountyService.getBountyById(1L)).thenReturn(responseDto);
+
+        mockMvc.perform(post("/api/bounties").with(jwt().jwt(builder -> builder.subject("kc-demo")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "title": "Fix bug",
+                                        "description": "Test bounty description",
+                                        "amount": 100.0,
+                                        "issueId": 10
+                                    }
+                                    """)
+                )
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.title").value("Fix bug"))
+                .andExpect(jsonPath("$.description").value("Test bounty description"))
                 .andExpect(jsonPath("$.amount").value(100.0))
-                .andExpect(jsonPath("$.status").value("OPEN"));
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.issueId").value(10));
 
         verify(bountyService).createBounty(any(BountyDTO.class), eq("kc-demo"));
+        verify(bountyService).getBountyById(1L);
     }
 
     @Test
