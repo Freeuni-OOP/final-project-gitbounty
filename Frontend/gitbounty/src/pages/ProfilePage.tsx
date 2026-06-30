@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProfileData, parseCreatedAt } from '../hooks/useProfileData';
+import { CreateRepositoryModal } from '../components/CreateRepositoryModal';
+import type { ApiRepo } from '../hooks/useRepositoriesData';
 import '../styles/ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
   const { user, isLoading, error, isUnauthenticated } = useProfileData();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -38,6 +43,10 @@ const ProfilePage: React.FC = () => {
 
   const initials = user.username.slice(0, 2).toUpperCase();
 
+  const handleRepoCreated = (repo: ApiRepo) => {
+    navigate(`/repositories/${repo.ownerUsername}/${repo.name}`);
+  };
+
   return (
     <div className="profile-container">
       <div className="user-header-card">
@@ -54,6 +63,22 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <div className="profile-actions">
+        <button
+          className="create-repo-btn"
+          onClick={() => setIsModalOpen(true)}
+        >
+          + Create Repository
+        </button>
+      </div>
+
+      <CreateRepositoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleRepoCreated}
+        ownerName={user.username}
+      />
     </div>
   );
 };

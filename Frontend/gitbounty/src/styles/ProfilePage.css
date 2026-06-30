@@ -100,6 +100,38 @@
   color: #1f2937;
 }
 
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.create-repo-btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.35);
+  transition: box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.create-repo-btn:hover {
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.5);
+  transform: translateY(-1px);
+}
+
+.create-repo-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
 .settings-button {
   background: #f3f4f6;
   border: 1px solid #d1d5db;
