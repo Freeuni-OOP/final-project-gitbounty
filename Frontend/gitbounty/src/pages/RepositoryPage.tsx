@@ -137,15 +137,11 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
     <>
       <link rel="stylesheet" href={themeUrl} />
       <div className="code-viewer" data-theme={isDarkMode ? 'dark' : 'light'}>
-        <div className="line-numbers" aria-hidden="true">
-          {Array.from({ length: lineCount }, (_, i) => (
-            <span key={i + 1}>{i + 1}</span>
-          ))}
-        </div>
+        <pre className="line-numbers" aria-hidden="true">
+          {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
+        </pre>
         <pre className="file-content">
-          <code ref={codeRef} className="language-java">
-            {content}
-          </code>
+          <code ref={codeRef} className="language-java">{content}</code>
         </pre>
       </div>
     </>
@@ -340,30 +336,24 @@ export default function RepositoryPage() {
               <SyntaxHighlighter content={selectedFile.content} isDarkMode={isDarkBox} />
             </div>
           ) : !contentsLoading && !contentsError && (
-            <table className="file-table">
-              <tbody>
-                {dirItems.map((name) => (
-                  <tr key={name} className="file-row">
-                    <td className="file-icon-cell">
-                      {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
-                    </td>
-                    <td className="file-name-cell">
-                      <button
-                        className="file-name-btn"
-                        onClick={() => handleItemClick(name)}
-                      >
-                        {name}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {dirItems.length === 0 && (
-                  <tr>
-                    <td colSpan={2} className="file-empty">This directory is empty.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <div className="file-list">
+              {dirItems.map((name) => (
+                <div key={name} className="file-row">
+                  <span className="file-icon-cell">
+                    {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
+                  </span>
+                  <button
+                    className="file-name-btn"
+                    onClick={() => handleItemClick(name)}
+                  >
+                    {name}
+                  </button>
+                </div>
+              ))}
+              {dirItems.length === 0 && (
+                <div className="file-empty">This directory is empty.</div>
+              )}
+            </div>
           )}
         </div>
       )}
