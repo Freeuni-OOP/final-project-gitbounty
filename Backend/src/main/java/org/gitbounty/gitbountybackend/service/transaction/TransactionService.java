@@ -103,8 +103,7 @@ public class TransactionService {
      */
     @Transactional
     public Transaction approveTransaction(Long transactionId, Long approverUserId) {
-        Transaction transaction = transactionRepository.findById(transactionId)
-            .orElseThrow(() -> new TransactionNotFoundException(transactionId));
+        Transaction transaction = transactionRepository.findById(transactionId).orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
         // Verify transaction is in PENDING status
         if (!transaction.getStatus().equals(TransactionStatus.PENDING)) {
@@ -126,10 +125,7 @@ public class TransactionService {
         toUser.setCreditBalance(toUser.getCreditBalance().add(transaction.getAmount()));
         userRepository.save(toUser);
 
-        // Deduct credits: take away from the poster
-        User fromUser = transaction.getFromUser();
-        fromUser.setCreditBalance(fromUser.getCreditBalance().subtract(transaction.getAmount()));
-        userRepository.save(fromUser);
+        // the deduction block was removed here, because they were already charged when the bounty was created
 
         return transactionRepository.save(transaction);
     }
@@ -302,5 +298,23 @@ public class TransactionService {
         return transactions;
     }
 
+    /**
+     * Records the initial deduction of funds when a bounty is posted.
+     * Creates a transaction where fromUser is the poster and toUser is null (meaning funds are held by the platform in system escrow).
+     */
+    @Transactional
+    public Transaction recordBountyDeposit(User user, BigDecimal amount, String description) {
+        Transaction transaction = Transaction.builder()
+                .fromUser(user)
+                .toUser(null)
+                .amount(amount)
+                .status(TransactionStatus.PENDING)
+                .description(description)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        return transactionRepository.save(transaction);
+    }
 }
 

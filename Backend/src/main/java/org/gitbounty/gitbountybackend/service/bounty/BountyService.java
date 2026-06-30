@@ -1,16 +1,20 @@
 package org.gitbounty.gitbountybackend.service.bounty;
+
 import org.gitbounty.gitbountybackend.model.*;
 import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.repository.BountyRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.service.user.UserRepository;
+import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 public class BountyService {
@@ -18,34 +22,61 @@ public class BountyService {
     private final BountyRepository bountyRepository;
     private final IssueRepository issueRepository;
     private final UserRepository userRepository;
+    private final TransactionService transactionService;
 
     @Autowired
-    public BountyService(BountyRepository bountyRepository, IssueRepository issueRepository, UserRepository userRepository) {
+    public BountyService(BountyRepository bountyRepository,
+                         IssueRepository issueRepository,
+                         UserRepository userRepository,
+                         TransactionService transactionService) {
         this.bountyRepository = bountyRepository;
         this.issueRepository = issueRepository;
         this.userRepository = userRepository;
+        this.transactionService = transactionService;
     }
 
     @Transactional
     public Bounty createBounty(BountyDTO dto, String userId) {
-        Issue issue = issueRepository.findById(dto.getIssueId()).orElseThrow(() -> new IssueNotFoundException(dto.getIssueId()));
-        User owner = userRepository.findByKeycloakId(userId).orElseThrow(() -> new IllegalArgumentException("Authenticated user not found in database with ID: " + userId));
+        // 1. Validate Inputs
+        if (dto.getAmount() == null || dto.getAmount() <= 0) {
+            throw new IllegalArgumentException("Bounty amount must be greater than zero.");
+        }
+        if (dto.getTitle() == null || dto.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Bounty title is required.");
+        }
 
-        java.math.BigDecimal bountyAmount = java.math.BigDecimal.valueOf(dto.getAmount());
+        // 2. Verify Issue and prevent duplicate bounties on the same issue
+        Issue issue = issueRepository.findById(dto.getIssueId())
+                .orElseThrow(() -> new IssueNotFoundException(dto.getIssueId()));
+
+        if (bountyRepository.findByIssueId(dto.getIssueId()).isPresent()) {
+            throw new IllegalArgumentException("This issue already has an active bounty.");
+        }
+
+        // 3. Verify User and Credit Balance
+        User owner = userRepository.findByKeycloakId(userId)
+                .orElseThrow(() -> new UserNotFoundException("Authenticated user not found with ID: " + userId));
+
+        BigDecimal bountyAmount = BigDecimal.valueOf(dto.getAmount());
         if (owner.getCreditBalance() == null || owner.getCreditBalance().compareTo(bountyAmount) < 0) {
             throw new IllegalArgumentException("Insufficient funds in wallet to put bounty into escrow.");
         }
 
+        // 4. Financial Execution: Deduct balance and log the transaction
         owner.setCreditBalance(owner.getCreditBalance().subtract(bountyAmount));
         userRepository.save(owner);
 
+        // This creates an audit trail of the deduction as a "Deposit into Escrow"
+        transactionService.recordBountyDeposit(owner, bountyAmount, "Bounty posted for issue #" + issue.getNumber() + ": " + issue.getTitle());
+
+        // 5. Create Bounty Entity
         Bounty bounty = new Bounty();
         bounty.setTitle(dto.getTitle());
         bounty.setDescription(dto.getDescription());
         bounty.setAmount(dto.getAmount());
         bounty.setStatus(BountyStatus.OPEN);
         bounty.setIssue(issue);
-        bounty.setCreatedAt(java.time.LocalDateTime.now());
+        bounty.setCreatedAt(LocalDateTime.now());
 
         return bountyRepository.save(bounty);
     }
@@ -53,7 +84,6 @@ public class BountyService {
     @Transactional
     public void completeBounty(Long bountyId) {
         Bounty bounty = bountyRepository.findById(bountyId).orElseThrow(() -> new BountyNotFoundException(bountyId));
-
         bounty.setStatus(BountyStatus.COMPLETED);
         bountyRepository.save(bounty);
 
@@ -67,7 +97,6 @@ public class BountyService {
     @Transactional
     public void closeIssueAndBounty(Long issueId) {
         Issue issue = issueRepository.findById(issueId).orElseThrow(() -> new IssueNotFoundException(issueId));
-
         issue.setStatus(IssueStatus.CLOSED);
         issueRepository.save(issue);
 
@@ -87,7 +116,7 @@ public class BountyService {
 
         User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId()).orElseThrow(() -> new UserNotFoundException("Paying user not found"));
 
-        owner.setCreditBalance(owner.getCreditBalance().add(java.math.BigDecimal.valueOf(bounty.getAmount())));
+        owner.setCreditBalance(owner.getCreditBalance().add(BigDecimal.valueOf(bounty.getAmount())));
         userRepository.save(owner);
 
         bounty.setStatus(BountyStatus.CANCELLED);

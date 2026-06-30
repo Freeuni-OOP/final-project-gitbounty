@@ -189,11 +189,11 @@ class TransactionServiceTest {
             Transaction result = transactionService.approveTransaction(100L, 1L);
 
             assertEquals(TransactionStatus.COMPLETED, result.getStatus());
-            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance()); // 50 + 20
-            assertEquals(new BigDecimal("80.00"), fromUser.getCreditBalance()); // 100 - 20
+            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
+
+            assertEquals(new BigDecimal("100.00"), fromUser.getCreditBalance());
             assertNotNull(result.getResolvedAt());
 
-            verify(userRepository).save(fromUser);
             verify(userRepository).save(toUser);
             verify(transactionRepository).save(pendingTransaction);
         }
@@ -464,6 +464,30 @@ class TransactionServiceTest {
             assertThrows(IllegalArgumentException.class, () ->
                     transactionService.adjustUserCreditBalance(1L, new BigDecimal("-150.00"), "Over-deduction")
             );
+        }
+    }
+
+    @Nested
+    class RecordBountyDepositTests {
+
+        @Test
+        void recordBountyDeposit_Success() {
+            BigDecimal amount = new BigDecimal("50.00");
+            String description = "Initial Escrow Hold";
+
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+
+            Transaction result = transactionService.recordBountyDeposit(fromUser, amount, description);
+
+            assertNotNull(result);
+            assertEquals(fromUser, result.getFromUser());
+            assertNull(result.getToUser());
+            assertEquals(amount, result.getAmount());
+            assertEquals(TransactionStatus.PENDING, result.getStatus());
+            assertEquals(description, result.getDescription());
+            assertNotNull(result.getCreatedAt());
+
+            verify(transactionRepository).save(any(Transaction.class));
         }
     }
 }

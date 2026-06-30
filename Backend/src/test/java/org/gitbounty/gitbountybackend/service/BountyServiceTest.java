@@ -7,6 +7,7 @@ import org.gitbounty.gitbountybackend.service.bounty.BountyService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.exception.*;
 import org.gitbounty.gitbountybackend.service.user.UserRepository;
+import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -30,6 +31,9 @@ class BountyServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private TransactionService transactionService;
+
     @InjectMocks
     private BountyService bountyService;
 
@@ -49,6 +53,8 @@ class BountyServiceTest {
 
         Issue mockIssue = new Issue();
         mockIssue.setId(10L);
+        mockIssue.setNumber(42);
+        mockIssue.setTitle("Fixx Bug");
 
         User mockOwner = new User();
         mockOwner.setKeycloakId(mockKeycloakId);
@@ -70,6 +76,12 @@ class BountyServiceTest {
 
         verify(userRepository, times(1)).save(mockOwner);
         verify(bountyRepository, times(1)).save(any(Bounty.class));
+
+        verify(transactionService, times(1)).recordBountyDeposit(
+                eq(mockOwner),
+                eq(BigDecimal.valueOf(100.0)),
+                anyString()
+        );
     }
 
     @Test
@@ -92,6 +104,7 @@ class BountyServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(bountyRepository, never()).save(any());
+        verify(transactionService, never()).recordBountyDeposit(any(), any(), any());
     }
 
     @Test
