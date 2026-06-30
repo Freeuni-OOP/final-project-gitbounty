@@ -101,7 +101,7 @@ export function CreateRepositoryModal({ isOpen, onClose, onSuccess, ownerName }:
         </div>
 
         {/* ── Form body ── */}
-        <div className="crm-body">
+        <form className="crm-body" onSubmit={handleSubmit}>
           <p className="crm-subtitle">
             A repository contains all project files, including the revision history.
           </p>
@@ -179,7 +179,6 @@ export function CreateRepositoryModal({ isOpen, onClose, onSuccess, ownerName }:
               type="submit"
               className="crm-btn-submit"
               disabled={isSubmitting}
-              onClick={handleSubmit}
             >
               {isSubmitting ? (
                 <>
@@ -196,7 +195,7 @@ export function CreateRepositoryModal({ isOpen, onClose, onSuccess, ownerName }:
               )}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
