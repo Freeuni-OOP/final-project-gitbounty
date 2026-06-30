@@ -210,3 +210,89 @@
     gap: 8px;
   }
 }
+
+.issue-bounty-actions {
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.issue-add-bounty-btn {
+  padding: 6px 12px;
+  border: 1px solid #1f883d;
+  border-radius: 6px;
+  background: #1f883d;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+          background 0.12s ease,
+          border-color 0.12s ease,
+          transform 0.12s ease;
+}
+
+.issue-add-bounty-btn:hover {
+  background: #1a7f37;
+  border-color: #1a7f37;
+  transform: translateY(-1px);
+}
+
+.issue-add-bounty-btn:active {
+  transform: translateY(0);
+}
+
+.issue-bounty-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.issue-bounty-badge.status-open {
+  background: #dafbe1;
+  color: #116329;
+}
+
+.issue-bounty-badge.status-assigned {
+  background: #fff8c5;
+  color: #7d4e00;
+}
+
+.issue-bounty-badge.status-completed {
+  background: #ddf4ff;
+  color: #0550ae;
+}
+
+.issue-bounty-badge.status-cancelled {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.tab-success-banner {
+  padding: 10px 16px;
+  border-bottom: 1px solid #a7d8b4;
+  background: #dafbe1;
+  color: #116329;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .tab-item {
+    flex-wrap: wrap;
+  }
+
+  .issue-bounty-actions {
+    width: 100%;
+    margin-left: 26px;
+  }
+
+  .issue-add-bounty-btn {
+    width: 100%;
+  }
+}

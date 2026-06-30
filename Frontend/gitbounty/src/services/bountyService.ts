@@ -1,20 +1,46 @@
 import apiClient from '../api/apiClient';
-import type { BountyAPI } from '../types/Bounty';
+import type {
+    BountyAPI,
+    CreateBountyRequest,
+} from '../types/Bounty';
 
 export const bountyApi = {
-
     async getAllBounties(): Promise<BountyAPI[]> {
-        const response = await apiClient.get('/api/bounties');
+        const response = await apiClient.get<BountyAPI[]>(
+            '/api/bounties'
+        );
+
         return response.data;
     },
 
-    async getBountiesByRepo(repoId: string): Promise<BountyAPI[]> {
-        const response = await apiClient.get(`/api/bounties/repository/${repoId}`);
+    async getBountiesByRepo(
+        repoId: string
+    ): Promise<BountyAPI[]> {
+        const response = await apiClient.get<BountyAPI[]>(
+            `/api/bounties/repository/${repoId}`
+        );
+
         return response.data;
     },
 
-    async getBountyById(id: number): Promise<BountyAPI> {
-        const response = await apiClient.get(`/api/bounties/${id}`);
+    async getBountyById(
+        id: number
+    ): Promise<BountyAPI> {
+        const response = await apiClient.get<BountyAPI>(
+            `/api/bounties/${id}`
+        );
+
+        return response.data;
+    },
+
+    async createBounty(
+        request: CreateBountyRequest
+    ): Promise<BountyAPI> {
+        const response = await apiClient.post<BountyAPI>(
+            '/api/bounties',
+            request
+        );
+
         return response.data;
     },
 };

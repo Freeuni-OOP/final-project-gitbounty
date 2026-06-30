@@ -49,6 +49,10 @@ public class BountyService {
         Issue issue = issueRepository.findById(dto.getIssueId())
                 .orElseThrow(() -> new IssueNotFoundException(dto.getIssueId()));
 
+        if (issue.getStatus() != IssueStatus.OPEN) {
+            throw new IllegalArgumentException("Bounties can only be created for open issues.");
+        }
+
         if (bountyRepository.findByIssueId(dto.getIssueId()).isPresent()) {
             throw new IllegalArgumentException("This issue already has an active bounty.");
         }
@@ -154,9 +158,14 @@ public class BountyService {
         BountyDTO dto = new BountyDTO();
         dto.setId(bounty.getId());
         dto.setTitle(bounty.getTitle());
+        dto.setDescription(bounty.getDescription());
         dto.setAmount(bounty.getAmount());
         dto.setStatus(bounty.getStatus());
-        if (bounty.getIssue() != null) dto.setIssueId(bounty.getIssue().getId());
+
+        if (bounty.getIssue() != null) {
+            dto.setIssueId(bounty.getIssue().getId());
+        }
+
         return dto;
     }
 

@@ -1,10 +1,11 @@
 package org.gitbounty.gitbountybackend.controller.bounty;
 
+import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.BountyStatus;
-import org.gitbounty.gitbountybackend.dto.BountyDTO;
 import org.gitbounty.gitbountybackend.service.bounty.BountyService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,9 +27,12 @@ public class BountyController {
 
     @PostMapping
     @PreAuthorize("@bountyPermissions.isIssueRepositoryOwner(#bountyDto.issueId, authentication.name)")
-    public ResponseEntity<Bounty> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<BountyDTO> createBounty(@RequestBody BountyDTO bountyDto, @AuthenticationPrincipal Jwt jwt) {
         Bounty created = bountyService.createBounty(bountyDto, jwt.getSubject());
-        return ResponseEntity.ok(created);
+
+        BountyDTO response = bountyService.getBountyById(created.getId());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
@@ -43,7 +47,9 @@ public class BountyController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BountyDTO> getBountyById(@PathVariable Long id) {
-        return ResponseEntity.ok(bountyService.getBountyById(id));
+        return ResponseEntity.ok(
+                bountyService.getBountyById(id)
+        );
     }
 
     @GetMapping("/repository/{repoId}")

@@ -8,6 +8,7 @@ import Prism from 'prismjs';
 import 'prismjs/components/prism-java';
 import 'prismjs/themes/prism-tomorrow.css';
 import apiClient from "../api/apiClient.ts";
+import { useProfileData } from '../hooks/useProfileData';
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -149,7 +150,13 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
 }
 
 export default function RepositoryPage() {
-  const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
+  const { owner = '', repoName = '' } =
+      useParams<{
+        owner: string;
+        repoName: string;
+      }>();
+
+  const { user: currentUser } = useProfileData();
   const [activeTab, setActiveTab] = useState<Tab>('Code');
   const [isDarkBox, setIsDarkBox] = useState(true);
 
@@ -285,7 +292,15 @@ export default function RepositoryPage() {
       </div>
 
       {/* ── Tab content ── */}
-      {activeTab === 'Issues' && <IssuesTab owner={owner} repoName={repoName} />}
+      {activeTab === 'Issues' && (
+          <IssuesTab
+              repoId={repo.id}
+              repoName={repoName}
+              canCreateBounties={
+                  currentUser?.username === repo.ownerUsername
+              }
+          />
+      )}
       {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}
       {activeTab === 'Bounties' && <BountiesTab repoId={repo.id.toString()} />}
       {activeTab === 'Code' && (

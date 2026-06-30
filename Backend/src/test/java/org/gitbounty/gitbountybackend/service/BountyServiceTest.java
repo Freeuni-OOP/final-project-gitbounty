@@ -107,10 +107,37 @@ class BountyServiceTest {
     }
 
     @Test
+    void createBounty_ThrowsException_WhenIssueIsClosed() {
+        BountyDTO dto = new BountyDTO();
+        dto.setIssueId(10L);
+        dto.setTitle("Closed issue bounty");
+        dto.setDescription("Should not be created");
+        dto.setAmount(100.0);
+
+        Issue closedIssue = new Issue();
+        closedIssue.setId(10L);
+        closedIssue.setStatus(IssueStatus.CLOSED);
+
+        when(issueRepository.findById(10L)).thenReturn(Optional.of(closedIssue));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> bountyService.createBounty(dto, "user-id")
+        );
+
+        assertEquals("Bounties can only be created for open issues.", exception.getMessage());
+
+        verify(bountyRepository, never()).save(any(Bounty.class));
+        verify(transactionService, never()).recordBountyDeposit(any(), any(), any(), any());
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
     void getBountyById_ShouldReturnBounty_WhenIdExists() {
         Bounty bounty = new Bounty();
         bounty.setId(1L);
         bounty.setTitle("Task");
+        bounty.setDescription("Complete this task");
         bounty.setAmount(50.0);
 
         when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
@@ -118,6 +145,7 @@ class BountyServiceTest {
 
         assertNotNull(found);
         assertEquals("Task", found.getTitle());
+        assertEquals("Complete this task", found.getDescription());
         assertEquals(50.0, found.getAmount());
     }
 

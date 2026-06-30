@@ -33,11 +33,24 @@ export interface ActivityItem {
     timestamp: string;
 }
 
+export type BountyStatus =
+    | 'OPEN'
+    | 'ASSIGNED'
+    | 'COMPLETED'
+    | 'CANCELLED';
+
 export interface BountyAPI {
     id: number;
     title: string;
-    description: string;
+    description: string | null;
     amount: number;
-    status: 'OPEN' | 'ASSIGNED' | 'COMPLETED' | 'CANCELLED';
+    status: BountyStatus;
     issueId: number;
+}
+
+export interface CreateBountyRequest {
+    issueId: number;
+    title: string;
+    description: string | null;
+    amount: number;
 }

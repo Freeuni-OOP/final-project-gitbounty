@@ -1,0 +1,73 @@
+.cbm-issue-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+}
+
+.cbm-issue-number {
+    color: #656d76;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.cbm-issue-title {
+    color: #1f2328;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.cbm-balance-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 14px;
+    border: 1px solid #a7d8b4;
+    border-radius: 6px;
+    background: #dafbe1;
+    color: #116329;
+    font-size: 13px;
+}
+
+.cbm-balance-card strong {
+    white-space: nowrap;
+}
+
+.cbm-amount-input-wrapper {
+    position: relative;
+}
+
+.cbm-amount-input {
+    box-sizing: border-box;
+    width: 100%;
+    padding-right: 76px;
+}
+
+.cbm-amount-unit {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    color: #656d76;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.cbm-help-text {
+    margin: 0;
+    color: #656d76;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+    .cbm-balance-card {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+}
