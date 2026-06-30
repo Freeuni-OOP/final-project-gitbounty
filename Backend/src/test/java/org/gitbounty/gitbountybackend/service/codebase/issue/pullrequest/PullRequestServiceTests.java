@@ -5,8 +5,10 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.gitbounty.gitbountybackend.exception.DatabaseTransactionException;
 import org.gitbounty.gitbountybackend.exception.PRBranchesAreSameException;
+import org.gitbounty.gitbountybackend.exception.PRNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.IssueStatus;
 import org.gitbounty.gitbountybackend.model.PullRequest;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
@@ -15,17 +17,19 @@ import org.gitbounty.gitbountybackend.service.codebase.git.GitService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -47,9 +51,11 @@ class PullRequestServiceTests {
     private Codebase mockCodebase;
     private Branch mockSourceBranch;
     private Branch mockTargetBranch;
+    private PullRequest mockPullRequest;
 
     private final String mockKeycloakId = "keycloak-user-123";
     private final String mockRepoName = "repo";
+    private final Integer prNumber = 42;
 
     @BeforeEach
     void setUp() {
@@ -60,12 +66,18 @@ class PullRequestServiceTests {
 
         mockCodebase = new Codebase();
         mockCodebase.setId(10L);
+        mockCodebase.setName(mockRepoName);
 
         mockSourceBranch = new Branch();
         mockSourceBranch.setName("feature-branch");
 
         mockTargetBranch = new Branch();
         mockTargetBranch.setName("main");
+
+        mockPullRequest = new PullRequest();
+        mockPullRequest.setId(100L);
+        mockPullRequest.setSourceBranch(mockSourceBranch);
+        mockPullRequest.setTargetBranch(mockTargetBranch);
     }
 
     @Test
@@ -163,5 +175,86 @@ class PullRequestServiceTests {
             .isInstanceOf(PRBranchesAreSameException.class);
 
         verifyNoInteractions(persistenceService);
+    }
+
+    @Nested
+    class GetPullRequestTests {
+        @Test
+        void getPullRequest_ShouldReturnPR_WhenFound() {
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.of(mockPullRequest));
+
+            PullRequest result = pullRequestService.getPullRequest(mockRepoName, prNumber);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo(100L);
+        }
+
+        @Test
+        void getPullRequest_ShouldThrowException_WhenPRNotFound() {
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> pullRequestService.getPullRequest(mockRepoName, prNumber))
+                .isInstanceOf(PRNotFoundException.class);
+        }
+    }
+
+    @Nested
+    class UpdatePRStatusTests {
+        @Test
+        void updatePRStatus_ShouldInvokePersistence_WhenPRExists() {
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.of(mockPullRequest));
+
+            pullRequestService.updatePRStatus(mockRepoName, prNumber, IssueStatus.CLOSED);
+
+            verify(persistenceService).updatePRStatus(100L, IssueStatus.CLOSED);
+        }
+
+        @Test
+        void updatePRStatus_ShouldThrowExceptionAndNotUpdate_WhenPRNotFound() {
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> pullRequestService.updatePRStatus(mockRepoName, prNumber, IssueStatus.CLOSED))
+                .isInstanceOf(PRNotFoundException.class);
+
+            verifyNoInteractions(persistenceService);
+        }
+    }
+
+    @Nested
+    class GetPullRequestDiffTests {
+        @Test
+        void getPullRequestDiff_ShouldReturnDiffString_WhenPRExists() throws IOException {
+            String mockDiff = "--- a/file.txt\n+++ b/file.txt";
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.of(mockPullRequest));
+            when(gitService.getBranchDiff(mockRepoName, "feature-branch", "main"))
+                .thenReturn(mockDiff);
+
+            String result = pullRequestService.getPullRequestDiff(mockRepoName, prNumber);
+
+            assertThat(result).isEqualTo(mockDiff);
+            verify(gitService).getBranchDiff(mockRepoName, "feature-branch", "main");
+        }
+
+        @Test
+        void getPullRequestDiff_ShouldThrowException_WhenPRNotFound() {
+            when(codebaseService.findByName(mockRepoName)).thenReturn(mockCodebase);
+            when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber))
+                .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> pullRequestService.getPullRequestDiff(mockRepoName, prNumber))
+                .isInstanceOf(PRNotFoundException.class);
+
+            verifyNoInteractions(gitService);
+        }
     }
 }
