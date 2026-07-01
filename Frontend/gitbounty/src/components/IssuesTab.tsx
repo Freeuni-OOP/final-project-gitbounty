@@ -3,29 +3,22 @@ import {
     useMemo,
     useState,
 } from 'react';
-import apiClient from '../api/apiClient';
+
 import { bountyApi } from '../services/bountyService';
+import { issueApi } from '../services/issueService';
+
 import { CreateBountyModal } from './CreateBountyModal';
+import { CreateIssueModal } from './CreateIssueModal';
+
 import type { BountyAPI } from '../types/Bounty';
+import type { IssueAPI } from '../types/Issue';
+
 import '../styles/RepoTabs.css';
-
-type IssueStatus = 'OPEN' | 'CLOSED' | string;
-
-interface ApiIssue {
-    id: number;
-    number?: number;
-    title: string;
-    description: string | null;
-    status: IssueStatus;
-    authorId: number;
-    repositoryId: number;
-    createdAt: string;
-    updatedAt: string;
-}
 
 interface IssuesTabProps {
     repoId: number;
     repoName: string;
+    canCreateIssues: boolean;
     canCreateBounties: boolean;
 }
 
@@ -57,32 +50,50 @@ function ClosedIcon() {
     );
 }
 
-function isClosed(issue: ApiIssue): boolean {
-    return issue.status.toLowerCase() === 'closed';
+function isClosed(issue: IssueAPI): boolean {
+    return issue.status === 'CLOSED';
 }
 
 function formatDate(date: string): string {
-    return new Date(date).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
+    return new Date(date).toLocaleDateString(
+        undefined,
+        {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        }
+    );
 }
 
 export default function IssuesTab({
                                       repoId,
                                       repoName,
+                                      canCreateIssues,
                                       canCreateBounties,
                                   }: IssuesTabProps) {
-    const [filter, setFilter] = useState<Filter>('open');
-    const [issues, setIssues] = useState<ApiIssue[]>([]);
+    const [filter, setFilter] =
+        useState<Filter>('open');
+
+    const [issues, setIssues] =
+        useState<IssueAPI[]>([]);
+
     const [bounties, setBounties] =
         useState<BountyAPI[]>([]);
+
     const [selectedIssue, setSelectedIssue] =
-        useState<ApiIssue | null>(null);
+        useState<IssueAPI | null>(null);
+
+    const [
+        isCreateIssueOpen,
+        setIsCreateIssueOpen,
+    ] = useState(false);
+
     const [successMessage, setSuccessMessage] =
         useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+
+    const [loading, setLoading] =
+        useState(true);
+
     const [error, setError] =
         useState<string | null>(null);
 
@@ -95,19 +106,17 @@ export default function IssuesTab({
                 setError(null);
 
                 const [
-                    issuesResponse,
+                    repositoryIssues,
                     repositoryBounties,
                 ] = await Promise.all([
-                    apiClient.get<ApiIssue[]>(
-                        `/api/codebases/${encodeURIComponent(repoName)}/issues`
-                    ),
+                    issueApi.getIssues(repoName),
                     bountyApi.getBountiesByRepo(
                         repoId.toString()
                     ),
                 ]);
 
                 if (!cancelled) {
-                    setIssues(issuesResponse.data);
+                    setIssues(repositoryIssues);
                     setBounties(repositoryBounties);
                 }
             } catch {
@@ -144,6 +153,15 @@ export default function IssuesTab({
         };
     }, [successMessage]);
 
+    const sortedIssues = useMemo(
+        () =>
+            [...issues].sort(
+                (first, second) =>
+                    second.number - first.number
+            ),
+        [issues]
+    );
+
     const bountyByIssueId = useMemo(
         () =>
             new Map<number, BountyAPI>(
@@ -155,22 +173,43 @@ export default function IssuesTab({
         [bounties]
     );
 
-    const openIssues = issues.filter(
+    const openIssues = sortedIssues.filter(
         (issue) => !isClosed(issue)
     );
 
-    const closedIssues = issues.filter(isClosed);
+    const closedIssues = sortedIssues.filter(
+        isClosed
+    );
 
-    const shown =
+    const shownIssues =
         filter === 'open'
             ? openIssues
             : closedIssues;
 
+    const handleIssueCreated = (
+        createdIssue: IssueAPI
+    ) => {
+        setIssues((currentIssues) => [
+            createdIssue,
+            ...currentIssues.filter(
+                (issue) =>
+                    issue.id !== createdIssue.id
+            ),
+        ]);
+
+        setFilter('open');
+        setIsCreateIssueOpen(false);
+
+        setSuccessMessage(
+            `Issue #${createdIssue.number} was created successfully.`
+        );
+    };
+
     const handleBountyCreated = (
         createdBounty: BountyAPI
     ) => {
-        setBounties((current) => [
-            ...current.filter(
+        setBounties((currentBounties) => [
+            ...currentBounties.filter(
                 (bounty) =>
                     bounty.id !== createdBounty.id
             ),
@@ -178,6 +217,7 @@ export default function IssuesTab({
         ]);
 
         setSelectedIssue(null);
+
         setSuccessMessage(
             `Created a ${createdBounty.amount.toLocaleString()} credit bounty for "${createdBounty.title}".`
         );
@@ -206,30 +246,51 @@ export default function IssuesTab({
     return (
         <>
             <div className="tab-panel">
-                <div className="tab-panel-header">
-                    <button
-                        className={`tab-panel-filter ${
-                            filter === 'open'
-                                ? 'active'
-                                : ''
-                        }`}
-                        onClick={() => setFilter('open')}
-                    >
-                        <OpenIcon />
-                        {openIssues.length} Open
-                    </button>
+                <div className="tab-panel-header issues-header-row">
+                    <div className="issue-filter-group">
+                        <button
+                            type="button"
+                            className={`tab-panel-filter ${
+                                filter === 'open'
+                                    ? 'active'
+                                    : ''
+                            }`}
+                            onClick={() => {
+                                setFilter('open');
+                            }}
+                        >
+                            <OpenIcon />
+                            {openIssues.length} Open
+                        </button>
 
-                    <button
-                        className={`tab-panel-filter ${
-                            filter === 'closed'
-                                ? 'active'
-                                : ''
-                        }`}
-                        onClick={() => setFilter('closed')}
-                    >
-                        <ClosedIcon />
-                        {closedIssues.length} Closed
-                    </button>
+                        <button
+                            type="button"
+                            className={`tab-panel-filter ${
+                                filter === 'closed'
+                                    ? 'active'
+                                    : ''
+                            }`}
+                            onClick={() => {
+                                setFilter('closed');
+                            }}
+                        >
+                            <ClosedIcon />
+                            {closedIssues.length} Closed
+                        </button>
+                    </div>
+
+                    {canCreateIssues && (
+                        <button
+                            type="button"
+                            className="issue-create-btn"
+                            onClick={() => {
+                                setSuccessMessage(null);
+                                setIsCreateIssueOpen(true);
+                            }}
+                        >
+                            New issue
+                        </button>
+                    )}
                 </div>
 
                 {successMessage && (
@@ -242,7 +303,7 @@ export default function IssuesTab({
                 )}
 
                 <ul className="tab-item-list">
-                    {shown.map((issue) => {
+                    {shownIssues.map((issue) => {
                         const existingBounty =
                             bountyByIssueId.get(issue.id);
 
@@ -250,9 +311,6 @@ export default function IssuesTab({
                             canCreateBounties &&
                             !isClosed(issue) &&
                             !existingBounty;
-
-                        const issueNumber =
-                            issue.number ?? issue.id;
 
                         return (
                             <li
@@ -271,19 +329,34 @@ export default function IssuesTab({
                                             {issue.title}
                                         </span>
 
+                                        {issue.status ===
+                                            'IN_PROGRESS' && (
+                                                <span className="issue-progress-badge">
+                                                In progress
+                                            </span>
+                                            )}
+
                                         {existingBounty && (
                                             <span
                                                 className={`issue-bounty-badge status-${existingBounty.status.toLowerCase()}`}
                                             >
                                                 {existingBounty.amount.toLocaleString()}{' '}
                                                 credits ·{' '}
-                                                {existingBounty.status}
+                                                {
+                                                    existingBounty.status
+                                                }
                                             </span>
                                         )}
                                     </div>
 
+                                    {issue.description && (
+                                        <p className="issue-list-description">
+                                            {issue.description}
+                                        </p>
+                                    )}
+
                                     <div className="tab-item-meta">
-                                        #{issueNumber}
+                                        #{issue.number}
                                         {' · '}
                                         opened{' '}
                                         {formatDate(
@@ -291,8 +364,9 @@ export default function IssuesTab({
                                         )}{' '}
                                         by{' '}
                                         <strong>
-                                            User #
-                                            {issue.authorId}
+                                            {
+                                                issue.authorUsername
+                                            }
                                         </strong>
                                     </div>
                                 </div>
@@ -306,6 +380,7 @@ export default function IssuesTab({
                                                 setSuccessMessage(
                                                     null
                                                 );
+
                                                 setSelectedIssue(
                                                     issue
                                                 );
@@ -319,7 +394,7 @@ export default function IssuesTab({
                         );
                     })}
 
-                    {shown.length === 0 && (
+                    {shownIssues.length === 0 && (
                         <li className="tab-empty">
                             No {filter} issues.
                         </li>
@@ -327,7 +402,20 @@ export default function IssuesTab({
                 </ul>
             </div>
 
+            <CreateIssueModal
+                key={
+                    isCreateIssueOpen ? 'open-issue-modal' : 'closed-issue-modal'
+                }
+                repositoryName={repoName}
+                isOpen={isCreateIssueOpen}
+                onClose={() => {
+                    setIsCreateIssueOpen(false);
+                }}
+                onCreated={handleIssueCreated}
+            />
+
             <CreateBountyModal
+                key={selectedIssue?.id ?? 'closed-bounty-modal'}
                 issue={selectedIssue}
                 isOpen={selectedIssue !== null}
                 onClose={() => {

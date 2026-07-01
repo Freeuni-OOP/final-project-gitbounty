@@ -4,86 +4,65 @@ import {
     useRef,
     useState,
 } from 'react';
+
 import type {
     FormEvent,
     MouseEvent as ReactMouseEvent,
 } from 'react';
-import { useCreateBounty } from '../hooks/useCreateBounty';
-import { useBalance } from '../context/BalanceContext';
-import type { BountyAPI } from '../types/Bounty';
+
+import { useCreateIssue } from '../hooks/useCreateIssue';
+import type { IssueAPI } from '../types/Issue';
+
 import '../styles/CreateRepositoryModal.css';
-import '../styles/CreateBountyModal.css';
+import '../styles/CreateIssueModal.css';
 
-export interface BountyIssue {
-    id: number;
-    number?: number;
-    title: string;
-}
-
-interface CreateBountyModalProps {
-    issue: BountyIssue | null;
+interface CreateIssueModalProps {
+    repositoryName: string;
     isOpen: boolean;
     onClose: () => void;
-    onCreated: (bounty: BountyAPI) => void;
+    onCreated: (issue: IssueAPI) => void;
 }
 
-export function CreateBountyModal({
-                                      issue,
-                                      isOpen,
-                                      onClose,
-                                      onCreated,
-                                  }: CreateBountyModalProps) {
-    const [title, setTitle] = useState(issue?.title ?? '');
-    const [description, setDescription] = useState('');
-    const [amount, setAmount] = useState('');
+export function CreateIssueModal({
+                                     repositoryName,
+                                     isOpen,
+                                     onClose,
+                                     onCreated,
+                                 }: CreateIssueModalProps) {
+    const [title, setTitle] = useState('');
+    const [description, setDescription] =
+        useState('');
+
     const [validationError, setValidationError] =
         useState<string | null>(null);
 
-    const amountRef = useRef<HTMLInputElement>(null);
+    const titleRef = useRef<HTMLInputElement>(null);
 
     const {
-        createBounty,
+        createIssue,
         clearError,
         isSubmitting,
         error: apiError,
-    } = useCreateBounty();
-
-    const {
-        balance,
-        refreshBalance,
-    } = useBalance();
+    } = useCreateIssue();
 
     const resetForm = useCallback(() => {
         setTitle('');
         setDescription('');
-        setAmount('');
         setValidationError(null);
         clearError();
     }, [clearError]);
 
     const handleClose = useCallback(() => {
-        resetForm();
-        onClose();
-    }, [onClose, resetForm]);
-
-    useEffect(() => {
-        if (!isOpen || !issue) {
+        if (isSubmitting) {
             return;
         }
 
-        refreshBalance();
-
-        const focusTimer = window.setTimeout(() => {
-            amountRef.current?.focus();
-        }, 0);
-
-        return () => {
-            window.clearTimeout(focusTimer);
-        };
+        resetForm();
+        onClose();
     }, [
-        isOpen,
-        issue,
-        refreshBalance,
+        isSubmitting,
+        onClose,
+        resetForm,
     ]);
 
     useEffect(() => {
@@ -91,13 +70,35 @@ export function CreateBountyModal({
             return;
         }
 
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
+        const focusTimer = window.setTimeout(() => {
+            titleRef.current?.focus();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        const handleKeyDown = (
+            event: KeyboardEvent
+        ) => {
+            if (
+                event.key === 'Escape' &&
+                !isSubmitting
+            ) {
                 handleClose();
             }
         };
 
-        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener(
+            'keydown',
+            handleKeyDown
+        );
 
         return () => {
             document.removeEventListener(
@@ -105,9 +106,13 @@ export function CreateBountyModal({
                 handleKeyDown
             );
         };
-    }, [isOpen, handleClose]);
+    }, [
+        handleClose,
+        isOpen,
+        isSubmitting,
+    ]);
 
-    if (!isOpen || !issue) {
+    if (!isOpen) {
         return null;
     }
 
@@ -117,19 +122,17 @@ export function CreateBountyModal({
         event.preventDefault();
 
         const normalizedTitle = title.trim();
-        const parsedAmount = Number(amount);
 
         if (!normalizedTitle) {
-            setValidationError('Bounty title is required.');
+            setValidationError(
+                'Issue title is required.'
+            );
             return;
         }
 
-        if (
-            !Number.isFinite(parsedAmount) ||
-            parsedAmount <= 0
-        ) {
+        if (normalizedTitle.length > 255) {
             setValidationError(
-                'Bounty amount must be greater than zero.'
+                'Issue title must be 255 characters or fewer.'
             );
             return;
         }
@@ -137,32 +140,37 @@ export function CreateBountyModal({
         setValidationError(null);
 
         try {
-            const createdBounty = await createBounty({
-                issueId: issue.id,
-                title: normalizedTitle,
-                description:
-                    description.trim() || null,
-                amount: parsedAmount,
-            });
+            const createdIssue =
+                await createIssue(
+                    repositoryName,
+                    {
+                        title: normalizedTitle,
+                        description:
+                            description.trim() || null,
+                    }
+                );
 
-            onCreated(createdBounty);
-            refreshBalance();
-            handleClose();
+            onCreated(createdIssue);
+            resetForm();
+            onClose();
         } catch {
-            // The hook exposes the server message.
+            // The hook exposes the API error.
         }
     };
 
     const handleBackdropClick = (
         event: ReactMouseEvent<HTMLDivElement>
     ) => {
-        if (event.target === event.currentTarget) {
+        if (
+            event.target === event.currentTarget &&
+            !isSubmitting
+        ) {
             handleClose();
         }
     };
 
-    const displayError = validationError ?? apiError;
-    const issueNumber = issue.number ?? issue.id;
+    const displayError =
+        validationError ?? apiError;
 
     return (
         <div
@@ -170,28 +178,37 @@ export function CreateBountyModal({
             onClick={handleBackdropClick}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="create-bounty-title"
+            aria-labelledby="create-issue-title"
         >
             <div className="crm-box">
-                <div className="crm-header-band">
+                <div className="crm-header-band cim-header">
                     <div
                         className="crm-header-icon"
                         aria-hidden="true"
                     >
-                        <strong>$</strong>
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                        >
+                            <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+                            <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z" />
+                        </svg>
                     </div>
 
                     <h2
                         className="crm-title"
-                        id="create-bounty-title"
+                        id="create-issue-title"
                     >
-                        Create bounty
+                        Create a new issue
                     </h2>
 
                     <button
                         type="button"
                         className="crm-header-close"
                         onClick={handleClose}
+                        disabled={isSubmitting}
                         aria-label="Close"
                     >
                         <svg
@@ -210,58 +227,70 @@ export function CreateBountyModal({
                     onSubmit={handleSubmit}
                 >
                     <p className="crm-subtitle">
-                        Fund this issue with credits from your
-                        current balance. The credits will be held
-                        until the bounty payout is approved.
+                        Report a bug, request a feature, or
+                        describe work that should be completed.
                     </p>
 
-                    <div className="cbm-issue-card">
-                        <span className="cbm-issue-number">
-                            Issue #{issueNumber}
+                    <div className="cim-codebase-card">
+                        <span className="cim-codebase-label">
+                            Codebase
                         </span>
 
-                        <strong className="cbm-issue-title">
-                            {issue.title}
-                        </strong>
-                    </div>
-
-                    <div className="cbm-balance-card">
-                        <span>Available balance</span>
                         <strong>
-                            {balance.toLocaleString()} credits
+                            {repositoryName}
                         </strong>
                     </div>
 
                     <div className="crm-field">
                         <label
                             className="crm-label"
-                            htmlFor="bounty-title"
+                            htmlFor="issue-title"
                         >
-                            Bounty title{' '}
+                            Title{' '}
                             <span className="crm-required">
                                 *
                             </span>
                         </label>
 
                         <input
-                            id="bounty-title"
-                            className="crm-input"
+                            id="issue-title"
+                            ref={titleRef}
+                            className={`crm-input ${
+                                validationError
+                                    ? 'crm-input-error'
+                                    : ''
+                            }`}
                             type="text"
                             value={title}
                             onChange={(event) => {
-                                setTitle(event.target.value);
+                                setTitle(
+                                    event.target.value
+                                );
                                 setValidationError(null);
+                                clearError();
                             }}
+                            placeholder="Describe the issue briefly"
                             maxLength={255}
                             disabled={isSubmitting}
+                            autoComplete="off"
                             required
                         />
+
+                        <div className="cim-field-footer">
+                            <span>
+                                Use a clear and specific title.
+                            </span>
+
+                            <span>
+                                {title.length}/255
+                            </span>
+                        </div>
                     </div>
 
                     <div className="crm-field">
                         <label
                             className="crm-label"
-                            htmlFor="bounty-description"
+                            htmlFor="issue-description"
                         >
                             Description{' '}
                             <span className="crm-optional">
@@ -270,57 +299,20 @@ export function CreateBountyModal({
                         </label>
 
                         <textarea
-                            id="bounty-description"
-                            className="crm-textarea"
+                            id="issue-description"
+                            className="crm-textarea cim-description"
                             value={description}
                             onChange={(event) => {
-                                setDescription(event.target.value);
+                                setDescription(
+                                    event.target.value
+                                );
                             }}
-                            placeholder="Describe the expected result or reward conditions"
-                            rows={4}
+                            placeholder={
+                                'Explain the problem, expected behavior, or acceptance criteria.'
+                            }
+                            rows={7}
                             disabled={isSubmitting}
                         />
-                    </div>
-
-                    <div className="crm-field">
-                        <label
-                            className="crm-label"
-                            htmlFor="bounty-amount"
-                        >
-                            Reward amount{' '}
-                            <span className="crm-required">
-                                *
-                            </span>
-                        </label>
-
-                        <div className="cbm-amount-input-wrapper">
-                            <input
-                                id="bounty-amount"
-                                ref={amountRef}
-                                className="crm-input cbm-amount-input"
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={(event) => {
-                                    setAmount(event.target.value);
-                                    setValidationError(null);
-                                }}
-                                placeholder="100"
-                                disabled={isSubmitting}
-                                required
-                            />
-
-                            <span className="cbm-amount-unit">
-                                credits
-                            </span>
-                        </div>
-
-                        <p className="cbm-help-text">
-                            This amount will be deducted immediately
-                            and placed into escrow.
-                        </p>
                     </div>
 
                     {displayError && (
@@ -354,7 +346,7 @@ export function CreateBountyModal({
 
                         <button
                             type="submit"
-                            className="crm-btn-submit"
+                            className="crm-btn-submit cim-submit"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? (
@@ -366,7 +358,7 @@ export function CreateBountyModal({
                                     Creating…
                                 </>
                             ) : (
-                                <>Create bounty</>
+                                <>Create issue</>
                             )}
                         </button>
                     </div>

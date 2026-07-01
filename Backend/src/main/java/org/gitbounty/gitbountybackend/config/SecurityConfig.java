@@ -71,7 +71,9 @@ public class SecurityConfig {
                             "/api/bounties/repository/{repoId}",
                             "/api/codebases",
                             "/api/codebases/*",
-                            "/api/codebases/*/contents/**"
+                            "/api/codebases/*/contents/**",
+                            "/api/codebases/*/issues",
+                            "/api/codebases/*/issues/*"
                     ).permitAll()
 
                 // Secure API endpoints

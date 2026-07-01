@@ -88,10 +88,13 @@ class IssueControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/codebases/my-repo/issues/7"))
                 .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.number").value(7))
                 .andExpect(jsonPath("$.title").value("Fix login bug"))
                 .andExpect(jsonPath("$.description").value("Test issue description"))
                 .andExpect(jsonPath("$.status").value("OPEN"))
                 .andExpect(jsonPath("$.authorId").value(1))
+                .andExpect(jsonPath("$.authorUsername").value("author"))
+                .andExpect(jsonPath("$.assignedToId").doesNotExist())
                 .andExpect(jsonPath("$.repositoryId").value(10));
 
         verify(issueService).createIssue(eq("my-repo"), eq("Fix login bug"), eq("Test issue description"), any(Principal.class));
@@ -122,11 +125,15 @@ class IssueControllerTest {
         mockMvc.perform(get("/api/codebases/my-repo/issues"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].number").value(1))
                 .andExpect(jsonPath("$[0].title").value("First issue"))
                 .andExpect(jsonPath("$[0].status").value("OPEN"))
+                .andExpect(jsonPath("$[0].authorUsername").value("author"))
                 .andExpect(jsonPath("$[1].id").value(2))
+                .andExpect(jsonPath("$[1].number").value(2))
                 .andExpect(jsonPath("$[1].title").value("Second issue"))
-                .andExpect(jsonPath("$[1].status").value("CLOSED"));
+                .andExpect(jsonPath("$[1].status").value("CLOSED"))
+                .andExpect(jsonPath("$[1].authorUsername").value("author"));
 
         verify(issueService).listIssues("my-repo");
     }
@@ -140,8 +147,10 @@ class IssueControllerTest {
         mockMvc.perform(get("/api/codebases/my-repo/issues/7"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.number").value(7))
                 .andExpect(jsonPath("$.title").value("Fix login bug"))
-                .andExpect(jsonPath("$.status").value("OPEN"));
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.authorUsername").value("author"));
 
         verify(issueService).getIssue("my-repo", 7);
     }

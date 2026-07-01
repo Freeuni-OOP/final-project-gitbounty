@@ -9,6 +9,7 @@ import 'prismjs/components/prism-java';
 import 'prismjs/themes/prism-tomorrow.css';
 import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
+import { useAuth } from '../auth/useAuth';
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -157,6 +158,7 @@ export default function RepositoryPage() {
       }>();
 
   const { user: currentUser } = useProfileData();
+  const { authenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('Code');
   const [isDarkBox, setIsDarkBox] = useState(true);
 
@@ -296,6 +298,7 @@ export default function RepositoryPage() {
           <IssuesTab
               repoId={repo.id}
               repoName={repoName}
+              canCreateIssues={authenticated}
               canCreateBounties={
                   currentUser?.username === repo.ownerUsername
               }

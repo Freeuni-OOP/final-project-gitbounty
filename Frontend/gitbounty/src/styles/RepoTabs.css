@@ -296,3 +296,79 @@
     width: 100%;
   }
 }
+
+.issues-header-row {
+  justify-content: space-between;
+}
+
+.issue-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.issue-create-btn {
+  padding: 6px 14px;
+  border: 1px solid #1f883d;
+  border-radius: 6px;
+  background: #1f883d;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+          background 0.12s ease,
+          border-color 0.12s ease,
+          transform 0.12s ease;
+}
+
+.issue-create-btn:hover {
+  background: #1a7f37;
+  border-color: #1a7f37;
+  transform: translateY(-1px);
+}
+
+.issue-create-btn:active {
+  transform: translateY(0);
+}
+
+.issue-list-description {
+  display: -webkit-box;
+  margin: 1px 0 2px;
+  overflow: hidden;
+  color: #57606a;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.issue-progress-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: #fff8c5;
+  color: #7d4e00;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .issues-header-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .issue-filter-group {
+    width: 100%;
+  }
+
+  .issue-create-btn {
+    width: 100%;
+  }
+}
