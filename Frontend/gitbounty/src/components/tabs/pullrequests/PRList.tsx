@@ -1,6 +1,14 @@
-import type {PullRequest} from "./PullRequestsTab.tsx";
 import {type Filter, PRIcon} from "../../icons/pullrequest/PRIcons.tsx";
 
+export type PullRequest = {
+    id: number;
+    title: string;
+    author: string;
+    openedAt: string;
+    status: 'open' | 'merged' | 'closed';
+    sourceBranch: string;
+    targetBranch: string;
+};
 type PRListProps = {
     pullRequests: PullRequest[];
     filter: Filter;

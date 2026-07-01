@@ -454,14 +454,14 @@ class CodebaseControllerTest {
         PathContents mockPathContents = new DirectoryContents("/", List.of());
         CodebaseContentsDTO mockDto = new CodebaseContentsDTO(mockPathContents);
 
-        when(codebaseService.listCodebaseContents("my-repo", "/", "master"))
+        when(codebaseService.listCodebaseContents("my-repo", "/", "main"))
             .thenReturn(mockDto);
 
         mockMvc.perform(get("/api/codebases/my-repo/contents/")
                 .with(jwt()))
             .andExpect(status().isOk());
 
-        verify(codebaseService).listCodebaseContents("my-repo", "/", "master");
+        verify(codebaseService).listCodebaseContents("my-repo", "/", "main");
     }
     @Test
     void getContents_WithPathTraversalAttack_ShouldSanitizeOrRejectRequest() throws Exception {
