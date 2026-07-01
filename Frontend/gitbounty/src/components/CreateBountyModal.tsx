@@ -33,6 +33,7 @@ export function CreateBountyModal({
                                       onClose,
                                       onCreated,
                                   }: CreateBountyModalProps) {
+    // starts with the selected issue title, issuesTab remounts the modal each time so the value is always fresh
     const [title, setTitle] = useState(issue?.title ?? '');
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');

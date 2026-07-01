@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.gitbounty.gitbountybackend.controller.transaction.dto.TransactionResponse;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -519,6 +520,11 @@ class TransactionServiceTest {
                     description
             );
 
+            TransactionResponse response = assertDoesNotThrow(() -> TransactionResponse.from(result));
+
+            assertEquals(fromUser.getId(), response.fromUserId());
+            assertNull(response.toUserId());
+
             assertEquals(new BigDecimal("50.00"), fromUser.getCreditBalance());
 
             assertSame(fromUser, result.getFromUser());
@@ -547,6 +553,11 @@ class TransactionServiceTest {
                     amount,
                     description
             );
+
+            TransactionResponse response = assertDoesNotThrow(() -> TransactionResponse.from(result));
+
+            assertNull(response.fromUserId());
+            assertEquals(fromUser.getId(), response.toUserId());
 
             assertEquals(new BigDecimal("150.00"), fromUser.getCreditBalance());
 

@@ -212,6 +212,68 @@ class TransactionControllerTest {
             assertThrows(TransactionNotFoundException.class, () ->
                 transactionController.getTransaction(100L));
         }
+
+        @Test
+        void getTransaction_BountyDepositWithNullRecipient_ReturnsOk() {
+            Transaction deposit = buildTransaction(
+                    100L,
+                    TransactionStatus.COMPLETED
+            );
+            deposit.setToUser(null);
+
+            when(transactionService.getTransaction(100L))
+                    .thenReturn(Optional.of(deposit));
+
+            ResponseEntity<TransactionResponse> response =
+                    transactionController.getTransaction(100L);
+
+            assertEquals(
+                    HttpStatus.OK,
+                    response.getStatusCode()
+            );
+
+            TransactionResponse body = response.getBody();
+
+            assertNotNull(body);
+            assertEquals(1L, body.fromUserId());
+            assertNull(body.toUserId());
+            assertEquals(
+                    new BigDecimal("20.00"),
+                    body.amount()
+            );
+            assertEquals("COMPLETED", body.status());
+        }
+
+        @Test
+        void getTransaction_BountyRefundWithNullSender_ReturnsOk() {
+            Transaction refund = buildTransaction(
+                    101L,
+                    TransactionStatus.COMPLETED
+            );
+            refund.setFromUser(null);
+
+            when(transactionService.getTransaction(101L))
+                    .thenReturn(Optional.of(refund));
+
+            ResponseEntity<TransactionResponse> response =
+                    transactionController.getTransaction(101L);
+
+            assertEquals(
+                    HttpStatus.OK,
+                    response.getStatusCode()
+            );
+
+            TransactionResponse body = response.getBody();
+
+            assertNotNull(body);
+            assertNull(body.fromUserId());
+            assertEquals(2L, body.toUserId());
+            assertEquals(
+                    new BigDecimal("20.00"),
+                    body.amount()
+            );
+            assertEquals("COMPLETED", body.status());
+        }
     }
 
     @Nested
