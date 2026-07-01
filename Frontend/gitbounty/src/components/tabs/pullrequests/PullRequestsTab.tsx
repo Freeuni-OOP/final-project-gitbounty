@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import PRHeaderControls from './PRHeaderControls';
 import PRList from './PRList';
+import { CreatePullRequestModal } from '../../CreatePullRequestModal';
 import '../../../styles/RepoTabs.css';
 import type {Filter} from "../../icons/pullrequest/PRIcons.tsx";
 import type {PullRequest} from "../../../mocks/repositoriesMock.ts";
+import type { CreatePullRequestResponse } from '../../../services/pullRequestService';
 import apiClient from "../../../api/apiClient.ts";
 
 export default function PullRequestsTab({ repoName }: Readonly<{ repoName: string }>) {
@@ -11,6 +13,7 @@ export default function PullRequestsTab({ repoName }: Readonly<{ repoName: strin
     const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchPullRequests = async () => {
@@ -46,12 +49,24 @@ export default function PullRequestsTab({ repoName }: Readonly<{ repoName: strin
     }, [pullRequests, filter]);
 
     const handleCreatePR = () => {
-        // Add your routing/modal logic here for creating a PR
-        console.log(`Initiating PR creation sequence for ${repoName}`);
+        setIsCreateModalOpen(true);
+    };
+
+    const handlePRCreated = (pr: CreatePullRequestResponse) => {
+        // Add the newly created PR to the list
+        setPullRequests([pr, ...pullRequests]);
+        setIsCreateModalOpen(false);
     };
 
     return (
         <div className="tab-panel">
+            <CreatePullRequestModal
+                repositoryName={repoName}
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreated={handlePRCreated}
+            />
+
             <PRHeaderControls
                 currentFilter={filter}
                 onFilterChange={setFilter}
