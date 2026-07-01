@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.security.Principal;
 import java.util.List;
@@ -35,6 +37,9 @@ class IssueServiceTests {
 
     @InjectMocks
     private IssueService issueService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private Principal principal(String username) {
         return () -> username;
@@ -363,6 +368,7 @@ class IssueServiceTests {
         verify(codebaseService).getCodebase("gitbounty-core");
         verify(issueRepository).findByRepositoryNameAndNumber("gitbounty-core", 7);
         verify(issueRepository).saveAndFlush(issue);
+        verify(eventPublisher).publishEvent(IssueClosedEvent.cancelled(1L));
     }
 
     @Test
@@ -376,5 +382,39 @@ class IssueServiceTests {
 
         verifyNoInteractions(codebaseService);
         verifyNoInteractions(issueRepository);
+    }
+
+    @Test
+    void updateIssueStateShouldPublishPaymentEventForAssignedIssue() {
+        User author = user("jemala");
+
+        User assignedUser = user("jemala");
+        assignedUser.setId(2L);
+
+        Codebase codebase = codebase("jemalas-database");
+
+        Issue issue = new Issue();
+        issue.setId(1L);
+        issue.setNumber(7);
+        issue.setTitle("Fix login bug");
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAuthor(author);
+        issue.setAssignedTo(assignedUser);
+        issue.setRepository(codebase);
+
+        when(codebaseService.getCodebase("jemalas-database"))
+                .thenReturn(codebase);
+
+        when(issueRepository
+                .findByRepositoryNameAndNumber("jemalas-database", 7))
+                .thenReturn(Optional.of(issue));
+
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        issueService.updateIssueState("jemalas-database", 7, IssueStatus.CLOSED);
+
+        verify(eventPublisher).publishEvent(
+                IssueClosedEvent.completed(1L, 2L)
+        );
     }
 }

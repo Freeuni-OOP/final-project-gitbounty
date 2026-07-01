@@ -139,48 +139,85 @@ public class TransactionService {
     }
 
     /**
-     * Releases the bounty after its pull request is merged.
+     * Releases funds that are already held for a bounty.
      *
-     * If a pending payout already exists, this approves that payout.
-     * Otherwise, it creates the payout first and approves it immediately.
+     * Existing pending payout is approved when present. Otherwise, the
+     * funds (escrowed) are paid directly and recorded as a completed payout.
      */
     @Transactional
-    public Transaction releaseBountyForMergedIssue(Long issueId, Long recipientUserId) {
-        Issue issue = issueRepository.findById(issueId).orElseThrow(() -> new IssueNotFoundException(issueId));
+    public Transaction releaseBounty(Bounty bounty, User recipient) {
+        if (bounty == null || bounty.getId() == null) {
+            throw new IllegalArgumentException("A saved bounty is required.");
+        }
 
-        Bounty bounty = issue.getBounty();
-
-        if (bounty == null || bounty.getAmount() == null) {
-            throw new IllegalArgumentException("The merged issue does not have a bounty.");
+        if (bounty.getAmount() == null || bounty.getAmount() <= 0) {
+            throw new IllegalArgumentException("Bounty amount must be greater than zero.");
         }
 
         if (bounty.getStatus() != BountyStatus.OPEN && bounty.getStatus() != BountyStatus.ASSIGNED) {
             throw new IllegalArgumentException("Only an active bounty can be paid.");
         }
 
-        if (issue.getRepository() == null || issue.getRepository().getOwner() == null) {
+        if (recipient == null || recipient.getId() == null) {
+            throw new IllegalArgumentException("A saved bounty recipient is required.");
+        }
+
+        if (bounty.getIssue() == null
+                || bounty.getIssue().getRepository() == null
+                || bounty.getIssue().getRepository().getOwner() == null) {
             throw new IllegalArgumentException("The bounty owner could not be determined.");
         }
 
-        User owner = issue.getRepository().getOwner();
+        User owner = bounty.getIssue().getRepository().getOwner();
 
-        User recipient = userRepository.findById(recipientUserId)
-                .orElseThrow(() -> new UserNotFoundException("Bounty recipient not found: " + recipientUserId));
+        Optional<Transaction> pendingPayout = transactionRepository
+                        .findByBountyIdAndStatus(bounty.getId(), TransactionStatus.PENDING);
 
-        Transaction payout = transactionRepository
-                .findByBountyIssueIdAndStatus(issueId, TransactionStatus.PENDING)
-                .orElseGet(() -> createEscrow(owner.getId(), recipient.getId(), issueId));
+        if (pendingPayout.isPresent()) {
+            Transaction payout = pendingPayout.get();
 
-        if (payout.getFromUser() == null
-                || !owner.getId().equals(payout.getFromUser().getId())
-                || payout.getToUser() == null
-                || !recipient.getId().equals(
-                payout.getToUser().getId()
-        )) {
-            throw new IllegalArgumentException("The pending payout participants do not match " + "the merged pull request.");
+            validatePayoutParticipants(payout, owner, recipient);
+
+            return approveBountyPayout(payout.getId(), owner.getId());
         }
 
-        return approveBountyPayout(payout.getId(), owner.getId());
+        BigDecimal amount = BigDecimal.valueOf(bounty.getAmount());
+
+        BigDecimal currentBalance =
+                recipient.getCreditBalance() == null ? BigDecimal.ZERO : recipient.getCreditBalance();
+
+        recipient.setCreditBalance(currentBalance.add(amount));
+
+        userRepository.save(recipient);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Transaction payout = Transaction.builder()
+                .fromUser(owner)
+                .toUser(recipient)
+                .bounty(bounty)
+                .amount(amount)
+                .status(TransactionStatus.COMPLETED)
+                .description("Bounty payout: " + bounty.getTitle())
+                .createdAt(now)
+                .updatedAt(now)
+                .resolvedAt(now)
+                .build();
+
+        return transactionRepository.save(payout);
+    }
+
+    /**
+     * Make sure an existing pending payout belongs to the expected users.
+     */
+    private void validatePayoutParticipants(Transaction payout, User owner, User recipient) {
+        if (payout.getFromUser() == null || !owner.getId().equals(payout.getFromUser().getId())) {
+            throw new IllegalArgumentException("The pending payout has an unexpected bounty owner.");
+        }
+
+        if (payout.getToUser() == null || !recipient.getId().equals(payout.getToUser().getId())) {
+            throw new IllegalArgumentException("The pending payout has an unexpected recipient.");
+        }
     }
 
     /**

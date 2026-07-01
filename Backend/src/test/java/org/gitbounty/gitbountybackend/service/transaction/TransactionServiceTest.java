@@ -577,11 +577,12 @@ class TransactionServiceTest {
         }
     }
 
+
     @Nested
-    class ReleaseBountyForMergedIssueTests {
+    class ReleaseBountyTests {
 
         @Test
-        void releaseBountyForMergedIssue_CreatesAndApprovesPayout() {
+        void releaseBounty_ShouldPayRecipientWithoutCreatingEscrow() {
             Codebase codebase = new Codebase();
             codebase.setOwner(fromUser);
 
@@ -589,41 +590,51 @@ class TransactionServiceTest {
             bounty.setIssue(issue);
             bounty.setStatus(BountyStatus.OPEN);
 
-            AtomicReference<Transaction> savedTransaction = new AtomicReference<>();
-
-            when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
-            when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
-            when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
-
             when(transactionRepository
-                    .findByBountyIssueIdAndStatus(10L, TransactionStatus.PENDING))
+                    .findByBountyIdAndStatus(1001L, TransactionStatus.PENDING))
                     .thenReturn(Optional.empty());
 
             when(transactionRepository.save(any(Transaction.class)
-            )).thenAnswer(invocation -> {
-                Transaction transaction = invocation.getArgument(0);
+            )).thenAnswer(invocation -> invocation.getArgument(0));
 
-                if (transaction.getId() == null) {
-                    transaction.setId(100L);
-                }
-
-                savedTransaction.set(transaction);
-                return transaction;
-            });
-
-            when(transactionRepository.findById(100L))
-                    .thenAnswer(invocation ->
-                            Optional.ofNullable(savedTransaction.get()));
-
-            Transaction result = transactionService.releaseBountyForMergedIssue(10L, 2L);
+            Transaction result = transactionService.releaseBounty(bounty, toUser);
 
             assertEquals(TransactionStatus.COMPLETED, result.getStatus());
-            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
 
             assertSame(fromUser, result.getFromUser());
             assertSame(toUser, result.getToUser());
+            assertSame(bounty, result.getBounty());
+
+            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
+            assertEquals(new BigDecimal("100.00"), fromUser.getCreditBalance());
 
             verify(userRepository).save(toUser);
+            verifyNoInteractions(issueRepository);
+        }
+
+        @Test
+        void releaseBounty_ShouldApproveMatchingPendingPayout() {
+            Codebase codebase = new Codebase();
+            codebase.setOwner(fromUser);
+
+            issue.setRepository(codebase);
+            bounty.setIssue(issue);
+            bounty.setStatus(BountyStatus.OPEN);
+
+            pendingTransaction.setId(100L);
+            pendingTransaction.setBounty(bounty);
+
+            when(transactionRepository
+                    .findByBountyIdAndStatus(1001L, TransactionStatus.PENDING))
+                    .thenReturn(Optional.of(pendingTransaction));
+
+            when(transactionRepository.findById(100L)).thenReturn(Optional.of(pendingTransaction));
+            when(transactionRepository.save(pendingTransaction)).thenReturn(pendingTransaction);
+
+            Transaction result = transactionService.releaseBounty(bounty, toUser);
+
+            assertEquals(TransactionStatus.COMPLETED, result.getStatus());
+            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
         }
     }
 }

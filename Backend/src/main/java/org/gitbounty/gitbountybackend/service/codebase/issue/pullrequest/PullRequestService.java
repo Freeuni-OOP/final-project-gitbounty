@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.List;
 
+import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class PullRequestService {
 
@@ -25,6 +29,7 @@ public class PullRequestService {
     private final CodebaseService codebaseService;
     private final GitService gitService;
     private final PullRequestPersistenceService persistenceService;
+    private final ApplicationEventPublisher eventPublisher;
 
     PullRequestService(
         PullRequestRepository pullRequestRepository,
@@ -33,7 +38,8 @@ public class PullRequestService {
         IssueRepository issueRepository,
         CodebaseService codebaseService,
         GitService gitService,
-        PullRequestPersistenceService persistenceService
+        PullRequestPersistenceService persistenceService,
+        ApplicationEventPublisher eventPublisher
     ) {
         this.pullRequestRepository = pullRequestRepository;
         this.branchRepository = branchRepository;
@@ -42,6 +48,7 @@ public class PullRequestService {
         this.codebaseService = codebaseService;
         this.gitService = gitService;
         this.persistenceService = persistenceService;
+        this.eventPublisher = eventPublisher;
     }
 
     public PullRequest createPullRequest(CreatePullRequestCommand request) {
@@ -69,25 +76,17 @@ public class PullRequestService {
     }
 
     /**
-     * Merges the code and finalizes the PR and its bounty.
-     * If the database or payment work fails, the Git merge is reverted.
+     * Merges the PR and announces its closure for bounty handling.
      */
+    @Transactional
     public void mergePullRequestForCodebase(String repositoryName, Integer prNumber, String userId) throws IOException, GitAPIException {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
 
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
                 .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
-        if (pr.getMergedAt() != null || pr.getStatus() == IssueStatus.CLOSED) {
-            throw new IllegalArgumentException("Pull request is already closed or merged: #" + prNumber);
-        }
-
-        if (pr.getSourceBranch() == null) {
-            throw new IllegalArgumentException("The source branch no longer exists.");
-        }
-
-        User mergerUser = userService.findByKeycloakId(userId).
-                orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+        User mergerUser = userService.findByKeycloakId(userId)
+                .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
 
         PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
@@ -99,21 +98,15 @@ public class PullRequestService {
                     mergeIdentity
             );
 
-            if (result == null || result.getMergeStatus() == null || !result.getMergeStatus().isSuccessful()) {
-                String status = result == null || result.getMergeStatus() == null ? "UNKNOWN" : result.getMergeStatus().toString();
-
-                throw new MergeConflictException("Automatic merge failed with status: " + status);
-            }
-
             try {
-                return persistenceService.finalizeMerge(pr.getId());
-            } catch (Exception exception) {
-                // only revert when the Git operation created a new head
-                if (result.getNewHead() != null) {
-                    gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
-                }
+                PullRequest mergedPullRequest = persistenceService.finalizeMerge(pr.getId());
+                eventPublisher.publishEvent(IssueClosedEvent.completed(pr.getId(), pr.getAuthor().getId()));
 
-                throw new DatabaseTransactionException("Database or bounty payment failed; " + "the Git merge was rolled back.", exception);
+                return mergedPullRequest;
+            } catch (Exception exception) {
+                gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
+
+                throw new DatabaseTransactionException("Database update failed, " + "Git state rolled back.", exception);
             }
         });
     }
@@ -124,12 +117,20 @@ public class PullRequestService {
             .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
     }
 
+    /**
+     * Change a PR state and announces closure.
+     */
+    @Transactional
     public void updatePRStatus(String repositoryName, Integer prNumber, IssueStatus issueStatus) {
         Codebase codebase = codebaseService.findByName(repositoryName);
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
-            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
         persistenceService.updatePRStatus(pr.getId(), issueStatus);
+
+        if (issueStatus == IssueStatus.CLOSED) {
+            eventPublisher.publishEvent(IssueClosedEvent.cancelled(pr.getId()));
+        }
     }
 
     public String getPullRequestDiff(String repositoryName, Integer prNumber) throws IOException {

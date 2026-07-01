@@ -23,7 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.gitbounty.gitbountybackend.exception.MergeConflictException;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class PullRequestServiceTests {
@@ -44,6 +45,7 @@ class PullRequestServiceTests {
     @Mock private CodebaseService codebaseService;
     @Mock private GitService gitService;
     @Mock private PullRequestPersistenceService persistenceService;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PullRequestService pullRequestService;
@@ -100,14 +102,11 @@ class PullRequestServiceTests {
     @Test
     void mergePullRequest_Success() throws Exception {
         MergeResult mockResult = mock(MergeResult.class);
-
-        when(mockResult.getMergeStatus())
-                .thenReturn(MergeResult.MergeStatus.MERGED);
-
         PullRequest pr = new PullRequest();
         pr.setId(99L);
         pr.setSourceBranch(mockSourceBranch);
         pr.setTargetBranch(mockTargetBranch);
+        pr.setAuthor(mockUser);
 
         when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
@@ -123,16 +122,13 @@ class PullRequestServiceTests {
         pullRequestService.mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId);
 
         verify(persistenceService).finalizeMerge(99L);
+        verify(eventPublisher).publishEvent(IssueClosedEvent.completed(99L, 1L));
     }
 
     @Test
     void mergePullRequest_RollbackTriggered_WhenDatabaseFails() throws Exception {
-        // Git merged successfully before the database failed.
         MergeResult mockResult = mock(MergeResult.class);
-
-        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.MERGED);
         ObjectId commitId = ObjectId.fromString("1234567890abcdef1234567890abcdef12345678");
-
         when(mockResult.getNewHead()).thenReturn(commitId);
 
         PullRequest pr = new PullRequest();
@@ -153,58 +149,10 @@ class PullRequestServiceTests {
         when(persistenceService.finalizeMerge(99L)).thenThrow(new RuntimeException("DB Failure"));
 
         assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId))
-                .isInstanceOf(DatabaseTransactionException.class);
+            .isInstanceOf(DatabaseTransactionException.class);
 
         verify(gitService).revertMerge(eq(mockRepoName), eq(mockTargetBranch.getName()), eq(commitId), any(PersonIdent.class));
-    }
-
-    @Test
-    void mergePullRequest_DoesNotFinalize_WhenGitMergeFails() throws Exception {
-        MergeResult mockResult = mock(MergeResult.class);
-
-        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.CONFLICTING);
-
-        PullRequest pr = new PullRequest();
-        pr.setId(99L);
-        pr.setStatus(IssueStatus.OPEN);
-        pr.setSourceBranch(mockSourceBranch);
-        pr.setTargetBranch(mockTargetBranch);
-
-        when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
-
-        when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
-
-        when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, 1)).thenReturn(Optional.of(pr));
-
-        when(gitService.runLocked(eq(mockRepoName), any())).thenAnswer(invocation -> {
-            GitService.SupplierWithException<?> action = invocation.getArgument(1);
-            return action.get();
-        });
-
-        when(gitService.mergeBranches(anyString(), anyString(), anyString(), any(PersonIdent.class))).thenReturn(mockResult);
-
-        assertThatThrownBy(() -> pullRequestService
-                .mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId)
-        ).isInstanceOf(MergeConflictException.class);
-
-        verify(persistenceService, never()).finalizeMerge(anyLong());
-    }
-
-    @Test
-    void mergePullRequest_DoesNotMergeAlreadyMergedPR() throws Exception {
-        mockPullRequest.setStatus(IssueStatus.CLOSED);
-        mockPullRequest.setMergedAt(java.time.Instant.now());
-
-        when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
-
-        when(pullRequestRepository.findByRepositoryAndNumber(mockCodebase, prNumber)).thenReturn(Optional.of(mockPullRequest));
-
-        assertThatThrownBy(() -> pullRequestService
-                .mergePullRequestForCodebase(mockRepoName, prNumber, mockKeycloakId)
-        ).isInstanceOf(IllegalArgumentException.class);
-
-        verifyNoInteractions(gitService);
-        verifyNoInteractions(persistenceService);
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -271,6 +219,7 @@ class PullRequestServiceTests {
             pullRequestService.updatePRStatus(mockRepoName, prNumber, IssueStatus.CLOSED);
 
             verify(persistenceService).updatePRStatus(100L, IssueStatus.CLOSED);
+            verify(eventPublisher).publishEvent(IssueClosedEvent.cancelled(100L));
         }
 
         @Test

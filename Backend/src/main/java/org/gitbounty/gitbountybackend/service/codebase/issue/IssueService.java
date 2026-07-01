@@ -13,6 +13,8 @@ import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
+import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -22,15 +24,18 @@ public class IssueService {
     private final IssueRepository issueRepository;
     private final CodebaseService codebaseService;
     private final UserService userService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public IssueService(
             IssueRepository issueRepository,
             CodebaseService codebaseService,
-            UserService userService
+            UserService userService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.issueRepository = issueRepository;
         this.codebaseService = codebaseService;
         this.userService = userService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -97,7 +102,26 @@ public class IssueService {
 
         Issue issue = getIssue(repositoryName, issueNumber);
         issue.setStatus(status);
+        Issue savedIssue = issueRepository.saveAndFlush(issue);
 
-        return issueRepository.saveAndFlush(issue);
+        if (status == IssueStatus.CLOSED) {
+            publishIssueClosed(savedIssue);
+        }
+
+        return savedIssue;
+    }
+
+    /**
+     * Announces whether the closed issue has an approved recipient.
+     */
+    private void publishIssueClosed(Issue issue) {
+        User assignedUser = issue.getAssignedTo();
+
+        if (assignedUser == null) {
+            eventPublisher.publishEvent(IssueClosedEvent.cancelled(issue.getId()));
+            return;
+        }
+
+        eventPublisher.publishEvent(IssueClosedEvent.completed(issue.getId(), assignedUser.getId()));
     }
 }

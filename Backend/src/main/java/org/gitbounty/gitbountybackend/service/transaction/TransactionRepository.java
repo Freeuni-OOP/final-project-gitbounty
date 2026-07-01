@@ -45,5 +45,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * Find all transactions from a user by status
      */
     List<Transaction> findByFromUserIdAndStatus(Long fromUserId, TransactionStatus status);
+
+    /**
+     * Finds a pending payout for a bounty.
+     */
+    Optional<Transaction> findByBountyIdAndStatus(Long bountyId, TransactionStatus status);
 }
 
