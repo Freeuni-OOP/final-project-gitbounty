@@ -6,6 +6,7 @@ import java.util.List;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
@@ -24,14 +25,17 @@ public class CodebaseController {
     private final CodebaseService codebaseService;
     private final CodebaseMemberService memberService;
     private final CodebasePermissions codebasePermissions;
+    private final BranchService branchService;
 
     public CodebaseController(
             CodebaseService codebaseService,
             CodebaseMemberService memberService,
-            CodebasePermissions codebasePermissions) {
+            CodebasePermissions codebasePermissions,
+            BranchService branchService) {
         this.codebaseService = codebaseService;
         this.memberService = memberService;
         this.codebasePermissions = codebasePermissions;
+        this.branchService = branchService;
     }
 
     @GetMapping
@@ -71,7 +75,11 @@ public class CodebaseController {
             @PathVariable String repositoryName
     ) {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
-        return ResponseEntity.ok(CodebaseResponse.from(codebase));
+        List<BranchResponse> branches = branchService.getAllBranchesForCodebase(codebase)
+                .stream()
+                .map(BranchResponse::from)
+                .toList();
+        return ResponseEntity.ok(CodebaseResponse.from(codebase, branches));
     }
     @PatchMapping("/{repositoryName}")
     public ResponseEntity<CodebaseResponse> updateCodebase(

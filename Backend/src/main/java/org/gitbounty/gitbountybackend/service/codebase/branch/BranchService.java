@@ -8,6 +8,7 @@ import org.gitbounty.gitbountybackend.service.codebase.commit.CommitRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -21,7 +22,6 @@ public class BranchService {
 		this.commitRepository = commitRepository;
 	}
 
-    @Transactional
     public Branch createNewBranchForCodebase(Codebase codebase, String branchName, Commit latestCommit) {
 		assertCodebasePersisted(codebase);
 		assertBranchNameValid(branchName);
@@ -61,7 +61,6 @@ public class BranchService {
 		branchRepository.delete(branch);
 	}
 
-	@Transactional(readOnly = true)
 	public Optional<Branch> findBranchForCodebase(Codebase codebase, String branchName) {
 		assertCodebasePersisted(codebase);
 		assertBranchNameValid(branchName);
@@ -79,6 +78,11 @@ public class BranchService {
 		});
 
 		return maybe;
+	}
+
+	public List<Branch> getAllBranchesForCodebase(Codebase codebase) {
+		assertCodebasePersisted(codebase);
+		return branchRepository.findByCodebaseId(codebase.getId());
 	}
 
 	private void assertCodebasePersisted(Codebase codebase) {

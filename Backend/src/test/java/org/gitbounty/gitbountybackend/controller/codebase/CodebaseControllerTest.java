@@ -1,11 +1,13 @@
 package org.gitbounty.gitbountybackend.controller.codebase;
 
 import org.gitbounty.gitbountybackend.config.TestSecurityConfig;
+import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
@@ -45,6 +47,9 @@ class CodebaseControllerTest {
     @MockitoBean
     private CodebasePermissions codebasePermissions;
 
+    @MockitoBean
+    private BranchService branchService;
+
     private static User user(Long id, String username, String keycloakId) {
         User user = new User(username, username + "@test.com", keycloakId);
         user.setId(id);
@@ -69,6 +74,14 @@ class CodebaseControllerTest {
         member.setUser(user);
         member.setRole(role);
         return member;
+    }
+
+    private static Branch branch(Long id, String name, Codebase codebase) {
+        Branch branch = new Branch();
+        branch.setId(id);
+        branch.setName(name);
+        branch.setCodebase(codebase);
+        return branch;
     }
 
     @Test
@@ -102,16 +115,21 @@ class CodebaseControllerTest {
     void getCodebase_ShouldReturnOk() throws Exception {
         User owner = user(1L, "owner", "kc-owner");
         Codebase repo = codebase("my-repo", owner);
+        Branch masterBranch = branch(1L, "refs/heads/master", repo);
 
         when(codebaseService.getCodebase("my-repo")).thenReturn(repo);
+        when(branchService.getAllBranchesForCodebase(repo)).thenReturn(List.of(masterBranch));
 
         mockMvc.perform(get("/api/codebases/my-repo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("my-repo"))
-                .andExpect(jsonPath("$.ownerUsername").value("owner"));
+                .andExpect(jsonPath("$.ownerUsername").value("owner"))
+                .andExpect(jsonPath("$.branches").isArray())
+                .andExpect(jsonPath("$.branches[0].name").value("refs/heads/master"));
 
         verify(codebaseService).getCodebase("my-repo");
+        verify(branchService).getAllBranchesForCodebase(repo);
     }
 
     @Test
@@ -318,14 +336,62 @@ class CodebaseControllerTest {
 
     @Test
     void getCodebase_IsPublic_ShouldReturnOk() throws Exception {
-        when(codebaseService.getCodebase("my-repo"))
-                .thenReturn(codebase("my-repo", user(1L, "owner", "kc-owner")));
+        User owner = user(1L, "owner", "kc-owner");
+        Codebase repo = codebase("my-repo", owner);
+        Branch masterBranch = branch(1L, "refs/heads/master", repo);
+
+        when(codebaseService.getCodebase("my-repo")).thenReturn(repo);
+        when(branchService.getAllBranchesForCodebase(repo)).thenReturn(List.of(masterBranch));
 
         mockMvc.perform(get("/api/codebases/my-repo"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("my-repo"));
+                .andExpect(jsonPath("$.name").value("my-repo"))
+                .andExpect(jsonPath("$.branches").isArray());
 
         verify(codebaseService, atLeastOnce()).getCodebase("my-repo");
+        verify(branchService).getAllBranchesForCodebase(repo);
+    }
+
+    @Test
+    void getCodebase_ShouldReturnWithMultipleBranches() throws Exception {
+        User owner = user(1L, "owner", "kc-owner");
+        Codebase repo = codebase("my-repo", owner);
+        Branch masterBranch = branch(1L, "refs/heads/master", repo);
+        Branch devBranch = branch(2L, "refs/heads/dev", repo);
+        Branch featureBranch = branch(3L, "refs/heads/feature/new-feature", repo);
+
+        when(codebaseService.getCodebase("my-repo")).thenReturn(repo);
+        when(branchService.getAllBranchesForCodebase(repo)).thenReturn(List.of(masterBranch, devBranch, featureBranch));
+
+        mockMvc.perform(get("/api/codebases/my-repo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.branches").isArray())
+                .andExpect(jsonPath("$.branches.length()").value(3))
+                .andExpect(jsonPath("$.branches[0].name").value("refs/heads/master"))
+                .andExpect(jsonPath("$.branches[1].name").value("refs/heads/dev"))
+                .andExpect(jsonPath("$.branches[2].name").value("refs/heads/feature/new-feature"));
+
+        verify(codebaseService).getCodebase("my-repo");
+        verify(branchService).getAllBranchesForCodebase(repo);
+    }
+
+    @Test
+    void getCodebase_ShouldReturnWithNoBranches() throws Exception {
+        User owner = user(1L, "owner", "kc-owner");
+        Codebase repo = codebase("my-repo", owner);
+
+        when(codebaseService.getCodebase("my-repo")).thenReturn(repo);
+        when(branchService.getAllBranchesForCodebase(repo)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/codebases/my-repo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("my-repo"))
+                .andExpect(jsonPath("$.branches").isArray())
+                .andExpect(jsonPath("$.branches.length()").value(0));
+
+        verify(codebaseService).getCodebase("my-repo");
+        verify(branchService).getAllBranchesForCodebase(repo);
     }
 
     @Test
