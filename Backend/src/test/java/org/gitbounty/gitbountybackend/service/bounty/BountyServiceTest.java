@@ -158,9 +158,15 @@ class BountyServiceTest {
     }
 
     @Test
-    void completeBounty_ShouldCompleteBountyAndCloseLinkedIssue() {
+    void completeBounty_ShouldPayAssignedUserAndCloseLinkedIssue() {
+        // Completing a bounty pays the user assigned to its issue.
+        User recipient = new User();
+        recipient.setId(2L);
+
         Issue mockIssue = new Issue();
+        mockIssue.setId(10L);
         mockIssue.setStatus(IssueStatus.OPEN);
+        mockIssue.setAssignedTo(recipient);
 
         Bounty mockBounty = new Bounty();
         mockBounty.setId(1L);
@@ -174,29 +180,47 @@ class BountyServiceTest {
         assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
         assertEquals(IssueStatus.CLOSED, mockIssue.getStatus());
 
-        verify(bountyRepository, times(1)).save(mockBounty);
-        verify(issueRepository, times(1)).save(mockIssue);
+        verify(transactionService).releaseBountyForMergedIssue(10L, 2L);
+        verify(bountyRepository).save(mockBounty);
+        verify(issueRepository).save(mockIssue);
     }
 
     @Test
-    void closeIssueAndBounty_ShouldCloseIssueAndCompleteLinkedBounty() {
+    void closeIssueAndBounty_ShouldCloseIssueAndRefundActiveBounty() {
+        // Closing without completing work refunds the bounty owner.
+        User mockOwner = new User();
+        mockOwner.setKeycloakId("owner-keycloak-id");
+        mockOwner.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockOwner);
+
         Issue mockIssue = new Issue();
         mockIssue.setId(20L);
+        mockIssue.setNumber(42);
+        mockIssue.setTitle("Fix bug");
         mockIssue.setStatus(IssueStatus.OPEN);
+        mockIssue.setRepository(mockCodebase);
 
         Bounty mockBounty = new Bounty();
+        mockBounty.setId(5L);
+        mockBounty.setAmount(50.0);
         mockBounty.setStatus(BountyStatus.OPEN);
+        mockBounty.setIssue(mockIssue);
 
         when(issueRepository.findById(20L)).thenReturn(Optional.of(mockIssue));
         when(bountyRepository.findByIssueId(20L)).thenReturn(Optional.of(mockBounty));
+        when(bountyRepository.findById(5L)).thenReturn(Optional.of(mockBounty));
+        when(userRepository.findByKeycloakId("owner-keycloak-id")).thenReturn(Optional.of(mockOwner));
 
         bountyService.closeIssueAndBounty(20L);
 
         assertEquals(IssueStatus.CLOSED, mockIssue.getStatus());
-        assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
 
-        verify(issueRepository, times(1)).save(mockIssue);
-        verify(bountyRepository, times(1)).save(mockBounty);
+        verify(transactionService).recordBountyRefund(eq(mockOwner), eq(mockBounty), eq(BigDecimal.valueOf(50.0)), contains("Bounty refund for issue #42"));
+        verify(bountyRepository).save(mockBounty);
+        verify(issueRepository).save(mockIssue);
     }
 
     @Test
