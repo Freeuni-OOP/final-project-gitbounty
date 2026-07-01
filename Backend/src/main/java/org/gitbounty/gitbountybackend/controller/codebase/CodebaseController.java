@@ -99,7 +99,7 @@ public class CodebaseController {
     public ResponseEntity<CodebaseContentsDTO> getContents(
         @PathVariable String repositoryName,
         @PathVariable String path,
-        @RequestParam(defaultValue = "master") String branch
+        @RequestParam(defaultValue = "main") String branch
     ) {
         // Clean up the path if it's empty or null (e.g., when calling just /contents/)
         String cleanedPath = (path == null || path.isEmpty() || path.equals("/")) ? "/"
