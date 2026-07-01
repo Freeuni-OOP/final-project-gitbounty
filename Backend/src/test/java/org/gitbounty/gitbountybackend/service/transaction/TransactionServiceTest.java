@@ -18,6 +18,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.gitbounty.gitbountybackend.controller.transaction.dto.TransactionResponse;
+import org.gitbounty.gitbountybackend.model.Codebase;
+import java.util.concurrent.atomic.AtomicReference;
+import org.gitbounty.gitbountybackend.model.BountyStatus;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -571,6 +574,56 @@ class TransactionServiceTest {
 
             verify(userRepository).save(fromUser);
             verify(transactionRepository).save(any(Transaction.class));
+        }
+    }
+
+    @Nested
+    class ReleaseBountyForMergedIssueTests {
+
+        @Test
+        void releaseBountyForMergedIssue_CreatesAndApprovesPayout() {
+            Codebase codebase = new Codebase();
+            codebase.setOwner(fromUser);
+
+            issue.setRepository(codebase);
+            bounty.setIssue(issue);
+            bounty.setStatus(BountyStatus.OPEN);
+
+            AtomicReference<Transaction> savedTransaction = new AtomicReference<>();
+
+            when(issueRepository.findById(10L)).thenReturn(Optional.of(issue));
+            when(userRepository.findById(1L)).thenReturn(Optional.of(fromUser));
+            when(userRepository.findById(2L)).thenReturn(Optional.of(toUser));
+
+            when(transactionRepository
+                    .findByBountyIssueIdAndStatus(10L, TransactionStatus.PENDING))
+                    .thenReturn(Optional.empty());
+
+            when(transactionRepository.save(any(Transaction.class)
+            )).thenAnswer(invocation -> {
+                Transaction transaction = invocation.getArgument(0);
+
+                if (transaction.getId() == null) {
+                    transaction.setId(100L);
+                }
+
+                savedTransaction.set(transaction);
+                return transaction;
+            });
+
+            when(transactionRepository.findById(100L))
+                    .thenAnswer(invocation ->
+                            Optional.ofNullable(savedTransaction.get()));
+
+            Transaction result = transactionService.releaseBountyForMergedIssue(10L, 2L);
+
+            assertEquals(TransactionStatus.COMPLETED, result.getStatus());
+            assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
+
+            assertSame(fromUser, result.getFromUser());
+            assertSame(toUser, result.getToUser());
+
+            verify(userRepository).save(toUser);
         }
     }
 }

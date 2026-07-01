@@ -68,33 +68,52 @@ public class PullRequestService {
         return pullRequestRepository.findByRepository(codebase);
     }
 
+    /**
+     * Merges the code and finalizes the PR and its bounty.
+     * If the database or payment work fails, the Git merge is reverted.
+     */
     public void mergePullRequestForCodebase(String repositoryName, Integer prNumber, String userId) throws IOException, GitAPIException {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
+
         PullRequest pr = pullRequestRepository.findByRepositoryAndNumber(codebase, prNumber)
-            .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
+                .orElseThrow(() -> new PRNotFoundException(prNumber, repositoryName));
 
-        // Get the active operator tracking details
-        User mergerUser = userService.findByKeycloakId(userId)
-            .orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+        if (pr.getMergedAt() != null || pr.getStatus() == IssueStatus.CLOSED) {
+            throw new IllegalArgumentException("Pull request is already closed or merged: #" + prNumber);
+        }
 
-        // Build a baseline identity object (GitService will apply fresh timestamps upon commit creation)
+        if (pr.getSourceBranch() == null) {
+            throw new IllegalArgumentException("The source branch no longer exists.");
+        }
+
+        User mergerUser = userService.findByKeycloakId(userId).
+                orElseThrow(() -> new UserNotFoundException("User executing merge not found."));
+
         PersonIdent mergeIdentity = new PersonIdent(mergerUser.getUsername(), mergerUser.getEmail());
 
-        // Execute the Git operation inside the locked scope
         gitService.runLocked(repositoryName, () -> {
             MergeResult result = gitService.mergeBranches(
-                repositoryName,
-                pr.getSourceBranch().getName(),
-                pr.getTargetBranch().getName(),
-                mergeIdentity
+                    repositoryName,
+                    pr.getSourceBranch().getName(),
+                    pr.getTargetBranch().getName(),
+                    mergeIdentity
             );
+
+            if (result == null || result.getMergeStatus() == null || !result.getMergeStatus().isSuccessful()) {
+                String status = result == null || result.getMergeStatus() == null ? "UNKNOWN" : result.getMergeStatus().toString();
+
+                throw new MergeConflictException("Automatic merge failed with status: " + status);
+            }
 
             try {
                 return persistenceService.finalizeMerge(pr.getId());
-            } catch (Exception e) {
-                // ROLLBACK: Revert the specific commit using the same identity context
-                gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
-                throw new DatabaseTransactionException("Database update failed, Git state rolled back.", e);
+            } catch (Exception exception) {
+                // only revert when the Git operation created a new head
+                if (result.getNewHead() != null) {
+                    gitService.revertMerge(repositoryName, pr.getTargetBranch().getName(), result.getNewHead(), mergeIdentity);
+                }
+
+                throw new DatabaseTransactionException("Database or bounty payment failed; " + "the Git merge was rolled back.", exception);
             }
         });
     }

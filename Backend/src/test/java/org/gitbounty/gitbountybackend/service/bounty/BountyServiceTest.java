@@ -266,4 +266,31 @@ class BountyServiceTest {
 
         verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
     }
+
+    @Test
+    void completeBountyAndPayRecipient_PaysAndClosesIssue() {
+        User recipient = new User();
+        recipient.setId(2L);
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setStatus(BountyStatus.OPEN);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+
+        bountyService.completeBountyAndPayRecipient(1L, recipient);
+
+        verify(transactionService).releaseBountyForMergedIssue(10L, 2L);
+
+        assertEquals(BountyStatus.COMPLETED, bounty.getStatus());
+        assertEquals(IssueStatus.CLOSED, issue.getStatus());
+
+        verify(bountyRepository).save(bounty);
+        verify(issueRepository).save(issue);
+    }
 }

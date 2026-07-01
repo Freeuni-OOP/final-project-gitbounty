@@ -87,29 +87,82 @@ public class BountyService {
         return savedBounty;
     }
 
+    /**
+     * Completes a bounty using the issues assigned user.
+     *
+     * This method coule be useful for non-PR completion where contributor was assigned to the issue before.
+     */
     @Transactional
     public void completeBounty(Long bountyId) {
         Bounty bounty = bountyRepository.findById(bountyId).orElseThrow(() -> new BountyNotFoundException(bountyId));
+
+        Issue issue = bounty.getIssue();
+
+        if (issue == null) {
+            throw new IllegalArgumentException("The bounty is not linked to an issue.");
+        }
+
+        User recipient = issue.getAssignedTo();
+
+        if (recipient == null) {
+            throw new IllegalArgumentException("A payout recipient must be assigned " + "before completing the bounty.");
+        }
+
+        completeBountyAndPayRecipient(bountyId, recipient);
+    }
+
+    /**
+     * Pays the selected contributor, completes the bounty and closes its linked issue.
+     */
+    @Transactional
+    public void completeBountyAndPayRecipient(Long bountyId, User recipient) {
+        Bounty bounty = bountyRepository.findById(bountyId)
+                .orElseThrow(() -> new BountyNotFoundException(bountyId));
+
+        if (bounty.getStatus() == BountyStatus.COMPLETED) {
+            throw new IllegalArgumentException("Bounty is already completed: " + bountyId);
+        }
+
+        if (bounty.getStatus() == BountyStatus.CANCELLED) {
+            throw new IllegalArgumentException("A cancelled bounty cannot be paid: " + bountyId);
+        }
+
+        if (recipient == null || recipient.getId() == null) {
+            throw new IllegalArgumentException("A valid bounty recipient is required.");
+        }
+
+        Issue issue = bounty.getIssue();
+
+        if (issue == null) {
+            throw new IllegalArgumentException("The bounty is not linked to an issue.");
+        }
+
+        transactionService.releaseBountyForMergedIssue(issue.getId(), recipient.getId());
+
         bounty.setStatus(BountyStatus.COMPLETED);
         bountyRepository.save(bounty);
 
-        if (bounty.getIssue() != null) {
-            Issue issue = bounty.getIssue();
-            issue.setStatus(IssueStatus.CLOSED);
-            issueRepository.save(issue);
-        }
+        issue.setStatus(IssueStatus.CLOSED);
+        issueRepository.save(issue);
     }
 
+    /**
+     * Closes an issue without awarding its bounty.
+     *
+     * An active bounty is cancelled and refunded.
+     */
     @Transactional
     public void closeIssueAndBounty(Long issueId) {
         Issue issue = issueRepository.findById(issueId).orElseThrow(() -> new IssueNotFoundException(issueId));
+
+        bountyRepository.findByIssueId(issueId).filter(this::isActiveBounty).ifPresent(bounty -> cancelBounty(bounty.getId()));
+
         issue.setStatus(IssueStatus.CLOSED);
         issueRepository.save(issue);
+    }
 
-        bountyRepository.findByIssueId(issueId).ifPresent(bounty -> {
-            bounty.setStatus(BountyStatus.COMPLETED);
-            bountyRepository.save(bounty);
-        });
+    private boolean isActiveBounty(Bounty bounty) {
+        return bounty.getStatus() == BountyStatus.OPEN || bounty.getStatus() == BountyStatus.ASSIGNED;
     }
 
     @Transactional

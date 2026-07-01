@@ -47,7 +47,8 @@ public class GlobalExceptionHandler {
             DuplicateUserException.class,
             DuplicateCodebaseMemberException.class,
             DuplicatePaymentRequestException.class,
-            PRBranchesAreSameException.class
+            PRBranchesAreSameException.class,
+            MergeConflictException.class
     })
     public ResponseEntity<Object> handleConflictExceptions(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());

@@ -139,6 +139,51 @@ public class TransactionService {
     }
 
     /**
+     * Releases the bounty after its pull request is merged.
+     *
+     * If a pending payout already exists, this approves that payout.
+     * Otherwise, it creates the payout first and approves it immediately.
+     */
+    @Transactional
+    public Transaction releaseBountyForMergedIssue(Long issueId, Long recipientUserId) {
+        Issue issue = issueRepository.findById(issueId).orElseThrow(() -> new IssueNotFoundException(issueId));
+
+        Bounty bounty = issue.getBounty();
+
+        if (bounty == null || bounty.getAmount() == null) {
+            throw new IllegalArgumentException("The merged issue does not have a bounty.");
+        }
+
+        if (bounty.getStatus() != BountyStatus.OPEN && bounty.getStatus() != BountyStatus.ASSIGNED) {
+            throw new IllegalArgumentException("Only an active bounty can be paid.");
+        }
+
+        if (issue.getRepository() == null || issue.getRepository().getOwner() == null) {
+            throw new IllegalArgumentException("The bounty owner could not be determined.");
+        }
+
+        User owner = issue.getRepository().getOwner();
+
+        User recipient = userRepository.findById(recipientUserId)
+                .orElseThrow(() -> new UserNotFoundException("Bounty recipient not found: " + recipientUserId));
+
+        Transaction payout = transactionRepository
+                .findByBountyIssueIdAndStatus(issueId, TransactionStatus.PENDING)
+                .orElseGet(() -> createEscrow(owner.getId(), recipient.getId(), issueId));
+
+        if (payout.getFromUser() == null
+                || !owner.getId().equals(payout.getFromUser().getId())
+                || payout.getToUser() == null
+                || !recipient.getId().equals(
+                payout.getToUser().getId()
+        )) {
+            throw new IllegalArgumentException("The pending payout participants do not match " + "the merged pull request.");
+        }
+
+        return approveBountyPayout(payout.getId(), owner.getId());
+    }
+
+    /**
      * Reject a pending escrow transaction. No credits are transferred.
      * This can only be called by the bounty creator (fromUser).
      *
