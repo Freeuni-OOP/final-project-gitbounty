@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import IssuesTab from '../components/IssuesTab';
-import PullRequestsTab from '../components/PullRequestsTab';
+import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx';
 import BountiesTab from '../components/BountiesTab';
 import '../styles/RepositoryPage.css';
 import Prism from 'prismjs';

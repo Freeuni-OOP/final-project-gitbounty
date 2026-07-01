@@ -372,3 +372,34 @@
     width: 100%;
   }
 }
+.tab-panel-header-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-panel-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-create-pr {
+  background-color: #2da44e;
+  border: 1px solid rgba(27, 31, 36, 0.15);
+  border-radius: 6px;
+  padding: 5px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-create-pr:hover:not(:disabled) {
+  background-color: #2c974b;
+}
+
+.btn-create-pr:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
