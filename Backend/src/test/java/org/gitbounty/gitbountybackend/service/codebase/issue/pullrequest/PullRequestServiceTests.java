@@ -127,8 +127,12 @@ class PullRequestServiceTests {
 
     @Test
     void mergePullRequest_RollbackTriggered_WhenDatabaseFails() throws Exception {
+        // Git merged successfully before the database failed.
         MergeResult mockResult = mock(MergeResult.class);
+
+        when(mockResult.getMergeStatus()).thenReturn(MergeResult.MergeStatus.MERGED);
         ObjectId commitId = ObjectId.fromString("1234567890abcdef1234567890abcdef12345678");
+
         when(mockResult.getNewHead()).thenReturn(commitId);
 
         PullRequest pr = new PullRequest();
@@ -149,7 +153,7 @@ class PullRequestServiceTests {
         when(persistenceService.finalizeMerge(99L)).thenThrow(new RuntimeException("DB Failure"));
 
         assertThatThrownBy(() -> pullRequestService.mergePullRequestForCodebase(mockRepoName, 1, mockKeycloakId))
-            .isInstanceOf(DatabaseTransactionException.class);
+                .isInstanceOf(DatabaseTransactionException.class);
 
         verify(gitService).revertMerge(eq(mockRepoName), eq(mockTargetBranch.getName()), eq(commitId), any(PersonIdent.class));
     }
