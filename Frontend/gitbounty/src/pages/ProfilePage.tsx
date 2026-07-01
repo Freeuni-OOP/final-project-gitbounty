@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileData, parseCreatedAt } from '../hooks/useProfileData';
+import { useRepositoriesData } from '../hooks/useRepositoriesData';
 import { CreateRepositoryModal } from '../components/CreateRepositoryModal';
+import { RepoCard } from '../components/RepoCard';
 import type { ApiRepo } from '../hooks/useRepositoriesData';
 import '../styles/ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
   const { user, isLoading, error, isUnauthenticated } = useProfileData();
+  const { repos, isLoading: reposLoading, error: reposError } = useRepositoriesData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -47,6 +50,8 @@ const ProfilePage: React.FC = () => {
     navigate(`/repositories/${repo.ownerUsername}/${repo.name}`);
   };
 
+  const myRepos = repos.filter((r) => r.ownerUsername === user.username);
+
   return (
     <div className="profile-container">
       <div className="user-header-card">
@@ -64,13 +69,36 @@ const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      <div className="profile-actions">
-        <button
-          className="create-repo-btn"
-          onClick={() => setIsModalOpen(true)}
-        >
-          + Create Repository
-        </button>
+      <div className="profile-repos-section">
+        <div className="profile-repos-header">
+          <h2 className="profile-repos-title">
+            Repositories ({reposLoading ? '…' : myRepos.length})
+          </h2>
+          <button
+            className="create-repo-btn"
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Create Repository
+          </button>
+        </div>
+
+        {reposLoading ? (
+          <p className="profile-repos-status">Loading repositories…</p>
+        ) : reposError ? (
+          <p className="profile-repos-status profile-repos-error">
+            Failed to load repositories: {reposError}
+          </p>
+        ) : myRepos.length === 0 ? (
+          <div className="profile-repos-empty">
+            <p>You haven't created any repositories yet.</p>
+          </div>
+        ) : (
+          <div className="profile-repos-list">
+            {myRepos.map((repo) => (
+              <RepoCard key={repo.id} repo={repo} />
+            ))}
+          </div>
+        )}
       </div>
 
       <CreateRepositoryModal
