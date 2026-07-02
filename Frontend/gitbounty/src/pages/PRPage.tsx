@@ -4,6 +4,7 @@ import { PRIcon } from '../components/icons/pullrequest/PRIcons';
 import '../styles/PRPage.css';
 import { pullRequestApi, type CreatePullRequestResponse } from '../services/pullRequestService';
 import { useAuth } from '../auth/useAuth';
+import { useProfileData } from '../hooks/useProfileData';
 
 type PRPageData = CreatePullRequestResponse;
 
@@ -17,7 +18,10 @@ export default function PRPage() {
     const [pullRequest, setPullRequest] = useState<PRPageData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isMerging, setIsMerging] = useState(false);
+    const [mergeError, setMergeError] = useState<string | null>(null);
     const { isLoading: isAuthLoading, authenticated } = useAuth();
+    const { user: currentUser, isLoading: isProfileLoading } = useProfileData();
 
     useEffect(() => {
         if (!repoName || !prNumber || isAuthLoading) return;
@@ -68,6 +72,42 @@ export default function PRPage() {
             cancelled = true;
         };
     }, [repoName, prNumber, isAuthLoading, authenticated]);
+
+    const canMerge =
+        authenticated &&
+        !isAuthLoading &&
+        !isProfileLoading &&
+        currentUser?.username === owner &&
+        pullRequest?.status === 'OPEN';
+
+    const handleMerge = async () => {
+        if (!pullRequest) return;
+
+        const prNum = Number.parseInt(prNumber, 10);
+        if (Number.isNaN(prNum)) {
+            setMergeError('Invalid PR number');
+            return;
+        }
+
+        setIsMerging(true);
+        setMergeError(null);
+
+        try {
+            await pullRequestApi.mergePullRequest(repoName, prNum);
+            setPullRequest((prev) => (prev ? { ...prev, status: 'MERGED' } : prev));
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 403) {
+                setMergeError('Only the repository owner can merge this pull request.');
+            } else if (status === 404) {
+                setMergeError('Pull request not found.');
+            } else {
+                setMergeError(err?.response?.data?.message || err?.message || 'Failed to merge pull request');
+            }
+        } finally {
+            setIsMerging(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -155,6 +195,17 @@ export default function PRPage() {
                 )}
 
                 <div className="pr-footer">
+                    {mergeError && <p className="pr-action-error">{mergeError}</p>}
+                    {canMerge && (
+                        <button
+                            type="button"
+                            className="merge-button"
+                            onClick={handleMerge}
+                            disabled={isMerging}
+                        >
+                            {isMerging ? 'Merging…' : 'Merge pull request'}
+                        </button>
+                    )}
                     <Link
                         to={`/repositories/${owner}/${repoName}`}
                         className="back-button"

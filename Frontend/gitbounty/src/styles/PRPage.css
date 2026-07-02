@@ -229,10 +229,48 @@
 
 .pr-footer {
     display: flex;
+    align-items: center;
     gap: 12px;
     padding: 24px;
     background-color: #fafbfc;
     border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.pr-action-error {
+    flex-basis: 100%;
+    margin: 0;
+    color: #b91c1c;
+    font-size: 14px;
+}
+
+.merge-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 16px;
+    background-color: #238636;
+    color: white;
+    text-decoration: none;
+    border: 1px solid #1a7f37;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.merge-button:hover:not(:disabled) {
+    background-color: #2ea043;
+    border-color: #1f883d;
+}
+
+.merge-button:active:not(:disabled) {
+    background-color: #1f883d;
+}
+
+.merge-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .back-button {
