@@ -1,7 +1,9 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useCreatePullRequest } from '../hooks/useCreatePullRequest';
+import { useBranches } from '../hooks/useBranches';
 import type { CreatePullRequestResponse } from '../services/pullRequestService';
+import BranchDropdown from './dropdowns/BranchDropdown';
 import '../styles/CreateRepositoryModal.css';
 import '../styles/CreateIssueModal.css';
 
@@ -32,9 +34,35 @@ export function CreatePullRequestModal({ repositoryName, isOpen, onClose, onCrea
     const titleRef = useRef<HTMLInputElement>(null);
 
     const { createPullRequest, clearError, isSubmitting, error: apiError } = useCreatePullRequest();
+    const { branches, isLoading: branchesLoading, error: branchesError } = useBranches(repositoryName);
 
     const updateField = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setForm(prev => ({ ...prev, [field]: e.target.value }));
+        setValidationError(null);
+        clearError();
+    };
+
+    const stripRefPrefix = (branchName: string): string => {
+        return branchName.replace(/^refs\/heads\//, '');
+    };
+
+    const displayBranches = branches.map(stripRefPrefix);
+
+
+    // Set default branches when they load
+    useEffect(() => {
+        if (branches.length > 0 && !form.targetBranch) {
+            const mainBranch = branches.find(b => b === 'refs/heads/main') || branches[0];
+            setForm(prev => ({ ...prev, targetBranch: mainBranch }));
+        }
+    }, [branches, form.targetBranch]);
+
+
+    const handleBranchChange = (field: 'sourceBranch' | 'targetBranch') => (displayBranch: string) => {
+        // Find the corresponding full branch name from the branches array
+        const branchIndex = displayBranches.indexOf(displayBranch);
+        const fullBranchName = branchIndex >= 0 ? branches[branchIndex] : displayBranch;
+        setForm(prev => ({ ...prev, [field]: fullBranchName }));
         setValidationError(null);
         clearError();
     };
@@ -76,15 +104,19 @@ export function CreatePullRequestModal({ repositoryName, isOpen, onClose, onCrea
         if (s === tg) return setValidationError('Source and target branches must be different.');
 
         try {
-            const createdPR = await createPullRequest(repositoryName, {
+            const payload = {
                 title: t,
                 sourceBranch: s,
                 targetBranch: tg,
                 description: form.description.trim() || null,
-            });
+            };
+            console.log('Creating pull request with payload:', payload);
+            const createdPR = await createPullRequest(repositoryName, payload);
             onCreated(createdPR);
             handleClose();
-        } catch {}
+        } catch (error) {
+            console.error('Pull request creation error:', error);
+        }
     };
 
     const displayError = validationError ?? apiError;
@@ -109,8 +141,27 @@ export function CreatePullRequestModal({ repositoryName, isOpen, onClose, onCrea
                     <FormInput id="pr-title" ref={titleRef} label="Title" value={form.title} onChange={updateField('title')} placeholder="Describe the pull request briefly" maxLength={255} error={!!validationError} disabled={isSubmitting} />
                     <div className="cim-field-footer"><span>Use a clear and specific title.</span><span>{form.title.length}/255</span></div>
 
-                    <FormInput id="pr-source-branch" label="Source Branch" value={form.sourceBranch} onChange={updateField('sourceBranch')} placeholder="e.g., feature/new-feature" disabled={isSubmitting} />
-                    <FormInput id="pr-target-branch" label="Target Branch" value={form.targetBranch} onChange={updateField('targetBranch')} placeholder="e.g., main" disabled={isSubmitting} />
+                    <div className="crm-field">
+                        <label className="crm-label">Source Branch <span className="crm-required">*</span></label>
+                        <BranchDropdown
+                            branches={displayBranches}
+                            currentBranch={stripRefPrefix(form.sourceBranch) || (displayBranches.length > 0 ? displayBranches[0] : '')}
+                            onBranchChange={handleBranchChange('sourceBranch')}
+                            loading={branchesLoading}
+                            error={branchesError}
+                        />
+                    </div>
+
+                    <div className="crm-field">
+                        <label className="crm-label">Target Branch <span className="crm-required">*</span></label>
+                        <BranchDropdown
+                            branches={displayBranches}
+                            currentBranch={stripRefPrefix(form.targetBranch) || 'main'}
+                            onBranchChange={handleBranchChange('targetBranch')}
+                            loading={branchesLoading}
+                            error={branchesError}
+                        />
+                    </div>
 
                     <div className="crm-field">
                         <label className="crm-label" htmlFor="pr-description">Description <span className="crm-optional">— optional</span></label>
