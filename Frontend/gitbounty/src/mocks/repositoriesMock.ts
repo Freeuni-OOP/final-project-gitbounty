@@ -337,31 +337,6 @@ export function getIssues(owner: string, name: string): Issue[] {
 
 // ── Pull Requests ─────────────────────────────────────────────────────────────
 
-export type PullRequest = {
-  id: number;
-  title: string;
-  author: string;
-  openedAt: string;
-  status: 'open' | 'merged' | 'closed';
-  sourceBranch: string;
-  targetBranch: string;
-};
-
-const defaultPRs: PullRequest[] = [
-  { id: 101, title: 'Fix memory leak in connection pool',        author: 'alice',  openedAt: '1 day ago',   status: 'open',   sourceBranch: 'fix/memory-leak',    targetBranch: 'main' },
-  { id: 102, title: 'Implement dark mode toggle',               author: 'bob',    openedAt: '3 days ago',  status: 'open',   sourceBranch: 'feat/dark-mode',     targetBranch: 'main' },
-  { id: 103, title: 'Update README and contributing guide',     author: 'carol',  openedAt: '1 week ago',  status: 'merged', sourceBranch: 'docs/readme-update', targetBranch: 'main' },
-  { id: 104, title: 'Bump all dependencies to latest',          author: 'dave',   openedAt: '5 days ago',  status: 'closed', sourceBranch: 'chore/deps-update',  targetBranch: 'main' },
-  { id: 105, title: 'Add TypeScript support across the board',  author: 'henry',  openedAt: '2 weeks ago', status: 'merged', sourceBranch: 'feat/typescript',    targetBranch: 'main' },
-  { id: 106, title: 'Cache parsed config files for speed',      author: 'grace',  openedAt: '2 days ago',  status: 'open',   sourceBranch: 'perf/config-cache',  targetBranch: 'develop' },
-  { id: 107, title: 'Fix race condition in event handler',      author: 'jack',   openedAt: '5 hours ago', status: 'open',   sourceBranch: 'fix/race-condition', targetBranch: 'main' },
-  { id: 108, title: 'Refactor plugin loader to use async/await',author: 'eve',    openedAt: '3 weeks ago', status: 'merged', sourceBranch: 'refactor/plugins',   targetBranch: 'main' },
-];
-
-export function getPullRequests(owner: string, name: string): PullRequest[] {
-  void owner; void name;
-  return defaultPRs;
-}
 
 // ── Bounties ──────────────────────────────────────────────────────────────────
 

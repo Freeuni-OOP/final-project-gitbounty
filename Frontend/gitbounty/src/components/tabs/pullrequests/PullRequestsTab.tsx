@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import PRHeaderControls from './PRHeaderControls';
-import PRList from './PRList';
+import PRList, {type PullRequest} from './PRList';
 import { CreatePullRequestModal } from '../../CreatePullRequestModal';
 import '../../../styles/RepoTabs.css';
 import type {Filter} from "../../icons/pullrequest/PRIcons.tsx";
-import type {PullRequest} from "../../../mocks/repositoriesMock.ts";
 import type { CreatePullRequestResponse } from '../../../services/pullRequestService';
 import apiClient from "../../../api/apiClient.ts";
 
 export default function PullRequestsTab({ repoName }: Readonly<{ repoName: string }>) {
-    const [filter, setFilter] = useState<Filter>('open');
+    const [filter, setFilter] = useState<Filter>('OPEN');
     const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +36,7 @@ export default function PullRequestsTab({ repoName }: Readonly<{ repoName: strin
 
     // Memoizing calculations prevents unnecessary re-runs on unrelated state updates
     const counts = useMemo(() => {
-        const initialCounts: Record<Filter, number> = { open: 0, merged: 0, closed: 0 };
+        const initialCounts: Record<Filter, number> = { OPEN: 0, MERGED: 0, CLOSED: 0 };
         return pullRequests.reduce((acc, pr) => {
             if (acc[pr.status] !== undefined) acc[pr.status]++;
             return acc;

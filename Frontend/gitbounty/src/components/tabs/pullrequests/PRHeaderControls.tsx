@@ -15,7 +15,7 @@ export default function PRHeaderControls({
                                              disabled = false,
                                              onCreatePR,
                                          }: Readonly<PRHeaderControlsProps>) {
-    const filters: Filter[] = ['open', 'merged', 'closed'];
+    const filters: Filter[] = ['OPEN', 'MERGED', 'CLOSED'];
 
     return (
         <div className="tab-panel-header-controls">
