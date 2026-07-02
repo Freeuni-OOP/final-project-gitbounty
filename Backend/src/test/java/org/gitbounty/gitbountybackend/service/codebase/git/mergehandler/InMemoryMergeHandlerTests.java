@@ -61,7 +61,7 @@ class InMemoryMergeHandlerTests {
         long expectedTimeSecs = Instant.now().getEpochSecond();
 
         // Act: Execute the merge
-        assertDoesNotThrow(() -> mergeHandler.executeMerge("feature", "develop"));
+        assertDoesNotThrow(() -> mergeHandler.executeMerge("refs/heads/feature", "refs/heads/develop"));
 
         // Assert
         ObjectId newDevelopTip = repo.resolve("refs/heads/develop");
@@ -115,7 +115,7 @@ class InMemoryMergeHandlerTests {
         git.update("refs/heads/develop", devTip);
         git.update("refs/heads/feature", featureTip);
 
-        mergeHandler.executeMerge("feature", "develop");
+        mergeHandler.executeMerge("refs/heads/feature", "refs/heads/develop");
         ObjectId mergeCommitId = repo.resolve("refs/heads/develop");
 
         repo.updateRef(Constants.HEAD).link("refs/heads/develop");
@@ -133,7 +133,7 @@ class InMemoryMergeHandlerTests {
         git.update("refs/heads/develop", devTip);
         git.update("refs/heads/feature", featureTip);
 
-        mergeHandler.executeMerge("feature", "develop");
+        mergeHandler.executeMerge("refs/heads/feature", "refs/heads/develop");
         ObjectId mergeCommitId = repo.resolve("refs/heads/develop");
 
         RevCommit postMergeCommit = git.branch("develop").commit()
@@ -157,7 +157,7 @@ class InMemoryMergeHandlerTests {
         git.update("refs/heads/develop", devTip);
         git.update("refs/heads/feature", featureTip);
 
-        mergeHandler.executeMerge("feature", "develop");
+        mergeHandler.executeMerge("refs/heads/feature", "refs/heads/develop");
         ObjectId mergeCommitId = repo.resolve("refs/heads/develop");
 
         assertDoesNotThrow(() -> mergeHandler.revertMerge("develop", mergeCommitId));
