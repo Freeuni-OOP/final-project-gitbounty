@@ -5,7 +5,7 @@ export type PullRequest = {
     title: string;
     author: string;
     openedAt: string;
-    status: 'open' | 'merged' | 'closed';
+    status: 'OPEN' | 'MERGED' | 'CLOSED';
     sourceBranch: string;
     targetBranch: string;
 };

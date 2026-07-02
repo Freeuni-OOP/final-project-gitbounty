@@ -5,12 +5,12 @@ export type PullRequest = {
     title: string;
     author: string;
     openedAt: string;
-    status: 'open' | 'merged' | 'closed';
+    status: 'OPEN' | 'MERGED' | 'CLOSED';
     sourceBranch: string;
     targetBranch: string;
 };
 
-export type Filter = 'open' | 'merged' | 'closed';
+export type Filter = 'OPEN' | 'MERGED' | 'CLOSED';
 
 function OpenPRIcon(props: Readonly<SVGProps<SVGSVGElement>>) {
     return (
@@ -37,7 +37,7 @@ function ClosedPRIcon(props: Readonly<SVGProps<SVGSVGElement>>) {
 }
 
 export function PRIcon({ status, ...props }: Readonly<{ status: PullRequest['status'] }> & SVGProps<SVGSVGElement>) {
-    if (status === 'merged') return <MergedPRIcon {...props} />;
-    if (status === 'closed') return <ClosedPRIcon {...props} />;
+    if (status === 'MERGED') return <MergedPRIcon {...props} />;
+    if (status === 'CLOSED') return <ClosedPRIcon {...props} />;
     return <OpenPRIcon {...props} />;
 }
