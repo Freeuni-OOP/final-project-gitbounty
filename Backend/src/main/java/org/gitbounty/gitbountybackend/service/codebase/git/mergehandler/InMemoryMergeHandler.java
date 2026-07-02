@@ -140,7 +140,7 @@ public class InMemoryMergeHandler extends AbstractMergeHandler {
     }
 
     private void updateRef(Repository repository, ObjectId mergeCommitId, ObjectId targetId, String targetBranch) throws IOException {
-        RefUpdate refUpdate = repository.updateRef("refs/heads/" + targetBranch);
+        RefUpdate refUpdate = repository.updateRef(targetBranch);
         refUpdate.setNewObjectId(mergeCommitId);
         refUpdate.setExpectedOldObjectId(targetId);
 
