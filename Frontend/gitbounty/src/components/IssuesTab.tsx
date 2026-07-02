@@ -19,7 +19,7 @@ interface IssuesTabProps {
     repoId: number;
     repoName: string;
     canCreateIssues: boolean;
-    canCreateBounties: boolean;
+    canManageBounties: boolean;
 }
 
 type Filter = 'open' | 'closed';
@@ -54,6 +54,10 @@ function isClosed(issue: IssueAPI): boolean {
     return issue.status === 'CLOSED';
 }
 
+function isActiveBounty(bounty: BountyAPI): boolean {
+    return bounty.status === 'OPEN' || bounty.status === 'ASSIGNED';
+}
+
 function formatDate(date: string): string {
     return new Date(date).toLocaleDateString(
         undefined,
@@ -69,7 +73,7 @@ export default function IssuesTab({
                                       repoId,
                                       repoName,
                                       canCreateIssues,
-                                      canCreateBounties,
+                                      canManageBounties,
                                   }: IssuesTabProps) {
     const [filter, setFilter] =
         useState<Filter>('open');
@@ -95,6 +99,15 @@ export default function IssuesTab({
         useState(true);
 
     const [error, setError] =
+        useState<string | null>(null);
+
+    type BountyAction = 'complete' | 'cancel';
+
+    const [pendingBountyAction, setPendingBountyAction,] = useState<{
+        bountyId: number; action: BountyAction;
+    } | null>(null);
+
+    const [actionError, setActionError] =
         useState<string | null>(null);
 
     useEffect(() => {
@@ -223,6 +236,128 @@ export default function IssuesTab({
         );
     };
 
+    const handleCompleteBounty = async (
+        issue: IssueAPI,
+        bounty: BountyAPI
+    ) => {
+        if (issue.assignedToId === null) {
+            setActionError(
+                'Assign a contributor before completing the bounty.'
+            );
+
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Complete the bounty for issue #${issue.number}? `
+            + `The assigned contributor will receive `
+            + `${bounty.amount.toLocaleString()} credits, `
+            + `and the issue will be closed.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setPendingBountyAction({
+            bountyId: bounty.id,
+            action: 'complete',
+        });
+
+        setSuccessMessage(null);
+        setActionError(null);
+
+        try {
+            const updatedIssue =
+                await issueApi.updateIssueState(
+                    repoName,
+                    issue.number,
+                    'CLOSED'
+                );
+
+            setIssues((currentIssues) =>
+                currentIssues.map((currentIssue) =>
+                    currentIssue.id === updatedIssue.id
+                        ? updatedIssue
+                        : currentIssue
+                )
+            );
+
+            setBounties((currentBounties) =>
+                currentBounties.map((currentBounty) =>
+                    currentBounty.id === bounty.id
+                        ? {
+                            ...currentBounty,
+                            status: 'COMPLETED',
+                        }
+                        : currentBounty
+                )
+            );
+
+            setSuccessMessage(
+                `Bounty for issue #${issue.number} `
+                + `was completed successfully.`
+            );
+        } catch {
+            setActionError(
+                `Failed to complete the bounty for `
+                + `issue #${issue.number}.`
+            );
+        } finally {
+            setPendingBountyAction(null);
+        }
+    };
+
+    const handleCancelBounty = async (
+        issue: IssueAPI,
+        bounty: BountyAPI
+    ) => {
+        const confirmed = window.confirm(
+            `Cancel the bounty for issue #${issue.number}? `
+            + `${bounty.amount.toLocaleString()} credits `
+            + `will be refunded to the repository owner.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setPendingBountyAction({
+            bountyId: bounty.id,
+            action: 'cancel',
+        });
+
+        setSuccessMessage(null);
+        setActionError(null);
+
+        try {
+            await bountyApi.cancelBounty(bounty.id);
+
+            setBounties((currentBounties) =>
+                currentBounties.map((currentBounty) =>
+                    currentBounty.id === bounty.id
+                        ? {
+                            ...currentBounty,
+                            status: 'CANCELLED',
+                        }
+                        : currentBounty
+                )
+            );
+
+            setSuccessMessage(
+                `Bounty for issue #${issue.number} `
+                + `was cancelled and refunded.`
+            );
+        } catch {
+            setActionError(
+                `Failed to cancel the bounty for `
+                + `issue #${issue.number}.`
+            );
+        } finally {
+            setPendingBountyAction(null);
+        }
+    };
+
     if (loading) {
         return (
             <div className="tab-panel">
@@ -302,13 +437,48 @@ export default function IssuesTab({
                     </div>
                 )}
 
+                {actionError && (
+                    <div
+                        className="tab-error-banner"
+                        role="alert"
+                    >
+                        {actionError}
+                    </div>
+                )}
+
                 <ul className="tab-item-list">
                     {shownIssues.map((issue) => {
                         const existingBounty =
                             bountyByIssueId.get(issue.id);
 
+                        const activeBounty =
+                            existingBounty !== undefined
+                            && isActiveBounty(existingBounty);
+
+                        const canResolveBounty =
+                            canManageBounties
+                            && !isClosed(issue)
+                            && activeBounty;
+
+                        const isCompleting =
+                            existingBounty !== undefined
+                            && pendingBountyAction?.bountyId
+                            === existingBounty.id
+                            && pendingBountyAction.action
+                            === 'complete';
+
+                        const isCancelling =
+                            existingBounty !== undefined
+                            && pendingBountyAction?.bountyId
+                            === existingBounty.id
+                            && pendingBountyAction.action
+                            === 'cancel';
+
+                        const isResolving =
+                            isCompleting || isCancelling;
+
                         const canAddBounty =
-                            canCreateBounties &&
+                            canManageBounties &&
                             !isClosed(issue) &&
                             !existingBounty;
 
@@ -371,23 +541,72 @@ export default function IssuesTab({
                                     </div>
                                 </div>
 
-                                {canAddBounty && (
+                                {(canAddBounty || canResolveBounty) && (
                                     <div className="issue-bounty-actions">
-                                        <button
-                                            type="button"
-                                            className="issue-add-bounty-btn"
-                                            onClick={() => {
-                                                setSuccessMessage(
-                                                    null
-                                                );
+                                        {canAddBounty && (
+                                            <button
+                                                type="button"
+                                                className="issue-add-bounty-btn"
+                                                onClick={() => {
+                                                    setSuccessMessage(null);
+                                                    setActionError(null);
+                                                    setSelectedIssue(issue);
+                                                }}
+                                            >
+                                                Add bounty
+                                            </button>
+                                        )}
 
-                                                setSelectedIssue(
-                                                    issue
-                                                );
-                                            }}
-                                        >
-                                            Add bounty
-                                        </button>
+                                        {canResolveBounty
+                                            && existingBounty && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className={
+                                                            'issue-bounty-action-btn complete'
+                                                        }
+                                                        disabled={
+                                                            isResolving
+                                                            || issue.assignedToId === null
+                                                        }
+                                                        title={
+                                                            issue.assignedToId === null
+                                                                ? 'Assign a contributor '
+                                                                + 'before completing '
+                                                                + 'the bounty.'
+                                                                : undefined
+                                                        }
+                                                        onClick={() => {
+                                                            void handleCompleteBounty(
+                                                                issue,
+                                                                existingBounty
+                                                            );
+                                                        }}
+                                                    >
+                                                        {isCompleting
+                                                            ? 'Completing...'
+                                                            : 'Complete bounty'}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        className={
+                                                            'issue-bounty-action-btn cancel'
+                                                        }
+                                                        disabled={isResolving}
+                                                        onClick={() => {
+                                                            void handleCancelBounty(
+                                                                issue,
+                                                                existingBounty
+                                                            );
+                                                        }}
+                                                    >
+                                                        {isCancelling
+                                                            ? 'Cancelling...'
+                                                            : 'Cancel bounty'}
+                                                    </button>
+                                                </>
+                                            )}
                                     </div>
                                 )}
                             </li>

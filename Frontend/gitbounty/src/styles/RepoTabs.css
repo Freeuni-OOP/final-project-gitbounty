@@ -212,8 +212,11 @@
 }
 
 .issue-bounty-actions {
+  display: flex;
+  align-items: center;
   align-self: center;
   flex-shrink: 0;
+  gap: 8px;
   margin-left: auto;
 }
 
@@ -232,6 +235,63 @@
           background 0.12s ease,
           border-color 0.12s ease,
           transform 0.12s ease;
+}
+
+.issue-bounty-action-btn {
+  padding: 6px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+          background 0.12s ease,
+          border-color 0.12s ease,
+          transform 0.12s ease,
+          opacity 0.12s ease;
+}
+
+.issue-bounty-action-btn.complete {
+  border-color: #1f883d;
+  background: #1f883d;
+  color: #ffffff;
+}
+
+.issue-bounty-action-btn.complete:hover:not(:disabled) {
+  border-color: #1a7f37;
+  background: #1a7f37;
+  transform: translateY(-1px);
+}
+
+.issue-bounty-action-btn.cancel {
+  border-color: #cf222e;
+  background: #ffffff;
+  color: #cf222e;
+}
+
+.issue-bounty-action-btn.cancel:hover:not(:disabled) {
+  background: #ffebe9;
+  transform: translateY(-1px);
+}
+
+.issue-bounty-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.issue-bounty-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.tab-error-banner {
+  padding: 10px 16px;
+  border-bottom: 1px solid #ff8182;
+  background: #ffebe9;
+  color: #a40e26;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .issue-add-bounty-btn:hover {
@@ -292,8 +352,9 @@
     margin-left: 26px;
   }
 
-  .issue-add-bounty-btn {
-    width: 100%;
+  .issue-add-bounty-btn,
+  .issue-bounty-action-btn {
+    flex: 1;
   }
 }
 

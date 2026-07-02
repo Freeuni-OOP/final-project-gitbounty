@@ -43,4 +43,10 @@ export const bountyApi = {
 
         return response.data;
     },
+
+    async cancelBounty(id: number): Promise<void> {
+        await apiClient.post(
+            `/api/bounties/${id}/cancel`
+        );
+    },
 };

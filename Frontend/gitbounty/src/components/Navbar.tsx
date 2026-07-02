@@ -109,7 +109,6 @@ const Navbar: React.FC = () => {
             {formatBalance(balance)} cr
           </div>
           <SignInButton/>
-          <button className="nav-button-primary">Submit Bounty</button>
         </div>
       </div>
     </nav>

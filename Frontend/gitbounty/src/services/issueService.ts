@@ -2,6 +2,7 @@ import apiClient from '../api/apiClient';
 import type {
     CreateIssueRequest,
     IssueAPI,
+    IssueStatus,
 } from '../types/Issue';
 
 function getIssuesPath(repositoryName: string): string {
@@ -37,6 +38,19 @@ export const issueApi = {
         const response = await apiClient.post<IssueAPI>(
             getIssuesPath(repositoryName),
             request
+        );
+
+        return response.data;
+    },
+
+    async updateIssueState(
+        repositoryName: string,
+        issueNumber: number,
+        status: IssueStatus
+    ): Promise<IssueAPI> {
+        const response = await apiClient.patch<IssueAPI>(
+            `${getIssuesPath(repositoryName)}/${issueNumber}/state`,
+            { status }
         );
 
         return response.data;

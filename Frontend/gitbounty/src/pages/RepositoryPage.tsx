@@ -323,7 +323,7 @@ export default function RepositoryPage() {
                 repoId={repo.id}
                 repoName={repoName}
                 canCreateIssues={authenticated}
-                canCreateBounties={currentUser?.username === repo.ownerUsername}
+                canManageBounties={currentUser?.username === repo.ownerUsername}
             />
         )}
         {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}

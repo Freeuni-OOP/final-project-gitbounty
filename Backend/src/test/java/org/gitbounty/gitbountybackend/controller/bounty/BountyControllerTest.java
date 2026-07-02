@@ -143,4 +143,12 @@ class BountyControllerTest {
 
         verify(bountyService).getBountyById(1L);
     }
+
+    @Test
+    void cancelBounty_ShouldReturnNoContent() throws Exception {
+        mockMvc.perform(post("/api/bounties/1/cancel").with(jwt()
+                .jwt(builder -> builder.subject("kc-owner"))))
+                .andExpect(status().isNoContent());
+        verify(bountyService).cancelBounty(1L);
+    }
 }

@@ -9,11 +9,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import org.gitbounty.gitbountybackend.model.Bounty;
+import org.gitbounty.gitbountybackend.repository.BountyRepository;
 
 @ExtendWith(MockitoExtension.class)
 class BountyPermissionsTest {
@@ -23,6 +23,17 @@ class BountyPermissionsTest {
 
     @InjectMocks
     private BountyPermissions bountyPermissions;
+
+    @Mock
+    private BountyRepository bountyRepository;
+
+    private static Bounty bountyOwnedBy(String keycloakId) {
+        Bounty bounty = new Bounty();
+        bounty.setId(20L);
+        bounty.setIssue(issueOwnedBy(keycloakId));
+
+        return bounty;
+    }
 
     private static Issue issueOwnedBy(String keycloakId) {
         User owner = new User();
@@ -78,5 +89,36 @@ class BountyPermissionsTest {
         assertThat(bountyPermissions.isIssueRepositoryOwner(10L, "   ")).isFalse();
 
         verifyNoInteractions(issueRepository);
+    }
+
+    @Test
+    void isBountyRepositoryOwner_ShouldReturnTrue_WhenAuthenticatedUserOwnsRepository() {
+        when(bountyRepository.findById(20L)).thenReturn(Optional.of(bountyOwnedBy("kc-owner")));
+        assertThat(bountyPermissions.isBountyRepositoryOwner(20L, "kc-owner")).isTrue();
+
+        verify(bountyRepository).findById(20L);
+    }
+
+    @Test
+    void isBountyRepositoryOwner_ShouldReturnFalse_WhenAuthenticatedUserDoesNotOwnRepository() {
+        when(bountyRepository.findById(20L)).thenReturn(Optional.of(bountyOwnedBy("kc-owner")));
+
+        assertThat(bountyPermissions.isBountyRepositoryOwner(20L, "kc-other")).isFalse();
+    }
+
+    @Test
+    void isBountyRepositoryOwner_ShouldReturnFalse_WhenBountyMissing() {
+        when(bountyRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThat(bountyPermissions.isBountyRepositoryOwner(99L, "kc-owner")).isFalse();
+    }
+
+    @Test
+    void isBountyRepositoryOwner_ShouldReturnFalse_WhenInputInvalid() {
+        assertThat(bountyPermissions.isBountyRepositoryOwner(null, "kc-owner")).isFalse();
+        assertThat(bountyPermissions.isBountyRepositoryOwner(20L, null)).isFalse();
+        assertThat(bountyPermissions.isBountyRepositoryOwner(20L, "   ")).isFalse();
+
+        verifyNoInteractions(bountyRepository);
     }
 }

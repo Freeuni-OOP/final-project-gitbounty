@@ -11,7 +11,6 @@ const HeroBanner = () => (
       </p>
       <div className="hero-actions">
         <button className="btn btn-primary">Explore Bounties</button>
-        <button className="btn btn-secondary">Post a Bounty</button>
       </div>
     </div>
     <div className="hero-stats">

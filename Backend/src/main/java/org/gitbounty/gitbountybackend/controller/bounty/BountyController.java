@@ -56,4 +56,11 @@ public class BountyController {
     public List<BountyDTO> getBountiesByRepository(@PathVariable Long repoId) {
         return bountyService.getBountiesByRepository(repoId);
     }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("@bountyPermissions.isBountyRepositoryOwner(" + "#id, authentication.name)")
+    public ResponseEntity<Void> cancelBounty(@PathVariable Long id) {
+        bountyService.cancelBounty(id);
+        return ResponseEntity.noContent().build();
+    }
 }
