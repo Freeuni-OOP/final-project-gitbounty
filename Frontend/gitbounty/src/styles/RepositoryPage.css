@@ -464,4 +464,29 @@
     padding: 8px 10px;
     font-size: 13px;
   }
+
+  .add-member-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #24292f;
+    background-color: #f6f8fa;
+    border: 1px solid rgba(31, 35, 40, 0.15);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background-color 0.1s ease;
+  }
+
+  .add-member-btn:hover {
+    background-color: #f3f4f6;
+  }
+
+  .add-member-btn:active {
+    background-color: #ebecf0;
+  }
 }

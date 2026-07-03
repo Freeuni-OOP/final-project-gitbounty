@@ -11,6 +11,7 @@ import 'prismjs/themes/prism-tomorrow.css';
 import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
+import { AddCodebaseMemberModal } from '../components/AddCodebaseMemberModal';
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -171,6 +172,7 @@ export default function RepositoryPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Code');
   const [isDarkBox, setIsDarkBox] = useState(true);
   const [currentBranch, setCurrentBranch] = useState('main');
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
 
   // Repo metadata
   const [repo, setRepo] = useState<RepoData | null>(null);
@@ -285,6 +287,8 @@ export default function RepositoryPage() {
     );
   }
 
+  const canManageMembers = authenticated && currentUser?.username === repo.ownerUsername;
+
   return (
       <div className="repo-page">
         {/* ── Header ── */}
@@ -300,6 +304,15 @@ export default function RepositoryPage() {
                 onBranchChange={setCurrentBranch}
             />
             <CloneButton gitUrl={repo.gitUrl} />
+            {canManageMembers && (
+                <button
+                    type="button"
+                    className="add-member-btn"
+                    onClick={() => setIsAddMemberModalOpen(true)}
+                >
+                  Add member
+                </button>
+            )}
           </div>
           {repo.description && <p className="repo-description">{repo.description}</p>}
 
@@ -316,6 +329,13 @@ export default function RepositoryPage() {
             ))}
           </div>
         </div>
+
+        <AddCodebaseMemberModal
+            isOpen={isAddMemberModalOpen}
+            repositoryName={repoName}
+            onClose={() => setIsAddMemberModalOpen(false)}
+            onSuccess={() => {}}
+        />
 
         {/* ── Tab content ── */}
         {activeTab === 'Issues' && (

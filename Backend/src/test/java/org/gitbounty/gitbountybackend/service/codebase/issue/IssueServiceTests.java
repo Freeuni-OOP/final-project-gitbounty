@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 
 import java.security.Principal;
 import java.util.List;
@@ -34,6 +35,9 @@ class IssueServiceTests {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private CodebaseMemberService codebaseMemberService;
 
     @InjectMocks
     private IssueService issueService;
@@ -416,5 +420,106 @@ class IssueServiceTests {
         verify(eventPublisher).publishEvent(
                 IssueClosedEvent.completed(1L, 2L)
         );
+    }
+
+    @Test
+    void assignIssueShouldAssignCodebaseMember() {
+        User author = user("author");
+        User assignee = user("developer");
+        assignee.setId(2L);
+
+        Codebase codebase = codebase("gitbounty-core");
+
+        Issue issue = new Issue();
+        issue.setId(1L);
+        issue.setNumber(7);
+        issue.setTitle("Fix login bug");
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAuthor(author);
+        issue.setRepository(codebase);
+
+        when(codebaseService.getCodebase("gitbounty-core"))
+                .thenReturn(codebase);
+        when(issueRepository.findByRepositoryNameAndNumber("gitbounty-core", 7))
+                .thenReturn(Optional.of(issue));
+        when(codebaseMemberService.getMemberUser("gitbounty-core", "developer"))
+                .thenReturn(assignee);
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        Issue result = issueService.assignIssue("gitbounty-core", 7, "developer");
+
+        assertEquals(assignee, result.getAssignedTo());
+
+        verify(codebaseMemberService).getMemberUser("gitbounty-core", "developer");
+        verify(issueRepository).saveAndFlush(issue);
+    }
+
+    @Test
+    void assignIssueShouldRejectBlankUsername() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.assignIssue("gitbounty-core", 7, "   ")
+        );
+
+        assertEquals("Assignee username is required", exception.getMessage());
+
+        verifyNoInteractions(codebaseMemberService);
+        verifyNoInteractions(issueRepository);
+    }
+
+    @Test
+    void assignIssueShouldRejectClosedIssue() {
+        User author = user("author");
+        Codebase codebase = codebase("gitbounty-core");
+
+        Issue issue = new Issue();
+        issue.setId(1L);
+        issue.setNumber(7);
+        issue.setTitle("Fix login bug");
+        issue.setStatus(IssueStatus.CLOSED);
+        issue.setAuthor(author);
+        issue.setRepository(codebase);
+
+        when(codebaseService.getCodebase("gitbounty-core"))
+                .thenReturn(codebase);
+        when(issueRepository.findByRepositoryNameAndNumber("gitbounty-core", 7))
+                .thenReturn(Optional.of(issue));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.assignIssue("gitbounty-core", 7, "developer")
+        );
+
+        assertEquals("Cannot assign a closed issue", exception.getMessage());
+
+        verifyNoInteractions(codebaseMemberService);
+        verify(issueRepository, never()).saveAndFlush(any(Issue.class));
+    }
+
+    @Test
+    void assignIssueShouldTrimUsernameBeforeLookup() {
+        User author = user("author");
+        User assignee = user("developer");
+        Codebase codebase = codebase("gitbounty-core");
+
+        Issue issue = new Issue();
+        issue.setId(1L);
+        issue.setNumber(7);
+        issue.setTitle("Fix login bug");
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAuthor(author);
+        issue.setRepository(codebase);
+
+        when(codebaseService.getCodebase("gitbounty-core"))
+                .thenReturn(codebase);
+        when(issueRepository.findByRepositoryNameAndNumber("gitbounty-core", 7))
+                .thenReturn(Optional.of(issue));
+        when(codebaseMemberService.getMemberUser("gitbounty-core", "developer"))
+                .thenReturn(assignee);
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        issueService.assignIssue("gitbounty-core", 7, "  developer  ");
+
+        verify(codebaseMemberService).getMemberUser("gitbounty-core", "developer");
     }
 }

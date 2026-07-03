@@ -55,4 +55,17 @@ export const issueApi = {
 
         return response.data;
     },
+
+    async assignIssue(
+        repositoryName: string,
+        issueNumber: number,
+        username: string
+    ): Promise<IssueAPI> {
+        const response = await apiClient.patch<IssueAPI>(
+            `${getIssuesPath(repositoryName)}/${issueNumber}/assignee`,
+            { username }
+        );
+
+        return response.data;
+    },
 };
