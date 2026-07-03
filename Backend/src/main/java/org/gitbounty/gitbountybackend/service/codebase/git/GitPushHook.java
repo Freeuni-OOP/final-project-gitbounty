@@ -74,7 +74,11 @@ public class GitPushHook implements PostReceiveHook {
 
         if (latestCommit != null) {
             if (type == ReceiveCommand.Type.CREATE) {
-                branchService.createNewBranchForCodebase(codebase, branchName, latestCommit);
+                if (branchService.findBranchForCodebase(codebase, branchName).isPresent()) {
+                    branchService.updateBranchLatestCommit(codebase, branchName, latestCommit);
+                } else {
+                    branchService.createNewBranchForCodebase(codebase, branchName, latestCommit);
+                }
             } else if (type == ReceiveCommand.Type.UPDATE) {
                 branchService.updateBranchLatestCommit(codebase, branchName, latestCommit);
             }

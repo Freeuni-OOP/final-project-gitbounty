@@ -19,6 +19,11 @@ export default function BranchDropdown({
   const [open, setOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(currentBranch);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const availableBranches = branches.includes(currentBranch) ? branches : [currentBranch, ...branches];
+
+  useEffect(() => {
+    setSelectedBranch(currentBranch);
+  }, [currentBranch]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,8 +46,9 @@ export default function BranchDropdown({
   return (
     <div className="branch-dropdown-wrapper" ref={wrapperRef}>
       <button
+        type="button"
         className="branch-dropdown-btn"
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen((previous) => !previous)}
         aria-expanded={open}
         aria-label="Select branch"
       >
@@ -85,10 +91,11 @@ export default function BranchDropdown({
             </div>
           )}
 
-          {!loading && !error && branches.length > 0 && (
+          {!loading && !error && (
             <div className="branch-dropdown-list">
-              {branches.map((branch) => (
+              {availableBranches.map((branch) => (
                 <button
+                  type="button"
                   key={branch}
                   className={`branch-dropdown-item ${
                     branch === selectedBranch ? 'active' : ''
@@ -120,12 +127,6 @@ export default function BranchDropdown({
                   )}
                 </button>
               ))}
-            </div>
-          )}
-
-          {!loading && !error && branches.length === 0 && (
-            <div className="branch-dropdown-empty">
-              <p>No branches found</p>
             </div>
           )}
         </div>
