@@ -2,9 +2,11 @@ import type {SVGProps} from 'react';
 
 export type PullRequest = {
     id: number;
+    number: number;
     title: string;
-    author: string;
-    openedAt: string;
+    description?: string | null;
+    authorUsername: string;
+    createdAt: string;
     status: 'OPEN' | 'MERGED' | 'CLOSED';
     sourceBranch: string;
     targetBranch: string;

@@ -126,7 +126,7 @@ class CodebaseControllerTest {
                 .andExpect(jsonPath("$.name").value("my-repo"))
                 .andExpect(jsonPath("$.ownerUsername").value("owner"))
                 .andExpect(jsonPath("$.branches").isArray())
-                .andExpect(jsonPath("$.branches[0].name").value("refs/heads/master"));
+                .andExpect(jsonPath("$.branches[0].name").value("master"));
 
         verify(codebaseService).getCodebase("my-repo");
         verify(branchService).getAllBranchesForCodebase(repo);
@@ -367,9 +367,9 @@ class CodebaseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.branches").isArray())
                 .andExpect(jsonPath("$.branches.length()").value(3))
-                .andExpect(jsonPath("$.branches[0].name").value("refs/heads/master"))
-                .andExpect(jsonPath("$.branches[1].name").value("refs/heads/dev"))
-                .andExpect(jsonPath("$.branches[2].name").value("refs/heads/feature/new-feature"));
+                .andExpect(jsonPath("$.branches[0].name").value("master"))
+                .andExpect(jsonPath("$.branches[1].name").value("dev"))
+                .andExpect(jsonPath("$.branches[2].name").value("feature/new-feature"));
 
         verify(codebaseService).getCodebase("my-repo");
         verify(branchService).getAllBranchesForCodebase(repo);

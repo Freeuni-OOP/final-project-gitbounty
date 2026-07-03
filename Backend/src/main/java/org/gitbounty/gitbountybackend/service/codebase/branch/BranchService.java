@@ -5,6 +5,7 @@ import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.Commit;
 import org.gitbounty.gitbountybackend.service.codebase.commit.CommitRepository;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,7 @@ public class BranchService {
 		assertBranchNameValid(branchName);
 
 		// Normalize to full ref name used in the DB (store as "refs/heads/..." )
-		final String normalized = branchName.startsWith("refs/heads/") ? branchName : "refs/heads/" + branchName;
+		final String normalized = getNormalized(branchName);
 
 		// Build branch entity and attach to codebase (keeps bidirectional association)
 		Branch toCreate = Branch.builder()
@@ -37,6 +38,10 @@ public class BranchService {
 				.build();
 
 		return branchRepository.save(toCreate);
+	}
+
+	private static @NonNull String getNormalized(String branchName) {
+		return branchName.startsWith("refs/heads/") ? branchName : "refs/heads/" + branchName;
 	}
 
 	@Transactional
@@ -65,7 +70,7 @@ public class BranchService {
 		assertCodebasePersisted(codebase);
 		assertBranchNameValid(branchName);
 
-		final String normalized = branchName.startsWith("refs/heads/") ? branchName : "refs/heads/" + branchName;
+		final String normalized = getNormalized(branchName);
 		Optional<Branch> maybe = branchRepository.findByCodebaseIdAndName(codebase.getId(), normalized);
 
 		// If a branch exists and points to a latestCommit, explicitly load the commit

@@ -17,7 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class BranchServiceTests {
+class BranchServiceTests {
 
 	@Mock
 	private BranchRepository branchRepository;
@@ -83,7 +83,7 @@ public class BranchServiceTests {
 
 		when(branchRepository.save(any(Branch.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		Branch created = branchService.createNewBranchForCodebase(codebase, "refs/heads/feature-x");
+		Branch created = branchService.createNewBranchForCodebase(codebase, "feature-x");
 
 		assertNotNull(created);
 		assertEquals("refs/heads/feature-x", created.getName());
@@ -99,7 +99,7 @@ public class BranchServiceTests {
 		Branch existing = Branch.builder()
 			.id(11L)
 			.codebase(codebase)
-			.name("refs/heads/main")
+			.name("main")
 			.build();
 
 		when(branchRepository.findByCodebaseIdAndName(eq(10L), eq("refs/heads/main")))
@@ -126,7 +126,7 @@ public class BranchServiceTests {
 		Branch existing = Branch.builder()
 			.id(13L)
 			.codebase(codebase)
-			.name("refs/heads/feature-delete")
+			.name("feature-delete")
 			.build();
 
 		when(branchRepository.findByCodebaseIdAndName(eq(12L), eq("refs/heads/feature-delete")))
@@ -145,7 +145,7 @@ public class BranchServiceTests {
 		Branch existing = Branch.builder()
 			.id(15L)
 			.codebase(codebase)
-			.name("refs/heads/feature-find")
+			.name("feature-find")
 			.build();
 
 		when(branchRepository.findByCodebaseIdAndName(eq(14L), eq("refs/heads/feature-find")))
