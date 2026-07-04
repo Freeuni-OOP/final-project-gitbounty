@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
+import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
@@ -30,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
-import org.gitbounty.gitbountybackend.service.codebase.branch.Branches;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CodebaseServiceTests {
@@ -285,7 +285,7 @@ class CodebaseServiceTests {
                     return codebase;});
 
         Mockito.doThrow(new IllegalStateException("branch creation failed")).when(branchService)
-                .createNewBranchForCodebase(any(Codebase.class), Mockito.eq(Branches.DEFAULT_NAME));
+                .createNewBranchForCodebase(any(Codebase.class), Mockito.eq(Branch.DEFAULT_NAME));
 
         assertThatThrownBy(() -> codebaseService.createCodebase(
                         "demo",

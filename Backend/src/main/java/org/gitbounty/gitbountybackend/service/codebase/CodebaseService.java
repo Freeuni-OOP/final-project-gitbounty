@@ -14,7 +14,7 @@ import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageSe
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
-import org.gitbounty.gitbountybackend.service.codebase.branch.Branches;
+import org.gitbounty.gitbountybackend.model.Branch;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class CodebaseService {
 
         try {
             Codebase codebase = codebaseRepository.saveAndFlush(new Codebase(repositoryName, description == null ? null : description.trim(), gitUrl, owner));
-            branchService.createNewBranchForCodebase(codebase, Branches.DEFAULT_NAME);
+            branchService.createNewBranchForCodebase(codebase, Branch.DEFAULT_NAME);
 
             return codebase;
         } catch (RuntimeException e) {
