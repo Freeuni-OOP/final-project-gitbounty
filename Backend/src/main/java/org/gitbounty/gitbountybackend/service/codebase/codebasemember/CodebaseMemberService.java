@@ -86,6 +86,16 @@ public class CodebaseMemberService {
         return memberRepository.findByCodebaseId(codebase.getId());
     }
 
+    @Transactional(readOnly = true)
+    public User getMemberUser(String repositoryName, String username) {
+        Codebase codebase = codebaseService.getCodebase(repositoryName);
+        User user = resolveUser(username);
+
+        return memberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId())
+                .orElseThrow(() -> new CodebaseMemberNotFoundException("Membership association not found."))
+                .getUser();
+    }
+
     private User resolveUser(String username) {
         return userService.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + username));

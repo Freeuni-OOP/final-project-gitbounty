@@ -66,7 +66,7 @@ public class CodebaseController {
         );
 
         return ResponseEntity.created(URI.create(codebase.getGitUrl()))
-                .body(CodebaseResponse.from(codebase));
+                .body(CodebaseResponse.from(codebase, getBranchResponses(codebase)));
     }
 
 
@@ -75,12 +75,9 @@ public class CodebaseController {
             @PathVariable String repositoryName
     ) {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
-        List<BranchResponse> branches = branchService.getAllBranchesForCodebase(codebase)
-                .stream()
-                .map(BranchResponse::from)
-                .toList();
-        return ResponseEntity.ok(CodebaseResponse.from(codebase, branches));
+        return ResponseEntity.ok(CodebaseResponse.from(codebase, getBranchResponses(codebase)));
     }
+
     @PatchMapping("/{repositoryName}")
     public ResponseEntity<CodebaseResponse> updateCodebase(
         @PathVariable String repositoryName,
@@ -159,5 +156,9 @@ public class CodebaseController {
         }
         memberService.removeMember(repositoryName, username);
         return ResponseEntity.noContent().build();
+    }
+
+    private List<BranchResponse> getBranchResponses(Codebase codebase) {
+        return branchService.getAllBranchesForCodebase(codebase).stream().map(BranchResponse::from).toList();
     }
 }

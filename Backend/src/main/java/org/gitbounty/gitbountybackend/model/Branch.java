@@ -15,6 +15,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 public class Branch {
+    public static final String DEFAULT_NAME = "main";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

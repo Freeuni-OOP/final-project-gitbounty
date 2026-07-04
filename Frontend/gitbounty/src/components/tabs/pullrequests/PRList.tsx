@@ -1,14 +1,6 @@
-import {type Filter, PRIcon} from "../../icons/pullrequest/PRIcons.tsx";
+import {type Filter, PRIcon, type PullRequest} from "../../icons/pullrequest/PRIcons.tsx";
+import { Link, useParams } from 'react-router-dom';
 
-export type PullRequest = {
-    id: number;
-    title: string;
-    author: string;
-    openedAt: string;
-    status: 'OPEN' | 'MERGED' | 'CLOSED';
-    sourceBranch: string;
-    targetBranch: string;
-};
 type PRListProps = {
     pullRequests: PullRequest[];
     filter: Filter;
@@ -17,6 +9,8 @@ type PRListProps = {
 };
 
 export default function PRList({ pullRequests, filter, loading, error }: Readonly<PRListProps>) {
+    const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
+
     if (loading) {
         return (
             <ul className="tab-item-list">
@@ -45,18 +39,23 @@ export default function PRList({ pullRequests, filter, loading, error }: Readonl
         <ul className="tab-item-list">
             {pullRequests.map((pr) => (
                 <li key={pr.id} className="tab-item">
-                    <PRIcon status={pr.status} />
-                    <div className="tab-item-body">
-                        <div className="tab-item-title-row">
-                            <span className="tab-item-title">{pr.title}</span>
-                            <span className="branch-tag">
-                {pr.sourceBranch} → {pr.targetBranch}
-              </span>
+                    <Link
+                        to={`/repositories/${owner}/${repoName}/pull-requests/${pr.number}`}
+                        className="tab-item-link"
+                    >
+                        <PRIcon status={pr.status} />
+                        <div className="tab-item-body">
+                            <div className="tab-item-title-row">
+                                <span className="tab-item-title">{pr.title}</span>
+                                <span className="branch-tag">
+                        {pr.sourceBranch} → {pr.targetBranch}
+                      </span>
+                            </div>
+                            <div className="tab-item-meta">
+                                #{pr.number} &middot; {pr.status} {new Date(pr.createdAt).toLocaleDateString()} by <strong>{pr.authorUsername}</strong>
+                            </div>
                         </div>
-                        <div className="tab-item-meta">
-                            #{pr.id} &middot; {pr.status} {pr.openedAt} by <strong>{pr.author}</strong>
-                        </div>
-                    </div>
+                    </Link>
                 </li>
             ))}
         </ul>

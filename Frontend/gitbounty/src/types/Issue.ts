@@ -12,6 +12,7 @@ export interface IssueAPI {
     authorId: number;
     authorUsername: string;
     assignedToId: number | null;
+    assignedToUsername: string | null;
     repositoryId: number;
     createdAt: string;
     updatedAt: string;

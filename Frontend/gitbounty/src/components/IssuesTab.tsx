@@ -7,6 +7,11 @@ import {
 import { bountyApi } from '../services/bountyService';
 import { issueApi } from '../services/issueService';
 
+import {
+    codebaseMemberApi,
+    type CodebaseMemberAPI,
+} from '../services/codebaseMemberService';
+
 import { CreateBountyModal } from './CreateBountyModal';
 import { CreateIssueModal } from './CreateIssueModal';
 
@@ -84,6 +89,9 @@ export default function IssuesTab({
     const [bounties, setBounties] =
         useState<BountyAPI[]>([]);
 
+    const [members, setMembers] =
+        useState<CodebaseMemberAPI[]>([]);
+
     const [selectedIssue, setSelectedIssue] =
         useState<IssueAPI | null>(null);
 
@@ -110,6 +118,12 @@ export default function IssuesTab({
     const [actionError, setActionError] =
         useState<string | null>(null);
 
+    const [selectedAssignees, setSelectedAssignees] =
+        useState<Record<number, string>>({});
+
+    const [pendingAssignmentIssueId, setPendingAssignmentIssueId] =
+        useState<number | null>(null);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -121,16 +135,21 @@ export default function IssuesTab({
                 const [
                     repositoryIssues,
                     repositoryBounties,
+                    repositoryMembers,
                 ] = await Promise.all([
                     issueApi.getIssues(repoName),
                     bountyApi.getBountiesByRepo(
                         repoId.toString()
                     ),
+                    canManageBounties
+                        ? codebaseMemberApi.getMembers(repoName)
+                        : Promise.resolve([]),
                 ]);
 
                 if (!cancelled) {
                     setIssues(repositoryIssues);
                     setBounties(repositoryBounties);
+                    setMembers(repositoryMembers);
                 }
             } catch {
                 if (!cancelled) {
@@ -150,7 +169,7 @@ export default function IssuesTab({
         return () => {
             cancelled = true;
         };
-    }, [repoId, repoName]);
+    }, [repoId, repoName, canManageBounties]);
 
     useEffect(() => {
         if (!successMessage) {
@@ -305,6 +324,43 @@ export default function IssuesTab({
             );
         } finally {
             setPendingBountyAction(null);
+        }
+    };
+
+    const handleAssignIssue = async (issue: IssueAPI) => {
+        const username = selectedAssignees[issue.id];
+
+        if (!username) {
+            setActionError('Choose a member to assign.');
+            return;
+        }
+
+        setPendingAssignmentIssueId(issue.id);
+        setSuccessMessage(null);
+        setActionError(null);
+
+        try {
+            const updatedIssue = await issueApi.assignIssue(
+                repoName,
+                issue.number,
+                username
+            );
+
+            setIssues((currentIssues) =>
+                currentIssues.map((currentIssue) =>
+                    currentIssue.id === updatedIssue.id
+                        ? updatedIssue
+                        : currentIssue
+                )
+            );
+
+            setSuccessMessage(
+                `Assigned issue #${updatedIssue.number} to ${username}.`
+            );
+        } catch {
+            setActionError('Failed to assign issue.');
+        } finally {
+            setPendingAssignmentIssueId(null);
         }
     };
 
@@ -482,6 +538,15 @@ export default function IssuesTab({
                             !isClosed(issue) &&
                             !existingBounty;
 
+                        const canAssignIssue =
+                            canManageBounties && !isClosed(issue);
+
+                        const selectedAssignee =
+                            selectedAssignees[issue.id] ?? issue.assignedToUsername ?? '';
+
+                        const isAssigning =
+                            pendingAssignmentIssueId === issue.id;
+
                         return (
                             <li
                                 key={issue.id}
@@ -538,11 +603,66 @@ export default function IssuesTab({
                                                 issue.authorUsername
                                             }
                                         </strong>
+                                        {issue.assignedToUsername && (
+                                            <>
+                                                {' · '}
+                                                assigned to{' '}
+                                                <strong>
+                                                    {issue.assignedToUsername}
+                                                </strong>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
-                                {(canAddBounty || canResolveBounty) && (
+                                {(canAssignIssue || canAddBounty || canResolveBounty) && (
                                     <div className="issue-bounty-actions">
+
+                                        {canAssignIssue && (
+                                            <div className="issue-assign-controls">
+                                                <select
+                                                    className="issue-assignee-select"
+                                                    value={selectedAssignee}
+                                                    onChange={(event) => {
+                                                        setSelectedAssignees((current) => ({
+                                                            ...current,
+                                                            [issue.id]: event.target.value,
+                                                        }));
+                                                    }}
+                                                    disabled={isAssigning || members.length === 0}
+                                                >
+                                                    <option value="">
+                                                        {members.length === 0
+                                                            ? 'No members available'
+                                                            : 'Choose assignee'}
+                                                    </option>
+                                                    {members.map((member) => (
+                                                        <option
+                                                            key={member.id}
+                                                            value={member.username}
+                                                        >
+                                                            {member.username} · {member.role}
+                                                        </option>
+                                                    ))}
+                                                </select>
+
+                                                <button
+                                                    type="button"
+                                                    className="issue-assign-btn"
+                                                    disabled={
+                                                        isAssigning
+                                                        || members.length === 0
+                                                        || !selectedAssignee
+                                                    }
+                                                    onClick={() => {
+                                                        void handleAssignIssue(issue);
+                                                    }}
+                                                >
+                                                    {isAssigning ? 'Assigning...' : 'Assign'}
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {canAddBounty && (
                                             <button
                                                 type="button"

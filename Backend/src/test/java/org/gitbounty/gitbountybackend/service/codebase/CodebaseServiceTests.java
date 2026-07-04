@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
+import org.gitbounty.gitbountybackend.model.Branch;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CodebaseServiceTests {
@@ -38,13 +40,15 @@ class CodebaseServiceTests {
     private CodebaseStorageService storageService;
     private CodebaseService codebaseService;
     private User owner;
+    private BranchService branchService;
 
     @BeforeAll
     void initSuite() {
         codebaseRepository = Mockito.mock(CodebaseRepository.class);
         userService = Mockito.mock(UserService.class);
         storageService = Mockito.mock(CodebaseStorageService.class);
-        codebaseService = new CodebaseService(codebaseRepository, storageService, userService);
+        branchService = Mockito.mock(BranchService.class);
+        codebaseService = new CodebaseService(codebaseRepository, storageService, userService, branchService);
         owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
     }
 
@@ -54,7 +58,7 @@ class CodebaseServiceTests {
 
     @BeforeEach
     void resetMocks() {
-        reset(codebaseRepository, userService, storageService);
+        reset(codebaseRepository, userService, storageService, branchService);
     }
 
     @Test
@@ -269,5 +273,27 @@ class CodebaseServiceTests {
         // 2. Act & Assert
         assertThatThrownBy(() -> codebaseService.updateCodebase("unknown", command))
             .isInstanceOf(CodebaseNotFoundException.class);
+    }
+
+    @Test
+    void createCodebaseDeletesStorageWhenDefaultBranchCreationFails() {
+        when(userService.findByKeycloakId(owner.getKeycloakId())).thenReturn(Optional.of(owner));
+        when(codebaseRepository.findByName("demo")).thenReturn(Optional.empty());
+        when(codebaseRepository.saveAndFlush(any(Codebase.class))).thenAnswer(invocation -> {
+                    Codebase codebase = invocation.getArgument(0);
+                    codebase.setId(1L);
+                    return codebase;});
+
+        Mockito.doThrow(new IllegalStateException("branch creation failed")).when(branchService)
+                .createNewBranchForCodebase(any(Codebase.class), Mockito.eq(Branch.DEFAULT_NAME));
+
+        assertThatThrownBy(() -> codebaseService.createCodebase(
+                        "demo",
+                        "Demo repository",
+                        "http://localhost/git/demo.git",
+                        owner.getKeycloakId())
+        ).isInstanceOf(IllegalStateException.class).hasMessageContaining("branch creation failed");
+
+        verify(storageService).deleteRepository("demo");
     }
 }

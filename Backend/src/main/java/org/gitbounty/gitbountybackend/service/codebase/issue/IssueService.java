@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.gitbounty.gitbountybackend.exception.IssueNotFoundException;
 import org.gitbounty.gitbountybackend.service.codebase.issue.event.IssueClosedEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 
 import java.util.List;
 
@@ -24,17 +25,19 @@ public class IssueService {
     private final IssueRepository issueRepository;
     private final CodebaseService codebaseService;
     private final UserService userService;
+    private final CodebaseMemberService codebaseMemberService;
     private final ApplicationEventPublisher eventPublisher;
 
     public IssueService(
             IssueRepository issueRepository,
             CodebaseService codebaseService,
-            UserService userService,
+            UserService userService, CodebaseMemberService codebaseMemberService,
             ApplicationEventPublisher eventPublisher
     ) {
         this.issueRepository = issueRepository;
         this.codebaseService = codebaseService;
         this.userService = userService;
+        this.codebaseMemberService = codebaseMemberService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -109,6 +112,25 @@ public class IssueService {
         }
 
         return savedIssue;
+    }
+
+    @Transactional
+    public Issue assignIssue(String repositoryName, Integer issueNumber, String username) {
+        if (username == null || username.trim().isBlank()) {
+            throw new IllegalArgumentException("Assignee username is required");
+        }
+
+        Issue issue = getIssue(repositoryName, issueNumber);
+
+        if (issue.getStatus() == IssueStatus.CLOSED) {
+            throw new IllegalArgumentException("Cannot assign a closed issue");
+        }
+
+        User assignee = codebaseMemberService.getMemberUser(repositoryName, username.trim());
+
+        issue.setAssignedTo(assignee);
+
+        return issueRepository.saveAndFlush(issue);
     }
 
     /**

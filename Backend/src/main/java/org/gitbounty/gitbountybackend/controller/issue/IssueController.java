@@ -91,4 +91,24 @@ public class IssueController {
 
         return ResponseEntity.ok(IssueResponse.from(issue));
     }
+
+    @PatchMapping("/{issueNumber}/assignee")
+    public ResponseEntity<IssueResponse> assignIssue(
+            @PathVariable String repositoryName,
+            @PathVariable Integer issueNumber,
+            @RequestBody AssignIssueRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (jwt == null || !codebasePermissions.isOwnerBySubject(repositoryName, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to assign issue");
+        }
+
+        Issue issue = issueService.assignIssue(
+                repositoryName,
+                issueNumber,
+                request.username()
+        );
+
+        return ResponseEntity.ok(IssueResponse.from(issue));
+    }
 }

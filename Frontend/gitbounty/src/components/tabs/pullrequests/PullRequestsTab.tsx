@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import PRHeaderControls from './PRHeaderControls';
-import PRList, {type PullRequest} from './PRList';
+import PRList from './PRList';
 import { CreatePullRequestModal } from '../../CreatePullRequestModal';
 import '../../../styles/RepoTabs.css';
-import type {Filter} from "../../icons/pullrequest/PRIcons.tsx";
-import type { CreatePullRequestResponse } from '../../../services/pullRequestService';
-import apiClient from "../../../api/apiClient.ts";
+import type {Filter, PullRequest} from "../../icons/pullrequest/PRIcons.tsx";
+import { pullRequestApi, type CreatePullRequestResponse } from '../../../services/pullRequestService';
+import { useAuth } from '../../../auth/useAuth';
 
 export default function PullRequestsTab({ repoName }: Readonly<{ repoName: string }>) {
     const [filter, setFilter] = useState<Filter>('OPEN');
@@ -13,18 +13,30 @@ export default function PullRequestsTab({ repoName }: Readonly<{ repoName: strin
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const { isLoading: isAuthLoading, authenticated } = useAuth();
 
     useEffect(() => {
+        if (isAuthLoading) return;
+        if (!authenticated) {
+            setPullRequests([]);
+            setLoading(false);
+            setError('You must be logged in to view pull requests');
+            return;
+        }
+
         const fetchPullRequests = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                const response = await apiClient.get<PullRequest[]>(
-                    `/api/codebases/${repoName}/pull-requests`
-                );
-                setPullRequests(response.data);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to fetch pull requests');
+                const data = await pullRequestApi.getPullRequests(repoName);
+                setPullRequests(data);
+            } catch (err: any) {
+                const status = err?.response?.status;
+                if (status === 401 || status === 403) {
+                    setError('Unauthorized. Please sign in again.');
+                } else {
+                    setError(err instanceof Error ? err.message : 'Failed to fetch pull requests');
+                }
                 setPullRequests([]);
             } finally {
                 setLoading(false);
@@ -32,7 +44,7 @@ export default function PullRequestsTab({ repoName }: Readonly<{ repoName: strin
         };
 
         fetchPullRequests();
-    }, [repoName]);
+    }, [repoName, isAuthLoading, authenticated]);
 
     // Memoizing calculations prevents unnecessary re-runs on unrelated state updates
     const counts = useMemo(() => {

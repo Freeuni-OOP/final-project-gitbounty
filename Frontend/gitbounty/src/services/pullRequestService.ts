@@ -49,5 +49,14 @@ export const pullRequestApi = {
 
         return response.data;
     },
+
+    async mergePullRequest(
+        repositoryName: string,
+        prNumber: number
+    ): Promise<void> {
+        await apiClient.post(
+            `${getPullRequestsPath(repositoryName)}/${prNumber}/merge`
+        );
+    },
 };
 

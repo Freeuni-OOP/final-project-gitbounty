@@ -13,6 +13,8 @@ import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
+import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
+import org.gitbounty.gitbountybackend.model.Branch;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class CodebaseService {
     private final CodebaseRepository codebaseRepository;
     private final CodebaseStorageService codebaseStorageService;
     private final UserService userService;
+    private final BranchService branchService;
 
     public Codebase createCodebase(String name, String description, String gitUrl, String userId) {
         String repositoryName = normalize(name);
@@ -29,10 +32,14 @@ public class CodebaseService {
         if (codebaseRepository.findByName(repositoryName).isPresent()) {
             throw new IllegalStateException("Repository already exists");
         }
+
         codebaseStorageService.createRepository(repositoryName);
 
         try {
-            return codebaseRepository.saveAndFlush(new Codebase(repositoryName, description == null ? null : description.trim(), gitUrl, owner));
+            Codebase codebase = codebaseRepository.saveAndFlush(new Codebase(repositoryName, description == null ? null : description.trim(), gitUrl, owner));
+            branchService.createNewBranchForCodebase(codebase, Branch.DEFAULT_NAME);
+
+            return codebase;
         } catch (RuntimeException e) {
             try { codebaseStorageService.deleteRepository(repositoryName); }
             catch (RuntimeException cleanupError) { e.addSuppressed(cleanupError); }
