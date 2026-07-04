@@ -10,6 +10,7 @@ import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,16 +24,19 @@ public class BountyService {
     private final IssueRepository issueRepository;
     private final UserRepository userRepository;
     private final TransactionService transactionService;
+    private final IssueService issueService;
 
     @Autowired
     public BountyService(BountyRepository bountyRepository,
                          IssueRepository issueRepository,
                          UserRepository userRepository,
-                         TransactionService transactionService) {
+                         TransactionService transactionService,
+                         IssueService issueService) {
         this.bountyRepository = bountyRepository;
         this.issueRepository = issueRepository;
         this.userRepository = userRepository;
         this.transactionService = transactionService;
+        this.issueService = issueService;
     }
 
     @Transactional
@@ -174,7 +178,13 @@ public class BountyService {
         dto.setStatus(bounty.getStatus());
 
         if (bounty.getIssue() != null) {
-            dto.setIssueId(bounty.getIssue().getId());
+            Issue issue = bounty.getIssue();
+            dto.setIssueId(issue.getId());
+
+            if (issue.getAssignedTo() != null) {
+                dto.setAssignedToId(issue.getAssignedTo().getId());
+                dto.setAssignedToUsername(issue.getAssignedTo().getUsername());
+            }
         }
 
         return dto;
@@ -184,5 +194,39 @@ public class BountyService {
         return bountyRepository.findByIssue_Repository_Id(repoId).stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public BountyDTO claimBounty(Long bountyId, String claimantKeycloakId) {
+        if (claimantKeycloakId == null || claimantKeycloakId.isBlank()) {
+            throw new IllegalArgumentException("Authenticated user is required.");
+        }
+
+        Bounty bounty = bountyRepository.findById(bountyId)
+                .orElseThrow(() -> new BountyNotFoundException(bountyId));
+
+        if (bounty.getStatus() != BountyStatus.OPEN) {
+            throw new IllegalArgumentException("Only open bounties can be claimed.");
+        }
+
+        Issue issue = bounty.getIssue();
+        if (issue == null || issue.getId() == null) {
+            throw new IllegalStateException("Bounty is not attached to a valid issue.");
+        }
+
+        User claimant = userRepository.findByKeycloakId(claimantKeycloakId)
+                .orElseThrow(() -> new UserNotFoundException("Authenticated user not found."));
+
+        User owner = issue.getRepository().getOwner();
+        if (owner != null && claimantKeycloakId.equals(owner.getKeycloakId())) {
+            throw new IllegalArgumentException("Repository owner cannot claim their own bounty.");
+        }
+
+        Issue claimedIssue = issueService.claimIssue(issue, claimant);
+
+        bounty.setIssue(claimedIssue);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+
+        return convertToDto(bountyRepository.save(bounty));
     }
 }

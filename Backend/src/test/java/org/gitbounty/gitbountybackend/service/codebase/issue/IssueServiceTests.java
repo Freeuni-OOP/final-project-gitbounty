@@ -522,4 +522,39 @@ class IssueServiceTests {
 
         verify(codebaseMemberService).getMemberUser("gitbounty-core", "developer");
     }
+
+    @Test
+    void claimIssue_ShouldAssignOpenUnassignedIssue() {
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+
+        User claimant = new User();
+        claimant.setId(2L);
+        claimant.setUsername("contributor");
+
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        Issue result = issueService.claimIssue(issue, claimant);
+
+        assertEquals(claimant, result.getAssignedTo());
+        verify(issueRepository).saveAndFlush(issue);
+    }
+
+    @Test
+    void claimIssue_ShouldRejectAlreadyAssignedIssue() {
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAssignedTo(user("existing"));
+
+        User claimant = user("contributor");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.claimIssue(issue, claimant)
+        );
+
+        verify(issueRepository, never()).saveAndFlush(any(Issue.class));
+    }
 }

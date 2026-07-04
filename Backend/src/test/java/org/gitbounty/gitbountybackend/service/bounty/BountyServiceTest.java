@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -32,6 +33,9 @@ class BountyServiceTest {
 
     @Mock
     private TransactionService transactionService;
+
+    @Mock
+    private IssueService issueService;
 
     @InjectMocks
     private BountyService bountyService;
@@ -245,5 +249,67 @@ class BountyServiceTest {
         assertEquals(BountyStatus.COMPLETED, bounty.getStatus());
 
         verify(bountyRepository).save(bounty);
+    }
+
+    @Test
+    void claimBounty_ShouldAssignIssueAndMarkBountyAssigned() {
+        User owner = new User();
+        owner.setId(1L);
+        owner.setUsername("jemala");
+        owner.setKeycloakId("jemala's kc");
+
+        User claimant = new User();
+        claimant.setId(2L);
+        claimant.setUsername("cooler jemala");
+        claimant.setKeycloakId("cooler jemala's kc");
+
+        Codebase codebase = new Codebase();
+        codebase.setOwner(owner);
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setRepository(codebase);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.OPEN);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+        when(userRepository.findByKeycloakId("cooler jemala's kc")).thenReturn(Optional.of(claimant));
+        when(issueService.claimIssue(issue, claimant)).thenAnswer(invocation -> {
+            issue.setAssignedTo(claimant);
+            return issue;
+        });
+        when(bountyRepository.save(bounty)).thenReturn(bounty);
+
+        BountyDTO result = bountyService.claimBounty(1L, "cooler jemala's kc");
+
+        assertEquals(BountyStatus.ASSIGNED, result.getStatus());
+        assertEquals(2L, result.getAssignedToId());
+        assertEquals("cooler jemala", result.getAssignedToUsername());
+
+        verify(issueService).claimIssue(issue, claimant);
+        verify(bountyRepository).save(bounty);
+    }
+
+    @Test
+    void claimBounty_ShouldRejectAlreadyAssignedBounty() {
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> bountyService.claimBounty(1L, "jemala's kc")
+        );
+
+        verifyNoInteractions(issueService);
+        verify(bountyRepository, never()).save(any(Bounty.class));
     }
 }

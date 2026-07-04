@@ -11,4 +11,6 @@ public class BountyDTO {
     private Double amount;
     private BountyStatus status;
     private Long issueId; //only id of the issue
+    private Long assignedToId;
+    private String assignedToUsername;
 }

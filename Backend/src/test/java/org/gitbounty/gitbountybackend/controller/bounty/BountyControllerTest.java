@@ -151,4 +151,23 @@ class BountyControllerTest {
                 .andExpect(status().isNoContent());
         verify(bountyService).cancelBounty(1L);
     }
+
+    @Test
+    void claimBounty_ShouldReturnOk() throws Exception {
+        BountyDTO claimed = bountyDto(1L, "Fixx bug", 100.0, BountyStatus.ASSIGNED, 10L);
+        claimed.setAssignedToId(2L);
+        claimed.setAssignedToUsername("jemala");
+
+        when(bountyService.claimBounty(1L, "kc-jemala")).thenReturn(claimed);
+
+        mockMvc.perform(post("/api/bounties/1/claim")
+                        .with(jwt().jwt(builder -> builder.subject("kc-jemala"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.assignedToId").value(2))
+                .andExpect(jsonPath("$.assignedToUsername").value("jemala"));
+
+        verify(bountyService).claimBounty(1L, "kc-jemala");
+    }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { bountyApi } from '../services/bountyService';
 import type { BountyAPI } from '../types/Bounty';
 import '../styles/RepoTabs.css';
+import { useAuth } from '../auth/useAuth';
 
 type Filter = 'all' | BountyAPI['status'];
 const FILTERS: Filter[] = ['all', 'OPEN', 'ASSIGNED', 'COMPLETED', 'CANCELLED'];
@@ -10,6 +11,10 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
     const [filter, setFilter] = useState<Filter>('all');
     const [bounties, setBounties] = useState<BountyAPI[]>([]);
     const [loading, setLoading] = useState(true);
+    const { authenticated } = useAuth();
+    const [claimingBountyId, setClaimingBountyId] = useState<number | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchBounties() {
@@ -26,6 +31,30 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
         fetchBounties();
     }, [repoId]);
 
+    const handleClaimBounty = async (bounty: BountyAPI) => {
+        setClaimingBountyId(bounty.id);
+        setActionError(null);
+        setSuccessMessage(null);
+
+        try {
+            const updatedBounty = await bountyApi.claimBounty(bounty.id);
+
+            setBounties((currentBounties) =>
+                currentBounties.map((currentBounty) =>
+                    currentBounty.id === updatedBounty.id
+                        ? updatedBounty
+                        : currentBounty
+                )
+            );
+
+            setSuccessMessage(`Claimed bounty "${updatedBounty.title}".`);
+        } catch {
+            setActionError('Failed to claim bounty.');
+        } finally {
+            setClaimingBountyId(null);
+        }
+    };
+
     const shown = filter === 'all'
         ? bounties
         : bounties.filter((b) => b.status === filter);
@@ -36,6 +65,18 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
 
     return (
         <div className="tab-panel">
+            {successMessage && (
+                <div className="tab-success-banner" role="status">
+                    {successMessage}
+                </div>
+            )}
+
+            {actionError && (
+                <div className="tab-error-banner" role="alert">
+                    {actionError}
+                </div>
+            )}
+
             <div className="tab-panel-header bounties-header-row">
                 <div className="bounty-filters">
                     {FILTERS.map((f) => (
@@ -65,11 +106,30 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
                                         {bounty.title}
                                     </span>
 
-                                    {/* CLEAN MODIFIER CLASS FIX APPLIED HERE */}
                                     <span className={`bounty-status-badge status-${bounty.status.toLowerCase()}`}>
                                         {bounty.status}
                                     </span>
                                 </div>
+
+                                {bounty.assignedToUsername && (
+                                    <span className="tab-item-meta">
+                                        Claimed by <strong>{bounty.assignedToUsername}</strong>
+                                    </span>
+                                )}
+
+                                {authenticated && bounty.status === 'OPEN' && (
+                                    <button
+                                        type="button"
+                                        className="issue-add-bounty-btn"
+                                        disabled={claimingBountyId === bounty.id}
+                                        onClick={() => {
+                                            void handleClaimBounty(bounty);
+                                        }}
+                                    >
+                                        {claimingBountyId === bounty.id ? 'Claiming...' : 'Claim bounty'}
+                                    </button>
+                                )}
+
                                 <div className="tab-item-meta">
                                     Click to view detailed reward conditions
                                 </div>

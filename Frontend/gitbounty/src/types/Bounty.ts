@@ -46,6 +46,8 @@ export interface BountyAPI {
     amount: number;
     status: BountyStatus;
     issueId: number;
+    assignedToId: number | null;
+    assignedToUsername: string | null;
 }
 
 export interface CreateBountyRequest {

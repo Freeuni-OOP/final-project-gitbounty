@@ -49,4 +49,12 @@ export const bountyApi = {
             `/api/bounties/${id}/cancel`
         );
     },
+
+    async claimBounty(id: number): Promise<BountyAPI> {
+        const response = await apiClient.post<BountyAPI>(
+            `/api/bounties/${id}/claim`
+        );
+
+        return response.data;
+    },
 };

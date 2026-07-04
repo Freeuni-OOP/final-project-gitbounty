@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 
@@ -62,5 +63,16 @@ public class BountyController {
     public ResponseEntity<Void> cancelBounty(@PathVariable Long id) {
         bountyService.cancelBounty(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/claim")
+    public ResponseEntity<BountyDTO> claimBounty(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+
+        return ResponseEntity.ok(
+                bountyService.claimBounty(id, jwt.getSubject())
+        );
     }
 }

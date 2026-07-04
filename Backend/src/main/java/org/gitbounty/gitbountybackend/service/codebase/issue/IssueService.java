@@ -146,4 +146,26 @@ public class IssueService {
 
         eventPublisher.publishEvent(IssueClosedEvent.completed(issue.getId(), assignedUser.getId()));
     }
+
+    @Transactional
+    public Issue claimIssue(Issue issue, User claimant) {
+        if (issue == null || issue.getId() == null) {
+            throw new IllegalArgumentException("A saved issue is required.");
+        }
+
+        if (claimant == null || claimant.getId() == null) {
+            throw new IllegalArgumentException("A saved claimant is required.");
+        }
+
+        if (issue.getStatus() == IssueStatus.CLOSED) {
+            throw new IllegalArgumentException("Cannot claim a closed issue.");
+        }
+
+        if (issue.getAssignedTo() != null) {
+            throw new IllegalArgumentException("Issue is already assigned.");
+        }
+
+        issue.setAssignedTo(claimant);
+        return issueRepository.saveAndFlush(issue);
+    }
 }
