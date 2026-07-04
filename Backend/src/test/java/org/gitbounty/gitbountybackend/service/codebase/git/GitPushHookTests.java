@@ -25,6 +25,8 @@ import static org.mockito.Mockito.*;
 import org.gitbounty.gitbountybackend.model.Branch;
 import java.util.Optional;
 
+import org.gitbounty.gitbountybackend.service.codebase.branch.Branches;
+
 @ExtendWith(MockitoExtension.class)
 public class GitPushHookTests {
 
@@ -97,7 +99,7 @@ public class GitPushHookTests {
         ReceiveCommand cmd = new ReceiveCommand(
                 ObjectId.fromString("1111111111111111111111111111111111111111"),
                 ObjectId.fromString("1111111111111111111111111111111111111111"),
-                "refs/heads/main",
+                "refs/heads/" + Branches.DEFAULT_NAME,
                 ReceiveCommand.Type.UPDATE_NONFASTFORWARD
         );
 
@@ -154,14 +156,14 @@ public class GitPushHookTests {
         ReceiveCommand cmd = new ReceiveCommand(
                 ObjectId.fromString("cccccccccccccccccccccccccccccccccccccccc"),
                 ObjectId.fromString("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-                "refs/heads/main",
+                "refs/heads/" + Branches.DEFAULT_NAME,
                 ReceiveCommand.Type.UPDATE
         );
 
         gitPushHook.onPostReceive(receivePack, List.of(cmd));
 
         verify(commitHistoryReader, times(1)).readCommits(any(), any(), any());
-        verify(branchService, times(1)).updateBranchLatestCommit(eq(codebase), eq("main"), any(Commit.class));
+        verify(branchService, times(1)).updateBranchLatestCommit(eq(codebase), eq(Branches.DEFAULT_NAME), any(Commit.class));
     }
 
     @Test
@@ -171,10 +173,10 @@ public class GitPushHookTests {
         Codebase codebase = new Codebase();
         codebase.setId(7L);
 
-        Branch existingMain = Branch.builder().id(1L).codebase(codebase).name("refs/heads/main").latestCommit(null).build();
+        Branch existingMain = Branch.builder().id(1L).codebase(codebase).name("refs/heads/" + Branches.DEFAULT_NAME).latestCommit(null).build();
 
         when(codebaseService.getCodebase("myrepo")).thenReturn(codebase);
-        when(branchService.findBranchForCodebase(codebase, "main")).thenReturn(Optional.of(existingMain));
+        when(branchService.findBranchForCodebase(codebase, Branches.DEFAULT_NAME)).thenReturn(Optional.of(existingMain));
 
         RevCommit commit = mockCommit(
                 "dddddddddddddddddddddddddddddddddddddddd",
@@ -192,13 +194,13 @@ public class GitPushHookTests {
         ReceiveCommand command = new ReceiveCommand(
                 ObjectId.zeroId(),
                 ObjectId.fromString("dddddddddddddddddddddddddddddddddddddddd"),
-                "refs/heads/main",
+                "refs/heads/" + Branches.DEFAULT_NAME,
                 ReceiveCommand.Type.CREATE
         );
 
         gitPushHook.onPostReceive(receivePack, List.of(command));
 
-        verify(branchService).updateBranchLatestCommit(eq(codebase), eq("main"), any(Commit.class));
-        verify(branchService, never()).createNewBranchForCodebase(eq(codebase), eq("main"), any(Commit.class));
+        verify(branchService).updateBranchLatestCommit(eq(codebase), eq(Branches.DEFAULT_NAME), any(Commit.class));
+        verify(branchService, never()).createNewBranchForCodebase(eq(codebase), eq(Branches.DEFAULT_NAME), any(Commit.class));
     }
 }

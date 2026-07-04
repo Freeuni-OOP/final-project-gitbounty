@@ -14,7 +14,7 @@ import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageSe
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Service;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
-import org.springframework.transaction.annotation.Transactional;
+import org.gitbounty.gitbountybackend.service.codebase.branch.Branches;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +25,6 @@ public class CodebaseService {
     private final UserService userService;
     private final BranchService branchService;
 
-    @Transactional
     public Codebase createCodebase(String name, String description, String gitUrl, String userId) {
         String repositoryName = normalize(name);
         User owner = userService.findByKeycloakId(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
@@ -38,7 +37,7 @@ public class CodebaseService {
 
         try {
             Codebase codebase = codebaseRepository.saveAndFlush(new Codebase(repositoryName, description == null ? null : description.trim(), gitUrl, owner));
-            branchService.createNewBranchForCodebase(codebase, "main");
+            branchService.createNewBranchForCodebase(codebase, Branches.DEFAULT_NAME);
 
             return codebase;
         } catch (RuntimeException e) {

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
+import org.gitbounty.gitbountybackend.service.codebase.branch.Branches;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CodebaseServiceTests {
@@ -284,7 +285,7 @@ class CodebaseServiceTests {
                     return codebase;});
 
         Mockito.doThrow(new IllegalStateException("branch creation failed")).when(branchService)
-                .createNewBranchForCodebase(any(Codebase.class), Mockito.eq("main"));
+                .createNewBranchForCodebase(any(Codebase.class), Mockito.eq(Branches.DEFAULT_NAME));
 
         assertThatThrownBy(() -> codebaseService.createCodebase(
                         "demo",
