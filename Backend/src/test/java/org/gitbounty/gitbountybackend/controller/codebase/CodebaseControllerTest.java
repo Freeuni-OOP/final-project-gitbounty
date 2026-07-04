@@ -112,7 +112,7 @@ class CodebaseControllerTest {
                 .andExpect(jsonPath("$.ownerUsername").value("owner"))
                 .andExpect(jsonPath("$.branches").isArray())
                 .andExpect(jsonPath("$.branches.length()").value(1))
-                .andExpect(jsonPath("$.branches[0].name").value("refs/heads/main"));
+                .andExpect(jsonPath("$.branches[0].name").value("main"));
 
         verify(codebaseService).createCodebase(eq("my-repo"), eq("Test repo"), anyString(), eq("kc-owner"));
         verify(branchService).getAllBranchesForCodebase(created);
