@@ -229,4 +229,33 @@ public class BountyService {
 
         return convertToDto(bountyRepository.save(bounty));
     }
+
+    @Transactional
+    public BountyDTO unclaimBounty(Long bountyId, String claimantKeycloakId) {
+        if (claimantKeycloakId == null || claimantKeycloakId.isBlank()) {
+            throw new IllegalArgumentException("Authenticated user is required.");
+        }
+
+        Bounty bounty = bountyRepository.findById(bountyId)
+                .orElseThrow(() -> new BountyNotFoundException(bountyId));
+
+        if (bounty.getStatus() != BountyStatus.ASSIGNED) {
+            throw new IllegalArgumentException("Only assigned bounties can be left.");
+        }
+
+        Issue issue = bounty.getIssue();
+        if (issue == null || issue.getId() == null) {
+            throw new IllegalStateException("Bounty is not attached to a valid issue.");
+        }
+
+        User claimant = userRepository.findByKeycloakId(claimantKeycloakId)
+                .orElseThrow(() -> new UserNotFoundException("Authenticated user not found."));
+
+        Issue unclaimedIssue = issueService.unclaimIssue(issue, claimant);
+
+        bounty.setIssue(unclaimedIssue);
+        bounty.setStatus(BountyStatus.OPEN);
+
+        return convertToDto(bountyRepository.save(bounty));
+    }
 }

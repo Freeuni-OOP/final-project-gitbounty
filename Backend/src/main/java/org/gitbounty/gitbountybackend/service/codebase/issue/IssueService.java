@@ -168,4 +168,31 @@ public class IssueService {
         issue.setAssignedTo(claimant);
         return issueRepository.saveAndFlush(issue);
     }
+
+    @Transactional
+    public Issue unclaimIssue(Issue issue, User claimant) {
+        if (issue == null || issue.getId() == null) {
+            throw new IllegalArgumentException("A saved issue is required.");
+        }
+
+        if (claimant == null || claimant.getId() == null) {
+            throw new IllegalArgumentException("A saved claimant is required.");
+        }
+
+        if (issue.getStatus() == IssueStatus.CLOSED) {
+            throw new IllegalArgumentException("Cannot leave a closed issue.");
+        }
+
+        User assignedUser = issue.getAssignedTo();
+        if (assignedUser == null) {
+            throw new IllegalArgumentException("Issue is not assigned.");
+        }
+
+        if (!claimant.getId().equals(assignedUser.getId())) {
+            throw new IllegalArgumentException("Only the assigned user can leave this issue.");
+        }
+
+        issue.setAssignedTo(null);
+        return issueRepository.saveAndFlush(issue);
+    }
 }

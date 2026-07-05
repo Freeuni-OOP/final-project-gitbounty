@@ -557,4 +557,63 @@ class IssueServiceTests {
 
         verify(issueRepository, never()).saveAndFlush(any(Issue.class));
     }
+
+    @Test
+    void unclaimIssue_ShouldClearAssignedUser_WhenClaimantIsAssignedUser() {
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+
+        User claimant = user("contributor");
+        claimant.setId(2L);
+
+        issue.setAssignedTo(claimant);
+
+        when(issueRepository.saveAndFlush(issue)).thenReturn(issue);
+
+        Issue result = issueService.unclaimIssue(issue, claimant);
+
+        assertNull(result.getAssignedTo());
+        verify(issueRepository).saveAndFlush(issue);
+    }
+
+    @Test
+    void unclaimIssue_ShouldRejectDifferentUser() {
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+
+        User assignedUser = user("assigned");
+        assignedUser.setId(2L);
+
+        User otherUser = user("other");
+        otherUser.setId(3L);
+
+        issue.setAssignedTo(assignedUser);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.unclaimIssue(issue, otherUser)
+        );
+
+        verify(issueRepository, never()).saveAndFlush(any(Issue.class));
+    }
+
+    @Test
+    void unclaimIssue_ShouldRejectUnassignedIssue() {
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAssignedTo(null);
+
+        User claimant = user("contributor");
+        claimant.setId(2L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> issueService.unclaimIssue(issue, claimant)
+        );
+
+        verify(issueRepository, never()).saveAndFlush(any(Issue.class));
+    }
 }

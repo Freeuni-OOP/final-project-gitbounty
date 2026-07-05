@@ -312,4 +312,99 @@ class BountyServiceTest {
         verifyNoInteractions(issueService);
         verify(bountyRepository, never()).save(any(Bounty.class));
     }
+
+    @Test
+    void unclaimBounty_ShouldClearIssueAssigneeAndMarkBountyOpen() {
+        User claimant = new User();
+        claimant.setId(2L);
+        claimant.setUsername("jemala");
+        claimant.setKeycloakId("kc-jemala");
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAssignedTo(claimant);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+        when(userRepository.findByKeycloakId("kc-jemala")).thenReturn(Optional.of(claimant));
+
+        when(issueService.unclaimIssue(issue, claimant)).thenAnswer(invocation -> {
+            issue.setAssignedTo(null);
+            return issue;
+        });
+
+        when(bountyRepository.save(bounty)).thenReturn(bounty);
+
+        BountyDTO result = bountyService.unclaimBounty(1L, "kc-jemala");
+
+        assertEquals(BountyStatus.OPEN, result.getStatus());
+        assertNull(result.getAssignedToId());
+        assertNull(result.getAssignedToUsername());
+
+        verify(issueService).unclaimIssue(issue, claimant);
+        verify(bountyRepository).save(bounty);
+    }
+
+    @Test
+    void unclaimBounty_ShouldRejectOpenBounty() {
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setStatus(BountyStatus.OPEN);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> bountyService.unclaimBounty(1L, "kc-jemala")
+        );
+
+        verifyNoInteractions(issueService);
+        verify(bountyRepository, never()).save(any(Bounty.class));
+    }
+
+    @Test
+    void unclaimBounty_ShouldRejectWhenUserIsNotAssignedClaimant() {
+        User assignedUser = new User();
+        assignedUser.setId(2L);
+        assignedUser.setUsername("jemala");
+        assignedUser.setKeycloakId("kc-jemala");
+
+        User otherUser = new User();
+        otherUser.setId(3L);
+        otherUser.setUsername("cooler jemala");
+        otherUser.setKeycloakId("kc-cooler jemala");
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setAssignedTo(assignedUser);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(1L)).thenReturn(Optional.of(bounty));
+        when(userRepository.findByKeycloakId("kc-cooler jemala")).thenReturn(Optional.of(otherUser));
+
+        when(issueService.unclaimIssue(issue, otherUser))
+                .thenThrow(new IllegalArgumentException("Only the assigned user can leave this issue."));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> bountyService.unclaimBounty(1L, "kc-cooler jemala")
+        );
+
+        verify(issueService).unclaimIssue(issue, otherUser);
+        verify(bountyRepository, never()).save(any(Bounty.class));
+    }
+
+
 }

@@ -75,4 +75,16 @@ public class BountyController {
                 bountyService.claimBounty(id, jwt.getSubject())
         );
     }
+
+    @PostMapping("/{id}/unclaim")
+    public ResponseEntity<BountyDTO> unclaimBounty(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+
+        return ResponseEntity.ok(
+                bountyService.unclaimBounty(id, jwt.getSubject())
+        );
+    }
 }

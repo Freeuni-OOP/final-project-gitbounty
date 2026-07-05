@@ -57,4 +57,12 @@ export const bountyApi = {
 
         return response.data;
     },
+
+    async unclaimBounty(id: number): Promise<BountyAPI> {
+        const response = await apiClient.post<BountyAPI>(
+            `/api/bounties/${id}/unclaim`
+        );
+
+        return response.data;
+    },
 };

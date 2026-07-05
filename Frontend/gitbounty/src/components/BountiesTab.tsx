@@ -3,6 +3,7 @@ import { bountyApi } from '../services/bountyService';
 import type { BountyAPI } from '../types/Bounty';
 import '../styles/RepoTabs.css';
 import { useAuth } from '../auth/useAuth';
+import { useProfileData } from '../hooks/useProfileData';
 
 type Filter = 'all' | BountyAPI['status'];
 const FILTERS: Filter[] = ['all', 'OPEN', 'ASSIGNED', 'COMPLETED', 'CANCELLED'];
@@ -12,9 +13,11 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
     const [bounties, setBounties] = useState<BountyAPI[]>([]);
     const [loading, setLoading] = useState(true);
     const { authenticated } = useAuth();
+    const { user } = useProfileData();
     const [claimingBountyId, setClaimingBountyId] = useState<number | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [unclaimingBountyId, setUnclaimingBountyId] = useState<number | null>(null);
 
     useEffect(() => {
         async function fetchBounties() {
@@ -52,6 +55,30 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
             setActionError('Failed to claim bounty.');
         } finally {
             setClaimingBountyId(null);
+        }
+    };
+
+    const handleUnclaimBounty = async (bounty: BountyAPI) => {
+        setUnclaimingBountyId(bounty.id);
+        setActionError(null);
+        setSuccessMessage(null);
+
+        try {
+            const updatedBounty = await bountyApi.unclaimBounty(bounty.id);
+
+            setBounties((currentBounties) =>
+                currentBounties.map((currentBounty) =>
+                    currentBounty.id === updatedBounty.id
+                        ? updatedBounty
+                        : currentBounty
+                )
+            );
+
+            setSuccessMessage(`Left bounty "${updatedBounty.title}".`);
+        } catch {
+            setActionError('Failed to leave bounty.');
+        } finally {
+            setUnclaimingBountyId(null);
         }
     };
 
@@ -96,6 +123,11 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
 
             <ul className="tab-item-list">
                 {shown.map((bounty) => {
+                    const isClaimedByCurrentUser =
+                        authenticated
+                        && user !== null
+                        && bounty.status === 'ASSIGNED'
+                        && bounty.assignedToId === user.id;
                     return (
                         <li key={bounty.id} className="tab-item bounty-item">
                             <div className="bounty-amount">${bounty.amount}</div>
@@ -127,6 +159,19 @@ export default function BountiesTab({ repoId }: { repoId: string }) {
                                         }}
                                     >
                                         {claimingBountyId === bounty.id ? 'Claiming...' : 'Claim bounty'}
+                                    </button>
+                                )}
+
+                                {isClaimedByCurrentUser && (
+                                    <button
+                                        type="button"
+                                        className="issue-bounty-action-btn cancel"
+                                        disabled={unclaimingBountyId === bounty.id}
+                                        onClick={() => {
+                                            void handleUnclaimBounty(bounty);
+                                        }}
+                                    >
+                                        {unclaimingBountyId === bounty.id ? 'Leaving...' : 'Leave bounty'}
                                     </button>
                                 )}
 
