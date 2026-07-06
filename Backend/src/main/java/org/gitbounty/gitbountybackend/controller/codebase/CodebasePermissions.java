@@ -13,12 +13,10 @@ import org.springframework.stereotype.Component;
 public class CodebasePermissions {
 
     private final CodebaseService codebaseService;
-    private final CodebaseMemberRepository codebaseMemberRepository;
 
     public CodebasePermissions(CodebaseService codebaseService,
                               CodebaseMemberRepository codebaseMemberRepository) {
         this.codebaseService = codebaseService;
-        this.codebaseMemberRepository = codebaseMemberRepository;
     }
 
     /**
