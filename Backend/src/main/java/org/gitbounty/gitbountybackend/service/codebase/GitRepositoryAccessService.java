@@ -58,7 +58,8 @@ public class GitRepositoryAccessService {
         }
         // strip away the .git suffix
 
-        return repositoryDirectory.getName().replace(".git", "");
+        String name = repositoryDirectory.getName();
+        return name.endsWith(".git") ? name.substring(0, name.length() - 4) : name;
     }
 }
 
