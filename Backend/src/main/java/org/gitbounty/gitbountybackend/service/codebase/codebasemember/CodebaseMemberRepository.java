@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-interface CodebaseMemberRepository extends JpaRepository<CodebaseMember, Long> {
+public interface CodebaseMemberRepository extends JpaRepository<CodebaseMember, Long> {
 
     // Find a specific membership by repository and user IDs
     Optional<CodebaseMember> findByCodebaseIdAndUserId(Long codebaseId, Long userId);
