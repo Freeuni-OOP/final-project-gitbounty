@@ -34,7 +34,7 @@ class GitRepositoryAccessServiceTests {
             when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
             when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of());
 
-            assertThatCode(() -> accessService.assertOwnerCanWrite(repository, principal))
+            assertThatCode(() -> accessService.assertUserCanWrite(repository, principal))
                 .doesNotThrowAnyException();
         }
     }
@@ -59,7 +59,7 @@ class GitRepositoryAccessServiceTests {
             when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
             when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of(member));
 
-            assertThatCode(() -> accessService.assertOwnerCanWrite(repository, principal))
+            assertThatCode(() -> accessService.assertUserCanWrite(repository, principal))
                 .doesNotThrowAnyException();
         }
     }
@@ -84,7 +84,7 @@ class GitRepositoryAccessServiceTests {
             when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
             when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of(member));
 
-            assertThatCode(() -> accessService.assertOwnerCanWrite(repository, principal))
+            assertThatCode(() -> accessService.assertUserCanWrite(repository, principal))
                 .doesNotThrowAnyException();
         }
     }
@@ -109,7 +109,7 @@ class GitRepositoryAccessServiceTests {
             when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
             when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of(member));
 
-            assertThatThrownBy(() -> accessService.assertOwnerCanWrite(repository, principal))
+            assertThatThrownBy(() -> accessService.assertUserCanWrite(repository, principal))
                 .isInstanceOf(ServiceNotAuthorizedException.class)
                 .hasMessageContaining("Only repository owners and members with developer or maintainer access may push");
         }
@@ -133,7 +133,7 @@ class GitRepositoryAccessServiceTests {
             when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
             when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of());
 
-            assertThatThrownBy(() -> accessService.assertOwnerCanWrite(repository, principal))
+            assertThatThrownBy(() -> accessService.assertUserCanWrite(repository, principal))
                 .isInstanceOf(ServiceNotAuthorizedException.class)
                 .hasMessageContaining("Only repository owners and members with developer or maintainer access may push");
         }
@@ -148,7 +148,7 @@ class GitRepositoryAccessServiceTests {
         try (Repository repository = Mockito.mock(Repository.class)) {
             when(repository.getDirectory()).thenReturn(new java.io.File("/tmp/demo.git"));
 
-            assertThatThrownBy(() -> accessService.assertOwnerCanWrite(repository, null))
+            assertThatThrownBy(() -> accessService.assertUserCanWrite(repository, null))
                 .isInstanceOf(ServiceNotAuthorizedException.class)
                 .hasMessageContaining("Authentication is required to push");
         }

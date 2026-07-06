@@ -103,7 +103,7 @@ public class GitServletConfiguration {
         GitPushHook gitPushHook
     ) {
         return (HttpServletRequest request, org.eclipse.jgit.lib.Repository repository) -> {
-            gitRepositoryAccessService.assertOwnerCanWrite(repository, request.getUserPrincipal());
+            gitRepositoryAccessService.assertUserCanWrite(repository, request.getUserPrincipal());
             ReceivePack receivePack = new ReceivePack(repository);
             // attach our application PostReceiveHook that synchronizes branches/commits to the DB
             receivePack.setPostReceiveHook(gitPushHook);

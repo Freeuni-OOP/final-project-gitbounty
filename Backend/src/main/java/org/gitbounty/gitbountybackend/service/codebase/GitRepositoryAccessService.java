@@ -22,7 +22,7 @@ public class GitRepositoryAccessService {
         this.codebaseMemberRepository = codebaseMemberRepository;
     }
 
-    public void assertOwnerCanWrite(Repository repository, Principal principal)
+    public void assertUserCanWrite(Repository repository, Principal principal)
         throws ServiceNotAuthorizedException {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ServiceNotAuthorizedException("Authentication is required to push");
