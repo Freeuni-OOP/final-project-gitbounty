@@ -1,9 +1,7 @@
 package org.gitbounty.gitbountybackend.controller.codebase;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
-import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
-import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberRepository;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,8 +12,7 @@ public class CodebasePermissions {
 
     private final CodebaseService codebaseService;
 
-    public CodebasePermissions(CodebaseService codebaseService,
-                              CodebaseMemberRepository codebaseMemberRepository) {
+    public CodebasePermissions(CodebaseService codebaseService) {
         this.codebaseService = codebaseService;
     }
 
