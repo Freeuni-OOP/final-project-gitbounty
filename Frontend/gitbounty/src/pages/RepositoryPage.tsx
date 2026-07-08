@@ -9,6 +9,32 @@ import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
 import { AddCodebaseMemberModal } from '../components/AddCodebaseMemberModal';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import "github-markdown-css/github-markdown.css";
+
+interface MarkdownViewerProps {
+  content: string;
+  isDarkMode: boolean;
+}
+
+function MarkdownViewer({ content, isDarkMode }: Readonly<MarkdownViewerProps>) {
+  return (
+      <div
+          className="markdown-body"
+          style={{
+            padding: '32px',
+            backgroundColor: isDarkMode ? '#0d1117' : '#ffffff',
+            color: isDarkMode ? '#c9d1d9' : '#24292e',
+            borderRadius: '0 0 6px 6px'
+          }}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
+      </div>
+  );
+}
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -453,9 +479,9 @@ export default function RepositoryPage() {
                     <div className="file-viewer-header">
                       <span className="file-viewer-name">{selectedFile.name}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span className="file-viewer-lines">
-                    {selectedFile.content.split('\n').filter(Boolean).length} lines
-                  </span>
+                        <span className="file-viewer-lines">
+                          {selectedFile.content.split('\n').filter(Boolean).length} lines
+                        </span>
                         <button
                             onClick={() => setIsDarkBox(!isDarkBox)}
                             style={{
@@ -472,11 +498,17 @@ export default function RepositoryPage() {
                         </button>
                       </div>
                     </div>
-                    <SyntaxHighlighter
-                        content={selectedFile.content}
-                        isDarkMode={isDarkBox}
-                        filename={selectedFile.name}
-                    />
+
+                    {/* Check extension and route to the correct viewer */}
+                    {selectedFile.name.toLowerCase().endsWith('.md') ? (
+                        <MarkdownViewer content={selectedFile.content} isDarkMode={isDarkBox} />
+                    ) : (
+                        <SyntaxHighlighter
+                            content={selectedFile.content}
+                            isDarkMode={isDarkBox}
+                            filename={selectedFile.name}
+                        />
+                    )}
                   </div>
               ) : !contentsLoading && !contentsError && (
                   <div className="file-list">
