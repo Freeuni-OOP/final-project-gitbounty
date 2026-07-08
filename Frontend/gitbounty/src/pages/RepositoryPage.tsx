@@ -45,9 +45,21 @@ interface ContentsResponse {
 const getErrorStatus = (err: any): string => err.response?.status?.toString() || err.message;
 
 function looksLikeFile(name: string): boolean {
-  if (name.startsWith('.')) return false;
-  const last = name.split('/').pop() ?? name;
-  return last.includes('.');
+  const lowerName = name.toLowerCase();
+
+  // Known folders that start with a dot (add more as needed)
+  const knownFolders = ['.github', '.idea', '.vscode', '.git', '.next'];
+  if (knownFolders.includes(lowerName)) return false;
+
+  // Known files that do not have extensions
+  const knownFiles = ['dockerfile', 'caddyfile', 'makefile', 'gemfile', 'procfile'];
+  if (knownFiles.includes(lowerName)) return true;
+
+  // If it starts with a dot (and wasn't caught as a folder above), it's a hidden file (.env, .gitignore)
+  if (name.startsWith('.')) return true;
+
+  // Default fallback: if it has a dot, it's a file. If not, it's a folder.
+  return name.includes('.');
 }
 
 function FolderIcon() {
@@ -397,19 +409,32 @@ export default function RepositoryPage() {
                   </div>
               ) : !contentsLoading && !contentsError && (
                   <div className="file-list">
-                    {dirItems.map((name) => (
-                        <div key={name} className="file-row">
-                  <span className="file-icon-cell">
-                    {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
-                  </span>
-                          <button
-                              className="file-name-btn"
-                              onClick={() => handleItemClick(name)}
-                          >
-                            {name}
-                          </button>
-                        </div>
-                    ))}
+                    {[...dirItems]
+                        .sort((a, b) => {
+                          const aIsFile = looksLikeFile(a);
+                          const bIsFile = looksLikeFile(b);
+
+                          // If they are both folders or both files, sort alphabetically
+                          if (aIsFile === bIsFile) {
+                            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                          }
+
+                          // Otherwise, folders (-1) come before files (1)
+                          return aIsFile ? 1 : -1;
+                        })
+                        .map((name) => (
+                            <div key={name} className="file-row">
+                          <span className="file-icon-cell">
+                            {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
+                          </span>
+                              <button
+                                  className="file-name-btn"
+                                  onClick={() => handleItemClick(name)}
+                              >
+                                {name}
+                              </button>
+                            </div>
+                        ))}
                     {dirItems.length === 0 && (
                         <div className="file-empty">This directory is empty.</div>
                     )}
