@@ -285,15 +285,30 @@
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace !important;
   font-size: 13px !important;
   line-height: 1.5 !important;
-  color: #1f2328;
-  background: #ffffff;
   overflow-x: auto;
   white-space: pre;
   tab-size: 4;
 }
 
-/* Force the Prism <code> element to inherit our metrics instead of its own */
-.file-content code[class*="language-"] {
+.code-viewer[data-theme="dark"] .file-content {
+  background: #2d2d2d;
+  color: #c9d1d9;
+}
+
+.code-viewer[data-theme="light"] .file-content {
+  background: #ffffff;
+  color: #1f2328;
+}
+
+/* Shiki's own <pre> ships an inline background-color + its own box model.
+   .file-content already owns the background and padding for this panel, so
+   flatten Shiki's pre/code down to an inline carrier, otherwise i got a
+   second, differently-sized box nested inside .file-content. */
+.file-content.shiki-output pre,
+.file-content.shiki-output pre code {
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
   font-family: inherit !important;
   font-size: inherit !important;
   line-height: inherit !important;
