@@ -5,9 +5,6 @@ import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx
 import BountiesTab from '../components/BountiesTab';
 import BranchDropdown from '../components/dropdowns/BranchDropdown';
 import '../styles/RepositoryPage.css';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-java';
-import 'prismjs/themes/prism-tomorrow.css';
 import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
@@ -45,9 +42,21 @@ interface ContentsResponse {
 const getErrorStatus = (err: any): string => err.response?.status?.toString() || err.message;
 
 function looksLikeFile(name: string): boolean {
-  if (name.startsWith('.')) return false;
-  const last = name.split('/').pop() ?? name;
-  return last.includes('.');
+  const lowerName = name.toLowerCase();
+
+  // Known folders that start with a dot (add more as needed)
+  const knownFolders = ['.github', '.idea', '.vscode', '.git', '.next'];
+  if (knownFolders.includes(lowerName)) return false;
+
+  // Known files that do not have extensions
+  const knownFiles = ['dockerfile', 'caddyfile', 'makefile', 'gemfile', 'procfile', 'mvnw'];
+  if (knownFiles.includes(lowerName)) return true;
+
+  // If it starts with a dot (and wasn't caught as a folder above), it's a hidden file (.env, .gitignore)
+  if (name.startsWith('.')) return true;
+
+  // Default fallback: if it has a dot, it's a file. If not, it's a folder.
+  return name.includes('.');
 }
 
 function FolderIcon() {
@@ -129,20 +138,84 @@ function CloneButton({ gitUrl }: Readonly<{ gitUrl: string }>) {
 interface HighlighterProps {
   content: string;
   isDarkMode: boolean;
+  filename: string;
 }
 
-function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) {
-  const codeRef = useRef<HTMLElement>(null);
+// Small bounded cache so re-opening a recently viewed file, or toggling
+// light/dark back and forth, doesn't re-run highlighting for content the
+// worker has already processed. Lives at module scope so it survives file
+// switches.
+const HIGHLIGHT_CACHE_LIMIT = 30;
+const highlightCache = new Map<string, string>();
+
+function cacheKey(filename: string, isDarkMode: boolean, content: string) {
+  return `${isDarkMode ? 'dark' : 'light'}|${filename}|${content}`;
+}
+
+function setCached(key: string, html: string) {
+  if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+    const oldestKey = highlightCache.keys().next().value;
+    if (oldestKey !== undefined) highlightCache.delete(oldestKey);
+  }
+  highlightCache.set(key, html);
+}
+
+function SyntaxHighlighter({ content, isDarkMode, filename }: Readonly<HighlighterProps>) {
+  const [highlightedHtml, setHighlightedHtml] = useState<string>('');
+  const [isParsing, setIsParsing] = useState<boolean>(true);
+
+  // One worker for the life of the Code tab, not one per file. Recreating
+  // the worker on every file click throws away Shiki's cached highlighter
+  // and re-pays WASM/grammar init every time.
+  const workerRef = useRef<Worker | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (codeRef.current) {
-      Prism.highlightElement(codeRef.current);
-    }
-  }, [content, isDarkMode]);
+    workerRef.current = new Worker(new URL('../workers/shiki_worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []); // mount/unmount only
 
-  const themeUrl = isDarkMode
-      ? 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css'
-      : 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
+  useEffect(() => {
+    const key = cacheKey(filename, isDarkMode, content);
+    const cached = highlightCache.get(key);
+    if (cached) {
+      setHighlightedHtml(cached);
+      setIsParsing(false);
+      return;
+    }
+
+    const worker = workerRef.current;
+    if (!worker) return;
+
+    setIsParsing(true);
+    const requestId = ++requestIdRef.current;
+
+    const handleMessage = (event: MessageEvent) => {
+      const { success, html, error, requestId: respId } = event.data;
+      if (respId !== requestIdRef.current) return; // stale response from a fast file switch, ignore
+
+      if (success) {
+        setCached(key, html);
+        setHighlightedHtml(html);
+      } else {
+        console.error('Shiki Worker failed:', error);
+        setHighlightedHtml(`<pre><code>${content}</code></pre>`);
+      }
+      setIsParsing(false);
+    };
+
+    worker.addEventListener('message', handleMessage);
+    worker.postMessage({ content, isDarkMode, filename, requestId });
+
+    return () => {
+      worker.removeEventListener('message', handleMessage);
+    };
+  }, [content, isDarkMode, filename]);
 
   const lines = content.split('\n');
   const lineCount = lines.length > 0 && lines.at(-1) === ''
@@ -150,17 +223,23 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
       : lines.length;
 
   return (
-      <>
-        <link rel="stylesheet" href={themeUrl} />
-        <div className="code-viewer" data-theme={isDarkMode ? 'dark' : 'light'}>
+      <div className={`code-viewer ${isParsing ? 'rendering-shiki' : ''}`} data-theme={isDarkMode ? 'dark' : 'light'}>
         <pre className="line-numbers" aria-hidden="true">
           {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
         </pre>
-          <pre className="file-content">
-          <code ref={codeRef} className="language-java">{content}</code>
-        </pre>
-        </div>
-      </>
+        {isParsing ? (
+            <pre className="file-content placeholder-loading">
+              <code>{content}</code>
+            </pre>
+        ) : (
+            <div
+                className="file-content shiki-output"
+                // Shiki escapes token content itself; this is the standard
+                // way to render its output.
+                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+        )}
+      </div>
   );
 }
 
@@ -393,23 +472,40 @@ export default function RepositoryPage() {
                         </button>
                       </div>
                     </div>
-                    <SyntaxHighlighter content={selectedFile.content} isDarkMode={isDarkBox} />
+                    <SyntaxHighlighter
+                        content={selectedFile.content}
+                        isDarkMode={isDarkBox}
+                        filename={selectedFile.name}
+                    />
                   </div>
               ) : !contentsLoading && !contentsError && (
                   <div className="file-list">
-                    {dirItems.map((name) => (
-                        <div key={name} className="file-row">
-                  <span className="file-icon-cell">
-                    {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
-                  </span>
-                          <button
-                              className="file-name-btn"
-                              onClick={() => handleItemClick(name)}
-                          >
-                            {name}
-                          </button>
-                        </div>
-                    ))}
+                    {[...dirItems]
+                        .sort((a, b) => {
+                          const aIsFile = looksLikeFile(a);
+                          const bIsFile = looksLikeFile(b);
+
+                          // If they are both folders or both files, sort alphabetically
+                          if (aIsFile === bIsFile) {
+                            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                          }
+
+                          // Otherwise, folders (-1) come before files (1)
+                          return aIsFile ? 1 : -1;
+                        })
+                        .map((name) => (
+                            <div key={name} className="file-row">
+                          <span className="file-icon-cell">
+                            {looksLikeFile(name) ? <FileIcon /> : <FolderIcon />}
+                          </span>
+                              <button
+                                  className="file-name-btn"
+                                  onClick={() => handleItemClick(name)}
+                              >
+                                {name}
+                              </button>
+                            </div>
+                        ))}
                     {dirItems.length === 0 && (
                         <div className="file-empty">This directory is empty.</div>
                     )}
