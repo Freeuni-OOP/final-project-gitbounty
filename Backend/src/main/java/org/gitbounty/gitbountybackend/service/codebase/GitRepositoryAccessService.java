@@ -38,17 +38,16 @@ public class GitRepositoryAccessService {
             return;
         }
 
-        // Allow push if user is a codebase member with MAINTAINER or DEVELOPER role
+        // Allow push if user is a codebase member
         boolean isMemberWithPushAccess = codebaseMemberRepository.findByCodebaseId(codebase.getId())
             .stream()
-            .anyMatch(member -> member.getUser().getUsername().equals(username) &&
-                    (member.getRole() == CodebaseRole.MAINTAINER || member.getRole() == CodebaseRole.DEVELOPER));
+            .anyMatch(member -> member.getUser().getUsername().equals(username));
         
         if (isMemberWithPushAccess) {
             return;
         }
 
-        throw new ServiceNotAuthorizedException("Only repository owners and members with developer or maintainer access may push");
+        throw new ServiceNotAuthorizedException("Only repository owners and members may push");
     }
 
     private String resolveRepositoryName(Repository repository) throws ServiceNotAuthorizedException {
