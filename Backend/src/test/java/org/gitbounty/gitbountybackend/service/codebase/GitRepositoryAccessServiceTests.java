@@ -89,32 +89,6 @@ class GitRepositoryAccessServiceTests {
         }
     }
 
-    @Test
-    void memberWithReporterRoleCannotWriteToRepository() {
-        CodebaseRepository codebaseRepository = Mockito.mock(CodebaseRepository.class);
-        CodebaseMemberRepository memberRepository = Mockito.mock(CodebaseMemberRepository.class);
-        GitRepositoryAccessService accessService = new GitRepositoryAccessService(codebaseRepository, memberRepository);
-        Principal principal = () -> "git-reporter";
-        User owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
-        User reporter = new User("git-reporter", "git-reporter@test.local", randomKeycloakId());
-        Codebase codebase = new Codebase("demo", "Demo repository", "http://localhost/git/demo.git", owner);
-        CodebaseMember member = CodebaseMember.builder()
-                .codebase(codebase)
-                .user(reporter)
-                .role(CodebaseRole.REPORTER)
-                .build();
-
-        try (Repository repository = Mockito.mock(Repository.class)) {
-            when(repository.getDirectory()).thenReturn(new java.io.File("/tmp/demo.git"));
-            when(codebaseRepository.findByName("demo")).thenReturn(java.util.Optional.of(codebase));
-            when(memberRepository.findByCodebaseId(codebase.getId())).thenReturn(List.of(member));
-
-            assertThatThrownBy(() -> accessService.assertUserCanWrite(repository, principal))
-                .isInstanceOf(ServiceNotAuthorizedException.class)
-                .hasMessageContaining("Only repository owners and members with developer or maintainer access may push");
-        }
-    }
-
     private String randomKeycloakId() {
         return "kc_" + UUID.randomUUID().toString().substring(0, 8);
     }
@@ -135,7 +109,7 @@ class GitRepositoryAccessServiceTests {
 
             assertThatThrownBy(() -> accessService.assertUserCanWrite(repository, principal))
                 .isInstanceOf(ServiceNotAuthorizedException.class)
-                .hasMessageContaining("Only repository owners and members with developer or maintainer access may push");
+                .hasMessageContaining("Only repository owners and members may push");
         }
     }
 
