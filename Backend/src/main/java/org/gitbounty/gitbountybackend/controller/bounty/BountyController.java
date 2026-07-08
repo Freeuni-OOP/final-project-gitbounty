@@ -76,6 +76,32 @@ public class BountyController {
         );
     }
 
+    @GetMapping("/posted/me")
+    public ResponseEntity<List<BountyDTO>> getMyPostedBounties(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+
+        return ResponseEntity.ok(
+                bountyService.getPostedBountiesForUser(jwt.getSubject())
+        );
+    }
+
+    @GetMapping("/claimed/me")
+    public ResponseEntity<List<BountyDTO>> getMyClaimedBounties(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (jwt == null) {
+            throw new AccessDeniedException("Authentication is required");
+        }
+
+        return ResponseEntity.ok(
+                bountyService.getClaimedBountiesForUser(jwt.getSubject())
+        );
+    }
+
     @PostMapping("/{id}/unclaim")
     public ResponseEntity<BountyDTO> unclaimBounty(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt
     ) {

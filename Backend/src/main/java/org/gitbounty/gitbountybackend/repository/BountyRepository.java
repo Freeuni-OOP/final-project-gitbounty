@@ -13,4 +13,6 @@ public interface BountyRepository extends JpaRepository<Bounty, Long> {
     Optional<Bounty> findByIssueId(Long issueId);
     List<Bounty> findByStatus(BountyStatus status);
     List<Bounty> findByIssue_Repository_Id(Long repositoryId);
+    List<Bounty> findByIssue_Repository_Owner_KeycloakId(String keycloakId);
+    List<Bounty> findByIssue_AssignedTo_KeycloakId(String keycloakId);
 }

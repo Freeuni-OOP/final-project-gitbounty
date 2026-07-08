@@ -15,6 +15,7 @@ import org.mockito.MockitoAnnotations;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -406,5 +407,62 @@ class BountyServiceTest {
         verify(bountyRepository, never()).save(any(Bounty.class));
     }
 
+    @Test
+    void getPostedBountiesForUser_ShouldReturnBountiesFromOwnedRepositories() {
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setDescription("Test bounty description");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.OPEN);
 
+        Issue issue = new Issue();
+        issue.setId(10L);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findByIssue_Repository_Owner_KeycloakId("owner-jemala"))
+                .thenReturn(List.of(bounty));
+
+        List<BountyDTO> result = bountyService.getPostedBountiesForUser("owner-jemala");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals("Fix bug", result.get(0).getTitle());
+        assertEquals(10L, result.get(0).getIssueId());
+
+        verify(bountyRepository).findByIssue_Repository_Owner_KeycloakId("owner-jemala");
+    }
+
+    @Test
+    void getClaimedBountiesForUser_ShouldReturnBountiesAssignedToUser() {
+        User claimant = new User();
+        claimant.setId(2L);
+        claimant.setUsername("jemala");
+        claimant.setKeycloakId("kc-jemala");
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setAssignedTo(claimant);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setDescription("Test bounty description");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findByIssue_AssignedTo_KeycloakId("kc-jemala"))
+                .thenReturn(List.of(bounty));
+
+        List<BountyDTO> result = bountyService.getClaimedBountiesForUser("kc-jemala");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(BountyStatus.ASSIGNED, result.get(0).getStatus());
+        assertEquals(2L, result.get(0).getAssignedToId());
+        assertEquals("jemala", result.get(0).getAssignedToUsername());
+
+        verify(bountyRepository).findByIssue_AssignedTo_KeycloakId("kc-jemala");
+    }
 }
