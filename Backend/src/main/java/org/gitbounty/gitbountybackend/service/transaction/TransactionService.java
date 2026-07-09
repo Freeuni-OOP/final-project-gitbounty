@@ -488,5 +488,14 @@ public class TransactionService {
 
         return transactionRepository.save(transaction);
     }
+
+    @Transactional
+    public void detachBountyReferencesForRepository(Long repositoryId) {
+        if (repositoryId == null) {
+            throw new IllegalArgumentException("Repository id is required.");
+        }
+
+        transactionRepository.detachBountyReferencesForRepository(repositoryId);
+    }
 }
 

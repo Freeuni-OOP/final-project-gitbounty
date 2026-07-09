@@ -3,15 +3,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { bountyApi } from '../services/bountyService';
 import type { BountyAPI } from '../types/Bounty';
 
-type BountyTab = 'posted' | 'claimed';
+type BountyTab = 'My repositories' | 'claimed';
 
 function isActiveBounty(bounty: BountyAPI): boolean {
     return bounty.status === 'OPEN' || bounty.status === 'ASSIGNED';
 }
 
 export function ProfileBountiesSection() {
-    const [activeTab, setActiveTab] = useState<BountyTab>('posted');
-    const [postedBounties, setPostedBounties] = useState<BountyAPI[]>([]);
+    const [activeTab, setActiveTab] = useState<BountyTab>('My repositories');
+    const [repositoryBounties, setrepositoryBounties] = useState<BountyAPI[]>([]);
     const [claimedBounties, setClaimedBounties] = useState<BountyAPI[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionBountyId, setActionBountyId] = useState<number | null>(null);
@@ -27,12 +27,12 @@ export function ProfileBountiesSection() {
                 setError(null);
 
                 const [posted, claimed] = await Promise.all([
-                    bountyApi.getMyPostedBounties(),
+                    bountyApi.getMyRepositoryBounties(),
                     bountyApi.getMyClaimedBounties(),
                 ]);
 
                 if (!cancelled) {
-                    setPostedBounties(posted);
+                    setrepositoryBounties(posted);
                     setClaimedBounties(claimed);
                 }
             } catch {
@@ -67,13 +67,13 @@ export function ProfileBountiesSection() {
         };
     }, [successMessage]);
 
-    const shownBounties = activeTab === 'posted'
-        ? postedBounties
+    const shownBounties = activeTab === 'My repositories'
+        ? repositoryBounties
         : claimedBounties;
 
-    const postedTotal = useMemo(
-        () => postedBounties.reduce((sum, bounty) => sum + bounty.amount, 0),
-        [postedBounties]
+    const repositoryTotal = useMemo(
+        () => repositoryBounties.reduce((sum, bounty) => sum + bounty.amount, 0),
+        [repositoryBounties]
     );
 
     const claimedTotal = useMemo(
@@ -97,7 +97,7 @@ export function ProfileBountiesSection() {
         try {
             await bountyApi.cancelBounty(bounty.id);
 
-            setPostedBounties((current) =>
+            setrepositoryBounties((current) =>
                 current.map((currentBounty) =>
                     currentBounty.id === bounty.id
                         ? { ...currentBounty, status: 'CANCELLED' }
@@ -133,7 +133,7 @@ export function ProfileBountiesSection() {
                 current.filter((currentBounty) => currentBounty.id !== bounty.id)
             );
 
-            setPostedBounties((current) =>
+            setrepositoryBounties((current) =>
                 current.map((currentBounty) =>
                     currentBounty.id === updatedBounty.id
                         ? updatedBounty
@@ -155,17 +155,17 @@ export function ProfileBountiesSection() {
                 <div>
                     <h2 className="profile-bounties-title">Bounties</h2>
                     <p className="profile-bounties-subtitle">
-                        Track bounties you posted and claimed.
+                        Track bounties on your repositories and bounties you claimed.
                     </p>
                 </div>
 
                 <div className="profile-bounty-tabs">
                     <button
                         type="button"
-                        className={`profile-bounty-tab ${activeTab === 'posted' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('posted')}
+                        className={`profile-bounty-tab ${activeTab === 'My repositories' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('My repositories')}
                     >
-                        Posted ({postedBounties.length})
+                        Posted ({repositoryBounties.length})
                     </button>
 
                     <button
@@ -180,7 +180,7 @@ export function ProfileBountiesSection() {
 
             <div className="profile-bounty-summary">
                 <span>
-                    Posted total: <strong>{postedTotal.toLocaleString()} credits</strong>
+                    Posted total: <strong>{repositoryTotal.toLocaleString()} credits</strong>
                 </span>
                 <span>
                     Claimed total: <strong>{claimedTotal.toLocaleString()} credits</strong>
@@ -203,8 +203,8 @@ export function ProfileBountiesSection() {
                 <p className="profile-bounty-status">Loading bounties…</p>
             ) : shownBounties.length === 0 ? (
                 <div className="profile-bounty-empty">
-                    {activeTab === 'posted'
-                        ? 'You have not posted any bounties yet.'
+                    {activeTab === 'My repositories'
+                        ? 'There are no bounties on your repositories yet.'
                         : 'You have not claimed any bounties yet.'}
                 </div>
             ) : (
@@ -247,7 +247,7 @@ export function ProfileBountiesSection() {
                                         {bounty.amount.toLocaleString()} credits
                                     </div>
 
-                                    {activeTab === 'posted' && isActiveBounty(bounty) && (
+                                    {activeTab === 'My repositories' && isActiveBounty(bounty) && (
                                         <button
                                             type="button"
                                             className="profile-bounty-action danger"

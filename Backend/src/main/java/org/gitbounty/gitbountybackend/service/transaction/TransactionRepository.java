@@ -7,6 +7,9 @@ import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.TransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -50,5 +53,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * Finds a pending payout for a bounty.
      */
     Optional<Transaction> findByBountyIdAndStatus(Long bountyId, TransactionStatus status);
+
+    @Modifying
+    @Query("""
+    update Transaction t
+    set t.bounty = null
+    where t.bounty.id in (
+        select b.id
+        from Bounty b
+        where b.issue.repository.id = :repositoryId
+    )
+""")
+    int detachBountyReferencesForRepository(@Param("repositoryId") Long repositoryId);
 }
 

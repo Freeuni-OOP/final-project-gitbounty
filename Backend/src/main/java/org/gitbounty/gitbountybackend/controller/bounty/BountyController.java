@@ -76,8 +76,8 @@ public class BountyController {
         );
     }
 
-    @GetMapping("/posted/me")
-    public ResponseEntity<List<BountyDTO>> getMyPostedBounties(
+    @GetMapping("/repository/me")
+    public ResponseEntity<List<BountyDTO>> getMyRepositoryBounties(
             @AuthenticationPrincipal Jwt jwt
     ) {
         if (jwt == null) {
@@ -85,7 +85,7 @@ public class BountyController {
         }
 
         return ResponseEntity.ok(
-                bountyService.getPostedBountiesForUser(jwt.getSubject())
+                bountyService.getRepositoryBountiesForUser(jwt.getSubject())
         );
     }
 

@@ -33,9 +33,9 @@ export const bountyApi = {
         return response.data;
     },
 
-    async getMyPostedBounties(): Promise<BountyAPI[]> {
+    async getMyRepositoryBounties(): Promise<BountyAPI[]> {
         const response = await apiClient.get<BountyAPI[]>(
-            '/api/bounties/posted/me'
+            '/api/bounties/repository/me'
         );
 
         return response.data;

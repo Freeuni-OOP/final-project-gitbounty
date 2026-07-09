@@ -196,7 +196,7 @@ public class BountyService {
                 .collect(Collectors.toList());
     }
 
-    public List<BountyDTO> getPostedBountiesForUser(String keycloakId) {
+    public List<BountyDTO> getRepositoryBountiesForUser(String keycloakId) {
         if (keycloakId == null || keycloakId.isBlank()) {
             throw new IllegalArgumentException("Authenticated user is required.");
         }
@@ -279,5 +279,20 @@ public class BountyService {
         bounty.setStatus(BountyStatus.OPEN);
 
         return convertToDto(bountyRepository.save(bounty));
+    }
+
+    @Transactional
+    public void cancelActiveBountiesForRepository(Long repositoryId) {
+        if (repositoryId == null) {
+            throw new IllegalArgumentException("Repository id is required.");
+        }
+
+        List<Bounty> bounties = bountyRepository.findByIssue_Repository_Id(repositoryId);
+
+        for (Bounty bounty : bounties) {
+            if (bounty.getStatus() == BountyStatus.OPEN || bounty.getStatus() == BountyStatus.ASSIGNED) {
+                cancelBounty(bounty);
+            }
+        }
     }
 }
