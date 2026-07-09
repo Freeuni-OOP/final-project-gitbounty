@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx';
 import BountiesTab from '../components/BountiesTab';
@@ -272,9 +272,20 @@ function SyntaxHighlighter({ content, isDarkMode, filename }: Readonly<Highlight
 export default function RepositoryPage() {
   const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
 
+  const [searchParams] = useSearchParams();
+
   const { user: currentUser } = useProfileData();
   const { authenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('Code');
+  const [activeTab, setActiveTab] = useState<Tab>(
+      searchParams.get('tab') === 'Issues' ? 'Issues' : 'Code'
+  );
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'Issues') {
+      setActiveTab('Issues');
+    }
+  }, [searchParams]);
+
   const [isDarkBox, setIsDarkBox] = useState(true);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -452,7 +463,14 @@ export default function RepositoryPage() {
             />
         )}
         {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}
-        {activeTab === 'Bounties' && <BountiesTab repoId={repo.id.toString()} />}
+        {activeTab === 'Bounties' && (
+            <BountiesTab
+                repoId={repo.id.toString()}
+                onViewIssue={() => {
+                  setActiveTab('Issues');
+                }}
+            />
+        )}
         {activeTab === 'Code' && (
             <div className="repo-browser">
               <div className="breadcrumb">

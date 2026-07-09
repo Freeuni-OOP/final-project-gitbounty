@@ -179,7 +179,20 @@ public class BountyService {
 
         if (bounty.getIssue() != null) {
             Issue issue = bounty.getIssue();
+
             dto.setIssueId(issue.getId());
+            dto.setIssueNumber(issue.getNumber());
+            dto.setIssueTitle(issue.getTitle());
+
+            if (issue.getRepository() != null) {
+                dto.setRepositoryName(issue.getRepository().getName());
+
+                if (issue.getRepository().getOwner() != null) {
+                    dto.setRepositoryOwnerUsername(
+                            issue.getRepository().getOwner().getUsername()
+                    );
+                }
+            }
 
             if (issue.getAssignedTo() != null) {
                 dto.setAssignedToId(issue.getAssignedTo().getId());
