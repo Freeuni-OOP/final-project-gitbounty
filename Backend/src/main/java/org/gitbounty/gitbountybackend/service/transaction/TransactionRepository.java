@@ -7,7 +7,6 @@ import org.gitbounty.gitbountybackend.model.Transaction;
 import org.gitbounty.gitbountybackend.model.TransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -54,16 +53,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      */
     Optional<Transaction> findByBountyIdAndStatus(Long bountyId, TransactionStatus status);
 
-    @Modifying
-    @Query("""
-    update Transaction t
-    set t.bounty = null
-    where t.bounty.id in (
-        select b.id
-        from Bounty b
-        where b.issue.repository.id = :repositoryId
-    )
-""")
-    int detachBountyReferencesForRepository(@Param("repositoryId") Long repositoryId);
+    /**
+     * Finds every transaction that references a bounty belonging to a given repository.
+     * Used to sever those references (via managed-entity mutation, not a bulk update) before
+     * the bounties are deleted as part of a repository deletion.
+     */
+    @Query("select t from Transaction t where t.bounty.issue.repository.id = :repositoryId")
+    List<Transaction> findByBountyIssueRepositoryId(@Param("repositoryId") Long repositoryId);
 }
 
