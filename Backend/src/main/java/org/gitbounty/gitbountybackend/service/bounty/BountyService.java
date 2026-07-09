@@ -129,8 +129,10 @@ public class BountyService {
 
     /**
      * Refunds an active bounty and marks it as cancelled. Returns the refund Transaction
-     * so callers that are about to delete the bounty outright (see BountyPreRemoveListener)
-     * can sever that transaction's reference to it before the bounty row disappears.
+     * so callers that are about to delete the bounty outright (see
+     * BountyService.cancelIfActive, used by CodebaseDeletionCascadeService's repository-
+     * deletion cascade) can sever that transaction's reference to it before the bounty row
+     * disappears.
      */
     @Transactional
     public Transaction cancelBounty(Bounty bounty) {
@@ -142,21 +144,12 @@ public class BountyService {
 
     /**
      * Refunds an active bounty's escrowed funds to its repository owner, without persisting
-     * any change to the bounty entity itself. Used by BountyPreRemoveListener when the
-     * bounty is about to be deleted outright rather than cancelled in place: Bounty.issue is
-     * cascade=ALL, so bountyRepository.save(bounty) there would cascade back onto the very
-     * Issue that's mid-deletion in the same flush - Hibernate rejects that as an attempt to
-     * "un-delete" the issue. Skipping the save avoids the cascade entirely; the bounty row
-     * is going away regardless, so persisting its status first has no purpose anyway.
+     * any change to the bounty entity itself - this is just the refund half of cancelBounty
+     * above, which composes it with marking the bounty CANCELLED and saving it.
      *
-     * Also deliberately does NOT re-fetch the owner via userRepository (unlike the lookup
-     * cancelBounty used to do inline): bounty.getIssue().getRepository().getOwner() is
-     * already the same, fully-loaded User (Codebase.owner is eager) with zero extra
-     * queries. That matters here specifically because @PreRemove runs mid-flush (Hibernate
-     * is already in the middle of cascading the issue/bounty delete) - any query that
-     * triggers Hibernate's auto-flush-before-query check at that point re-enters the flush
-     * that's already in progress, which is exactly what produced the same
-     * "un-delete Issue" AssertionFailure the bountyRepository.save() cascade did.
+     * Deliberately does NOT re-fetch the owner via userRepository: bounty.getIssue()
+     * .getRepository().getOwner() is already the same, fully-loaded User (Codebase.owner is
+     * eager) with zero extra queries.
      */
     @Transactional
     public Transaction refundEscrowedBounty(Bounty bounty) {
@@ -181,6 +174,28 @@ public class BountyService {
 
         return transactionService.recordBountyRefund(owner, bounty, refundAmount,
                 "Bounty refund for issue #" + bounty.getIssue().getNumber() + ": " + bounty.getIssue().getTitle());
+    }
+
+    /**
+     * Cancels and refunds a bounty if it's still active (OPEN or ASSIGNED); a no-op for any
+     * other status, including a null bounty. Used by CodebaseService's repository-deletion
+     * cascade immediately before the owning issue (and its cascaded bounty) is deleted, so
+     * escrowed funds are never silently destroyed by that cascade.
+     *
+     * Severs the newly-created refund Transaction's bounty reference after cancelling: the
+     * bounty row is about to be deleted by the caller right after this returns, and
+     * transactions.bounty_id has no ON DELETE rule, so a refund transaction left pointing at
+     * it would violate that foreign key once the delete actually executes.
+     */
+    @Transactional
+    public void cancelIfActive(Bounty bounty) {
+        if (bounty == null
+                || (bounty.getStatus() != BountyStatus.OPEN && bounty.getStatus() != BountyStatus.ASSIGNED)) {
+            return;
+        }
+
+        Transaction refund = cancelBounty(bounty);
+        refund.setBounty(null);
     }
 
     public List<BountyDTO> getAllBounties() {

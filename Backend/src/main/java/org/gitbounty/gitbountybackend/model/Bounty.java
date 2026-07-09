@@ -2,12 +2,10 @@ package org.gitbounty.gitbountybackend.model;
 
 import jakarta.persistence.*;
 import lombok.*; // Import Lombok annotations
-import org.gitbounty.gitbountybackend.model.listener.BountyPreRemoveListener;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bounties")
-@EntityListeners(BountyPreRemoveListener.class)
 @Data //generate all getters, setters, equals, hashCode, and toString
 @NoArgsConstructor //generates the empty constructor
 @AllArgsConstructor //generates a constructor with all fields

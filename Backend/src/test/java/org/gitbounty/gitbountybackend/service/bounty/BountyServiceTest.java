@@ -232,6 +232,105 @@ class BountyServiceTest {
     }
 
     @Test
+    void cancelIfActive_ShouldCancelAndSeverRefundBountyReference_WhenBountyOpen() {
+        User mockOwner = new User();
+        mockOwner.setKeycloakId("jemala-uuid");
+        mockOwner.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockOwner);
+
+        Issue mockIssue = new Issue();
+        mockIssue.setNumber(42);
+        mockIssue.setTitle("Fixx Bug");
+        mockIssue.setRepository(mockCodebase);
+
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(1L);
+        mockBounty.setAmount(150.0);
+        mockBounty.setStatus(BountyStatus.OPEN);
+        mockBounty.setIssue(mockIssue);
+
+        Transaction refund = new Transaction();
+        refund.setBounty(mockBounty);
+        when(transactionService.recordBountyRefund(eq(mockOwner), eq(mockBounty), eq(BigDecimal.valueOf(150.0)), anyString()))
+                .thenReturn(refund);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository).save(mockBounty);
+        // The refund Transaction must not be left pointing at a bounty that the caller is
+        // about to delete right after this returns - see cancelIfActive's Javadoc.
+        assertNull(refund.getBounty());
+    }
+
+    @Test
+    void cancelIfActive_ShouldCancelAndSeverRefundBountyReference_WhenBountyAssigned() {
+        User mockOwner = new User();
+        mockOwner.setKeycloakId("jemala-uuid");
+        mockOwner.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockOwner);
+
+        Issue mockIssue = new Issue();
+        mockIssue.setNumber(7);
+        mockIssue.setTitle("Assigned issue");
+        mockIssue.setRepository(mockCodebase);
+
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(2L);
+        mockBounty.setAmount(60.0);
+        mockBounty.setStatus(BountyStatus.ASSIGNED);
+        mockBounty.setIssue(mockIssue);
+
+        Transaction refund = new Transaction();
+        refund.setBounty(mockBounty);
+        when(transactionService.recordBountyRefund(eq(mockOwner), eq(mockBounty), eq(BigDecimal.valueOf(60.0)), anyString()))
+                .thenReturn(refund);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository).save(mockBounty);
+        assertNull(refund.getBounty());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyCompleted() {
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(3L);
+        mockBounty.setStatus(BountyStatus.COMPLETED);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
+        verify(bountyRepository, never()).save(any(Bounty.class));
+        verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyAlreadyCancelled() {
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(4L);
+        mockBounty.setStatus(BountyStatus.CANCELLED);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository, never()).save(any(Bounty.class));
+        verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyNull() {
+        bountyService.cancelIfActive(null);
+
+        verifyNoInteractions(bountyRepository, transactionService);
+    }
+
+    @Test
     void completeBounty_ShouldPayRecipientAndMarkBountyCompleted() {
         User recipient = new User();
         recipient.setId(2L);
