@@ -66,6 +66,16 @@ public class BranchService {
 		branchRepository.delete(branch);
 	}
 
+	/**
+	 * Removes every branch row for a codebase. Callers must delete any issues/pull
+	 * requests referencing those branches first, since those FKs are not cascading.
+	 */
+	@Transactional
+	public void deleteAllBranchesForCodebase(Codebase codebase) {
+		assertCodebasePersisted(codebase);
+		branchRepository.deleteByCodebaseId(codebase.getId());
+	}
+
 	public Optional<Branch> findBranchForCodebase(Codebase codebase, String branchName) {
 		assertCodebasePersisted(codebase);
 		assertBranchNameValid(branchName);
