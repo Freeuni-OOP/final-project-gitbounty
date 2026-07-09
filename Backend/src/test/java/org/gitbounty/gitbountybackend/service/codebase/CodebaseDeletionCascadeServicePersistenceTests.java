@@ -1,7 +1,6 @@
 package org.gitbounty.gitbountybackend.service.codebase;
 
 import jakarta.persistence.EntityManager;
-import org.gitbounty.gitbountybackend.config.ApplicationContextProvider;
 import org.gitbounty.gitbountybackend.model.Bounty;
 import org.gitbounty.gitbountybackend.model.BountyStatus;
 import org.gitbounty.gitbountybackend.model.Codebase;
@@ -17,18 +16,15 @@ import org.gitbounty.gitbountybackend.service.codebase.commit.CommitRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.PullRequestRepository;
-import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.transaction.TransactionRepository;
 import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.gitbounty.gitbountybackend.service.user.UserRepository;
-import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
@@ -41,27 +37,22 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Exercises the deletion cascade against a REAL Hibernate persistence context (as opposed
- * to the Mockito-based unit tests in CodebaseServiceDeletionTests), because the bugs this
- * covers are Hibernate flush/first-level-cache and lifecycle-callback behaviors that mocked
- * repositories can never reproduce - most importantly, that BountyPreRemoveListener's
- * @PreRemove hook actually fires and refunds an active bounty when its owning issue is
+ * to the Mockito-based unit tests in CodebaseDeletionCascadeServiceTests), because the bugs
+ * this covers are Hibernate flush/first-level-cache behaviors that mocked repositories can
+ * never reproduce - most importantly, that CodebaseDeletionCascadeService's explicit
+ * per-issue bountyService.cancelIfActive(...) call actually refunds an active bounty and
+ * leaves the database in a consistent state once that issue (and its cascaded bounty) is
  * deleted through normal entity-level removal.
- *
- * ApplicationContextProvider and a BountyService bean must be present in THIS test's own
- * Spring context (@DataJpaTest doesn't component-scan @Service classes by default), because
- * the @PreRemove hook looks BountyService up through ApplicationContextProvider at call
- * time - it does not use whatever this test class constructs by hand in @BeforeEach.
  */
 @DataJpaTest
-@Import(ApplicationContextProvider.class)
 @TestPropertySource(properties = {
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=none",
         "spring.sql.init.mode=always",
         "spring.sql.init.schema-locations=classpath:codebase-deletion-persistence-schema.sql",
-        "spring.datasource.url=jdbc:h2:mem:codebase-deletion-tests;DB_CLOSE_DELAY=-1"
+        "spring.datasource.url=jdbc:h2:mem:codebase-deletion-cascade-tests;DB_CLOSE_DELAY=-1"
 })
-class CodebaseServiceDeletionPersistenceTests {
+class CodebaseDeletionCascadeServicePersistenceTests {
 
     @TestConfiguration
     static class RealServiceBeans {
@@ -111,24 +102,23 @@ class CodebaseServiceDeletionPersistenceTests {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    // The real bean from RealServiceBeans above - used only so @PreRemove's
-    // ApplicationContextProvider lookup resolves to the same TransactionService/repositories
-    // this test also uses directly.
+    // The real beans from RealServiceBeans above - used directly by the cascade service
+    // below so its explicit bountyService.cancelIfActive(...) call goes through the same
+    // TransactionService/repositories this test also uses directly.
     @Autowired
     private TransactionService transactionServiceBean;
 
-    private CodebaseService codebaseService;
+    @Autowired
+    private BountyService bountyServiceBean;
+
+    private CodebaseDeletionCascadeService cascadeService;
     private User owner;
 
     @BeforeEach
     void setUp() {
-        // UserService's constructor is package-private and unused by findById() anyway - mock it.
-        // self (@Lazy) is unused too: these tests call deleteRepositoryRecords directly, never
-        // deleteRepository, so the self-invocation indirection never gets exercised here.
         BranchService branchService = new BranchService(branchRepository, commitRepository);
-        codebaseService = new CodebaseService(codebaseRepository, mock(CodebaseStorageService.class),
-                mock(UserService.class), branchService, transactionServiceBean, issueRepository,
-                pullRequestRepository, entityManager, null);
+        cascadeService = new CodebaseDeletionCascadeService(codebaseRepository, branchService, transactionServiceBean,
+                issueRepository, pullRequestRepository, entityManager, bountyServiceBean);
 
         owner = new User("owner", "owner@test.com", "kc-owner");
         owner.setCreditBalance(BigDecimal.valueOf(100));
@@ -175,7 +165,7 @@ class CodebaseServiceDeletionPersistenceTests {
         Codebase codebase = createCodebase();
 
         assertThatCode(() -> {
-            codebaseService.deleteRepositoryRecords(codebase.getId());
+            cascadeService.deleteRepositoryRecords(codebase.getId());
             entityManager.flush();
         }).doesNotThrowAnyException();
 
@@ -183,14 +173,14 @@ class CodebaseServiceDeletionPersistenceTests {
     }
 
     @Test
-    void deleteRepositoryRecords_ShouldRefundViaPreRemoveHook_WhenRepoHasOpenEscrowedBounty() {
+    void deleteRepositoryRecords_ShouldRefundViaExplicitCancelIfActive_WhenRepoHasOpenEscrowedBounty() {
         Codebase codebase = createCodebase();
         Issue issue = createIssue(codebase, 1);
         Bounty bounty = createEscrowedBounty(issue, BountyStatus.OPEN, 40.0);
         Long depositTransactionId = transactionRepository.findByBountyIssueId(issue.getId()).stream().findFirst().orElseThrow().getId();
 
         assertThatCode(() -> {
-            codebaseService.deleteRepositoryRecords(codebase.getId());
+            cascadeService.deleteRepositoryRecords(codebase.getId());
             entityManager.flush();
         }).doesNotThrowAnyException();
 
@@ -207,21 +197,21 @@ class CodebaseServiceDeletionPersistenceTests {
         // The pre-existing deposit transaction must survive detached (bounty = null), not
         // deleted and not left pointing at a bounty row that no longer exists - this is
         // specifically what transactionService.detachBountyReferencesForRepository is for,
-        // as distinct from the @PreRemove hook, which only ever handles the new refund
+        // as distinct from cancelIfActive, which only ever handles the new refund
         // transaction it creates itself.
         Transaction depositTransaction = transactionRepository.findById(depositTransactionId).orElseThrow();
         assertThat(depositTransaction.getBounty()).isNull();
     }
 
     @Test
-    void deleteRepositoryRecords_ShouldRefundViaPreRemoveHook_WhenRepoHasAssignedEscrowedBounty() {
+    void deleteRepositoryRecords_ShouldRefundViaExplicitCancelIfActive_WhenRepoHasAssignedEscrowedBounty() {
         Codebase codebase = createCodebase();
         Issue issue = createIssue(codebase, 1);
         Bounty bounty = createEscrowedBounty(issue, BountyStatus.ASSIGNED, 25.0);
         Long depositTransactionId = transactionRepository.findByBountyIssueId(issue.getId()).stream().findFirst().orElseThrow().getId();
 
         assertThatCode(() -> {
-            codebaseService.deleteRepositoryRecords(codebase.getId());
+            cascadeService.deleteRepositoryRecords(codebase.getId());
             entityManager.flush();
         }).doesNotThrowAnyException();
 
@@ -243,13 +233,13 @@ class CodebaseServiceDeletionPersistenceTests {
         Bounty bounty = createEscrowedBounty(issue, BountyStatus.COMPLETED, 15.0);
 
         assertThatCode(() -> {
-            codebaseService.deleteRepositoryRecords(codebase.getId());
+            cascadeService.deleteRepositoryRecords(codebase.getId());
             entityManager.flush();
         }).doesNotThrowAnyException();
 
         assertThat(bountyRepository.findById(bounty.getId())).isEmpty();
 
-        // Balance stays debited: a completed bounty was already paid out, so @PreRemove
+        // Balance stays debited: a completed bounty was already paid out, so cancelIfActive
         // must not treat it as still-active and refund it a second time.
         BigDecimal balance = userRepository.findById(owner.getId()).orElseThrow().getCreditBalance();
         assertThat(balance).isEqualByComparingTo(BigDecimal.valueOf(85.0));

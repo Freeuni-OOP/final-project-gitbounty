@@ -493,9 +493,10 @@ public class TransactionService {
      * Severs every pre-existing transaction's reference to a bounty belonging to this
      * repository, so those bounties (and their owning issues) can be deleted afterward
      * without violating the transactions.bounty_id foreign key. Bounties that are still
-     * active at deletion time are refunded separately by BountyPreRemoveListener, right
-     * before each one is actually removed - this method only handles transactions that
-     * already existed before the deletion started (deposits, prior payouts).
+     * active at deletion time are refunded separately by BountyService.cancelIfActive,
+     * called by CodebaseDeletionCascadeService right before each owning issue is actually
+     * removed - this method only handles transactions that already existed before the
+     * deletion started (deposits, prior payouts).
      *
      * Deliberately mutates the managed Transaction entities one at a time instead of
      * issuing a bulk UPDATE: a bulk query bypasses Hibernate's persistence context, so
