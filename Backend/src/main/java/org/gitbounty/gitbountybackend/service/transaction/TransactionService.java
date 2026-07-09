@@ -490,18 +490,20 @@ public class TransactionService {
     }
 
     /**
-     * Severs every transaction's reference to a bounty belonging to this repository,
-     * so the bounties (and their owning issues) can be deleted afterward without
-     * violating the transactions.bounty_id foreign key.
+     * Severs every pre-existing transaction's reference to a bounty belonging to this
+     * repository, so those bounties (and their owning issues) can be deleted afterward
+     * without violating the transactions.bounty_id foreign key. Bounties that are still
+     * active at deletion time are refunded separately by BountyPreRemoveListener, right
+     * before each one is actually removed - this method only handles transactions that
+     * already existed before the deletion started (deposits, prior payouts).
      *
      * Deliberately mutates the managed Transaction entities one at a time instead of
      * issuing a bulk UPDATE: a bulk query bypasses Hibernate's persistence context, so
-     * any Transaction already loaded in this session (e.g. the refund rows just created
-     * by cancelActiveBountiesForRepository) would keep a stale in-memory reference to a
-     * Bounty that a later cascade delete removes - which is exactly what caused a
-     * TransientPropertyValueException at flush time. Mutating through the session keeps
-     * Hibernate's own dirty-checking in sync with the database, so no explicit flush or
-     * cache-clear is needed here.
+     * any Transaction already loaded in this session would keep a stale in-memory
+     * reference to a Bounty that a later cascade delete removes - which is exactly what
+     * caused a TransientPropertyValueException at flush time. Mutating through the
+     * session keeps Hibernate's own dirty-checking in sync with the database, so no
+     * explicit flush or cache-clear is needed here.
      */
     @Transactional
     public void detachBountyReferencesForRepository(Long repositoryId) {
@@ -509,7 +511,7 @@ public class TransactionService {
             throw new IllegalArgumentException("Repository id is required.");
         }
 
-        for (Transaction transaction : transactionRepository.findByBountyIssueRepositoryId(repositoryId)) {
+        for (Transaction transaction : transactionRepository.findByBounty_Issue_Repository_Id(repositoryId)) {
             transaction.setBounty(null);
         }
     }

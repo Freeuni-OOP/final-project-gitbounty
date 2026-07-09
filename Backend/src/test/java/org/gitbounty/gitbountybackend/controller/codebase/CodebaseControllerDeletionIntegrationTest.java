@@ -4,11 +4,9 @@ import org.gitbounty.gitbountybackend.config.KeycloakAuthenticationProvider;
 import org.gitbounty.gitbountybackend.config.SecurityConfig;
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.codebase.CodebaseDeletionService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
-import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -19,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -51,12 +51,6 @@ class CodebaseControllerDeletionIntegrationTest {
     private BranchService branchService;
 
     @MockitoBean
-    private CodebaseDeletionService codebaseDeletionService;
-
-    @MockitoBean
-    private CodebaseStorageService codebaseStorageService;
-
-    @MockitoBean
     private KeycloakAuthenticationProvider keycloakAuthenticationProvider;
 
     @MockitoBean
@@ -83,13 +77,13 @@ class CodebaseControllerDeletionIntegrationTest {
         Codebase repo = codebase("my-repo", "kc-owner");
 
         when(codebasePermissions.canDeleteRepository(1L, "kc-owner")).thenReturn(true);
-        when(codebaseDeletionService.deleteRepositoryRecords(1L)).thenReturn(repo);
+        when(codebaseService.deleteRepository(1L)).thenReturn(repo);
 
         mockMvc.perform(delete("/api/codebases/1")
                         .with(jwt().jwt(builder -> builder.subject("kc-owner"))))
                 .andExpect(status().isNoContent());
 
-        verify(codebaseDeletionService).deleteRepositoryRecords(1L);
+        verify(codebaseService).deleteRepository(1L);
     }
 
     @Test
@@ -100,7 +94,7 @@ class CodebaseControllerDeletionIntegrationTest {
                         .with(jwt().jwt(builder -> builder.subject("kc-reporter"))))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(codebaseDeletionService, codebaseStorageService);
+        verify(codebaseService, never()).deleteRepository(any());
     }
 
     @Test
@@ -108,6 +102,6 @@ class CodebaseControllerDeletionIntegrationTest {
         mockMvc.perform(delete("/api/codebases/1"))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(codebaseDeletionService, codebaseStorageService, codebasePermissions);
+        verifyNoInteractions(codebaseService, codebasePermissions);
     }
 }

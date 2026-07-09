@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.EntityManager;
 import org.gitbounty.gitbountybackend.exception.CodebaseNotFoundException;
 import org.gitbounty.gitbountybackend.exception.UserNotFoundException;
 import org.gitbounty.gitbountybackend.model.Branch;
@@ -21,9 +22,12 @@ import org.gitbounty.gitbountybackend.model.User;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
 import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
+import org.gitbounty.gitbountybackend.service.codebase.issue.IssueRepository;
+import org.gitbounty.gitbountybackend.service.codebase.issue.pullrequest.PullRequestRepository;
 import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
 import org.gitbounty.gitbountybackend.service.codebase.storage.FileContents;
+import org.gitbounty.gitbountybackend.service.transaction.TransactionService;
 import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +52,11 @@ class CodebaseServiceTests {
         userService = Mockito.mock(UserService.class);
         storageService = Mockito.mock(CodebaseStorageService.class);
         branchService = Mockito.mock(BranchService.class);
-        codebaseService = new CodebaseService(codebaseRepository, storageService, userService, branchService);
+        // Not exercised by any test in this class - only deleteRepository/deleteRepositoryRecords use them.
+        codebaseService = new CodebaseService(codebaseRepository, storageService, userService, branchService,
+                Mockito.mock(TransactionService.class), Mockito.mock(IssueRepository.class),
+                Mockito.mock(PullRequestRepository.class), Mockito.mock(EntityManager.class),
+                Mockito.mock(CodebaseService.class));
         owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
     }
 

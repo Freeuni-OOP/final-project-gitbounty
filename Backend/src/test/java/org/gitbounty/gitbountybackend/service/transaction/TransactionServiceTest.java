@@ -648,7 +648,7 @@ class TransactionServiceTest {
             Transaction deposit = Transaction.builder().id(201L).fromUser(fromUser).bounty(bounty)
                     .amount(new BigDecimal("20.00")).status(TransactionStatus.COMPLETED).build();
 
-            when(transactionRepository.findByBountyIssueRepositoryId(5L)).thenReturn(List.of(refund, deposit));
+            when(transactionRepository.findByBounty_Issue_Repository_Id(5L)).thenReturn(List.of(refund, deposit));
 
             transactionService.detachBountyReferencesForRepository(5L);
 
@@ -661,11 +661,11 @@ class TransactionServiceTest {
 
         @Test
         void detachBountyReferencesForRepository_ShouldDoNothing_WhenNoTransactionsReferenceRepository() {
-            when(transactionRepository.findByBountyIssueRepositoryId(5L)).thenReturn(List.of());
+            when(transactionRepository.findByBounty_Issue_Repository_Id(5L)).thenReturn(List.of());
 
             transactionService.detachBountyReferencesForRepository(5L);
 
-            verify(transactionRepository).findByBountyIssueRepositoryId(5L);
+            verify(transactionRepository).findByBounty_Issue_Repository_Id(5L);
             verifyNoMoreInteractions(transactionRepository);
         }
 

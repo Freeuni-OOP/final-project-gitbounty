@@ -73,7 +73,9 @@ public class BranchService {
 	@Transactional
 	public void deleteAllBranchesForCodebase(Codebase codebase) {
 		assertCodebasePersisted(codebase);
-		branchRepository.deleteByCodebaseId(codebase.getId());
+		for (Branch branch : branchRepository.findByCodebaseId(codebase.getId())) {
+			branchRepository.delete(branch);
+		}
 	}
 
 	public Optional<Branch> findBranchForCodebase(Codebase codebase, String branchName) {

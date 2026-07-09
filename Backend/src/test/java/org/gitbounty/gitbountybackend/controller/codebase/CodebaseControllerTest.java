@@ -6,14 +6,12 @@ import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
 import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.model.User;
-import org.gitbounty.gitbountybackend.service.codebase.CodebaseDeletionService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.FileType;
 import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
-import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
 import org.gitbounty.gitbountybackend.service.codebase.storage.DirectoryContents;
 import org.gitbounty.gitbountybackend.service.codebase.storage.PathContents;
 import org.junit.jupiter.api.Test;
@@ -51,12 +49,6 @@ class CodebaseControllerTest {
 
     @MockitoBean
     private BranchService branchService;
-
-    @MockitoBean
-    private CodebaseDeletionService codebaseDeletionService;
-
-    @MockitoBean
-    private CodebaseStorageService codebaseStorageService;
 
     private static User user(Long id, String username, String keycloakId) {
         User user = new User(username, username + "@test.com", keycloakId);
@@ -198,14 +190,13 @@ class CodebaseControllerTest {
         Codebase repo = codebase("my-repo", owner);
 
         when(codebasePermissions.canDeleteRepository(1L, "kc-owner")).thenReturn(true);
-        when(codebaseDeletionService.deleteRepositoryRecords(1L)).thenReturn(repo);
+        when(codebaseService.deleteRepository(1L)).thenReturn(repo);
 
         mockMvc.perform(delete("/api/codebases/1")
                         .with(jwt().jwt(builder -> builder.subject("kc-owner"))))
                 .andExpect(status().isNoContent());
 
-        verify(codebaseDeletionService).deleteRepositoryRecords(1L);
-        verify(codebaseStorageService).deleteRepository("my-repo");
+        verify(codebaseService).deleteRepository(1L);
     }
 
     @Test
@@ -214,13 +205,13 @@ class CodebaseControllerTest {
         Codebase repo = codebase("my-repo", owner);
 
         when(codebasePermissions.canDeleteRepository(1L, "kc-dev")).thenReturn(true);
-        when(codebaseDeletionService.deleteRepositoryRecords(1L)).thenReturn(repo);
+        when(codebaseService.deleteRepository(1L)).thenReturn(repo);
 
         mockMvc.perform(delete("/api/codebases/1")
                         .with(jwt().jwt(builder -> builder.subject("kc-dev"))))
                 .andExpect(status().isNoContent());
 
-        verify(codebaseDeletionService).deleteRepositoryRecords(1L);
+        verify(codebaseService).deleteRepository(1L);
     }
 
     @Test
@@ -231,23 +222,7 @@ class CodebaseControllerTest {
                         .with(jwt().jwt(builder -> builder.subject("kc-reporter"))))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(codebaseDeletionService, codebaseStorageService);
-    }
-
-    @Test
-    void deleteCodebase_ShouldStillReturnNoContent_WhenStorageCleanupFails() throws Exception {
-        User owner = user(1L, "owner", "kc-owner");
-        Codebase repo = codebase("my-repo", owner);
-
-        when(codebasePermissions.canDeleteRepository(1L, "kc-owner")).thenReturn(true);
-        when(codebaseDeletionService.deleteRepositoryRecords(1L)).thenReturn(repo);
-        doThrow(new IllegalStateException("disk error")).when(codebaseStorageService).deleteRepository("my-repo");
-
-        mockMvc.perform(delete("/api/codebases/1")
-                        .with(jwt().jwt(builder -> builder.subject("kc-owner"))))
-                .andExpect(status().isNoContent());
-
-        verify(codebaseDeletionService).deleteRepositoryRecords(1L);
+        verify(codebaseService, never()).deleteRepository(any());
     }
 
     @Test

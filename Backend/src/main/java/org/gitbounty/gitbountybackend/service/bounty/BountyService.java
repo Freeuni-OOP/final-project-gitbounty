@@ -121,17 +121,45 @@ public class BountyService {
      * Finds and cancels a bounty by ID.
      */
     @Transactional
-    public void cancelBounty(Long bountyId) {
+    public Transaction cancelBounty(Long bountyId) {
         Bounty bounty = bountyRepository.findById(bountyId)
                 .orElseThrow(() -> new BountyNotFoundException(bountyId));
-        cancelBounty(bounty);
+        return cancelBounty(bounty);
     }
 
     /**
-     * Refunds an active bounty and marks it as cancelled.
+     * Refunds an active bounty and marks it as cancelled. Returns the refund Transaction
+     * so callers that are about to delete the bounty outright (see BountyPreRemoveListener)
+     * can sever that transaction's reference to it before the bounty row disappears.
      */
     @Transactional
-    public void cancelBounty(Bounty bounty) {
+    public Transaction cancelBounty(Bounty bounty) {
+        Transaction refund = refundEscrowedBounty(bounty);
+        bounty.setStatus(BountyStatus.CANCELLED);
+        bountyRepository.save(bounty);
+        return refund;
+    }
+
+    /**
+     * Refunds an active bounty's escrowed funds to its repository owner, without persisting
+     * any change to the bounty entity itself. Used by BountyPreRemoveListener when the
+     * bounty is about to be deleted outright rather than cancelled in place: Bounty.issue is
+     * cascade=ALL, so bountyRepository.save(bounty) there would cascade back onto the very
+     * Issue that's mid-deletion in the same flush - Hibernate rejects that as an attempt to
+     * "un-delete" the issue. Skipping the save avoids the cascade entirely; the bounty row
+     * is going away regardless, so persisting its status first has no purpose anyway.
+     *
+     * Also deliberately does NOT re-fetch the owner via userRepository (unlike the lookup
+     * cancelBounty used to do inline): bounty.getIssue().getRepository().getOwner() is
+     * already the same, fully-loaded User (Codebase.owner is eager) with zero extra
+     * queries. That matters here specifically because @PreRemove runs mid-flush (Hibernate
+     * is already in the middle of cascading the issue/bounty delete) - any query that
+     * triggers Hibernate's auto-flush-before-query check at that point re-enters the flush
+     * that's already in progress, which is exactly what produced the same
+     * "un-delete Issue" AssertionFailure the bountyRepository.save() cascade did.
+     */
+    @Transactional
+    public Transaction refundEscrowedBounty(Bounty bounty) {
         if (bounty == null || bounty.getId() == null) {
             throw new IllegalArgumentException("A saved bounty is required.");
         }
@@ -144,16 +172,15 @@ public class BountyService {
             throw new IllegalArgumentException("Bounty is already cancelled: " + bounty.getId());
         }
 
-        User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId())
-                .orElseThrow(() -> new UserNotFoundException("Paying user not found"));
+        User owner = bounty.getIssue().getRepository().getOwner();
+        if (owner == null) {
+            throw new UserNotFoundException("Paying user not found");
+        }
 
         BigDecimal refundAmount = BigDecimal.valueOf(bounty.getAmount());
 
-        transactionService.recordBountyRefund(owner, bounty, refundAmount,
+        return transactionService.recordBountyRefund(owner, bounty, refundAmount,
                 "Bounty refund for issue #" + bounty.getIssue().getNumber() + ": " + bounty.getIssue().getTitle());
-
-        bounty.setStatus(BountyStatus.CANCELLED);
-        bountyRepository.save(bounty);
     }
 
     public List<BountyDTO> getAllBounties() {
@@ -279,20 +306,5 @@ public class BountyService {
         bounty.setStatus(BountyStatus.OPEN);
 
         return convertToDto(bountyRepository.save(bounty));
-    }
-
-    @Transactional
-    public void cancelActiveBountiesForRepository(Long repositoryId) {
-        if (repositoryId == null) {
-            throw new IllegalArgumentException("Repository id is required.");
-        }
-
-        List<Bounty> bounties = bountyRepository.findByIssue_Repository_Id(repositoryId);
-
-        for (Bounty bounty : bounties) {
-            if (bounty.getStatus() == BountyStatus.OPEN || bounty.getStatus() == BountyStatus.ASSIGNED) {
-                cancelBounty(bounty);
-            }
-        }
     }
 }
