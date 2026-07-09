@@ -11,11 +11,14 @@
   },
   "dependencies": {
     "axios": "^1.18.1",
+    "github-markdown-css": "^5.9.0",
     "keycloak-js": "^26.2.4",
-    "prismjs": "^1.30.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^6.30.4"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.30.4",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

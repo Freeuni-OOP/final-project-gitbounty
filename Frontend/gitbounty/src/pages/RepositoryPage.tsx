@@ -5,13 +5,36 @@ import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx
 import BountiesTab from '../components/BountiesTab';
 import BranchDropdown from '../components/dropdowns/BranchDropdown';
 import '../styles/RepositoryPage.css';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-java';
-import 'prismjs/themes/prism-tomorrow.css';
 import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
 import { AddCodebaseMemberModal } from '../components/AddCodebaseMemberModal';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import "github-markdown-css/github-markdown.css";
+
+interface MarkdownViewerProps {
+  content: string;
+  isDarkMode: boolean;
+}
+
+function MarkdownViewer({ content, isDarkMode }: Readonly<MarkdownViewerProps>) {
+  return (
+      <div
+          className="markdown-body"
+          style={{
+            padding: '32px',
+            backgroundColor: isDarkMode ? '#0d1117' : '#ffffff',
+            color: isDarkMode ? '#c9d1d9' : '#24292e',
+            borderRadius: '0 0 6px 6px'
+          }}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
+      </div>
+  );
+}
 
 type Tab = 'Code' | 'Issues' | 'Pull Requests' | 'Bounties';
 const TABS: Tab[] = ['Code', 'Issues', 'Pull Requests', 'Bounties'];
@@ -52,7 +75,7 @@ function looksLikeFile(name: string): boolean {
   if (knownFolders.includes(lowerName)) return false;
 
   // Known files that do not have extensions
-  const knownFiles = ['dockerfile', 'caddyfile', 'makefile', 'gemfile', 'procfile'];
+  const knownFiles = ['dockerfile', 'caddyfile', 'makefile', 'gemfile', 'procfile', 'mvnw'];
   if (knownFiles.includes(lowerName)) return true;
 
   // If it starts with a dot (and wasn't caught as a folder above), it's a hidden file (.env, .gitignore)
@@ -141,20 +164,84 @@ function CloneButton({ gitUrl }: Readonly<{ gitUrl: string }>) {
 interface HighlighterProps {
   content: string;
   isDarkMode: boolean;
+  filename: string;
 }
 
-function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) {
-  const codeRef = useRef<HTMLElement>(null);
+// Small bounded cache so re-opening a recently viewed file, or toggling
+// light/dark back and forth, doesn't re-run highlighting for content the
+// worker has already processed. Lives at module scope so it survives file
+// switches.
+const HIGHLIGHT_CACHE_LIMIT = 30;
+const highlightCache = new Map<string, string>();
+
+function cacheKey(filename: string, isDarkMode: boolean, content: string) {
+  return `${isDarkMode ? 'dark' : 'light'}|${filename}|${content}`;
+}
+
+function setCached(key: string, html: string) {
+  if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+    const oldestKey = highlightCache.keys().next().value;
+    if (oldestKey !== undefined) highlightCache.delete(oldestKey);
+  }
+  highlightCache.set(key, html);
+}
+
+function SyntaxHighlighter({ content, isDarkMode, filename }: Readonly<HighlighterProps>) {
+  const [highlightedHtml, setHighlightedHtml] = useState<string>('');
+  const [isParsing, setIsParsing] = useState<boolean>(true);
+
+  // One worker for the life of the Code tab, not one per file. Recreating
+  // the worker on every file click throws away Shiki's cached highlighter
+  // and re-pays WASM/grammar init every time.
+  const workerRef = useRef<Worker | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (codeRef.current) {
-      Prism.highlightElement(codeRef.current);
-    }
-  }, [content, isDarkMode]);
+    workerRef.current = new Worker(new URL('../workers/shiki_worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []); // mount/unmount only
 
-  const themeUrl = isDarkMode
-      ? 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css'
-      : 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
+  useEffect(() => {
+    const key = cacheKey(filename, isDarkMode, content);
+    const cached = highlightCache.get(key);
+    if (cached) {
+      setHighlightedHtml(cached);
+      setIsParsing(false);
+      return;
+    }
+
+    const worker = workerRef.current;
+    if (!worker) return;
+
+    setIsParsing(true);
+    const requestId = ++requestIdRef.current;
+
+    const handleMessage = (event: MessageEvent) => {
+      const { success, html, error, requestId: respId } = event.data;
+      if (respId !== requestIdRef.current) return; // stale response from a fast file switch, ignore
+
+      if (success) {
+        setCached(key, html);
+        setHighlightedHtml(html);
+      } else {
+        console.error('Shiki Worker failed:', error);
+        setHighlightedHtml(`<pre><code>${content}</code></pre>`);
+      }
+      setIsParsing(false);
+    };
+
+    worker.addEventListener('message', handleMessage);
+    worker.postMessage({ content, isDarkMode, filename, requestId });
+
+    return () => {
+      worker.removeEventListener('message', handleMessage);
+    };
+  }, [content, isDarkMode, filename]);
 
   const lines = content.split('\n');
   const lineCount = lines.length > 0 && lines.at(-1) === ''
@@ -162,17 +249,23 @@ function SyntaxHighlighter({ content, isDarkMode }: Readonly<HighlighterProps>) 
       : lines.length;
 
   return (
-      <>
-        <link rel="stylesheet" href={themeUrl} />
-        <div className="code-viewer" data-theme={isDarkMode ? 'dark' : 'light'}>
+      <div className={`code-viewer ${isParsing ? 'rendering-shiki' : ''}`} data-theme={isDarkMode ? 'dark' : 'light'}>
         <pre className="line-numbers" aria-hidden="true">
           {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
         </pre>
-          <pre className="file-content">
-          <code ref={codeRef} className="language-java">{content}</code>
-        </pre>
-        </div>
-      </>
+        {isParsing ? (
+            <pre className="file-content placeholder-loading">
+              <code>{content}</code>
+            </pre>
+        ) : (
+            <div
+                className="file-content shiki-output"
+                // Shiki escapes token content itself; this is the standard
+                // way to render its output.
+                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+        )}
+      </div>
   );
 }
 
@@ -386,9 +479,9 @@ export default function RepositoryPage() {
                     <div className="file-viewer-header">
                       <span className="file-viewer-name">{selectedFile.name}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span className="file-viewer-lines">
-                    {selectedFile.content.split('\n').filter(Boolean).length} lines
-                  </span>
+                        <span className="file-viewer-lines">
+                          {selectedFile.content.split('\n').filter(Boolean).length} lines
+                        </span>
                         <button
                             onClick={() => setIsDarkBox(!isDarkBox)}
                             style={{
@@ -405,7 +498,17 @@ export default function RepositoryPage() {
                         </button>
                       </div>
                     </div>
-                    <SyntaxHighlighter content={selectedFile.content} isDarkMode={isDarkBox} />
+
+                    {/* Check extension and route to the correct viewer */}
+                    {selectedFile.name.toLowerCase().endsWith('.md') ? (
+                        <MarkdownViewer content={selectedFile.content} isDarkMode={isDarkBox} />
+                    ) : (
+                        <SyntaxHighlighter
+                            content={selectedFile.content}
+                            isDarkMode={isDarkBox}
+                            filename={selectedFile.name}
+                        />
+                    )}
                   </div>
               ) : !contentsLoading && !contentsError && (
                   <div className="file-list">
