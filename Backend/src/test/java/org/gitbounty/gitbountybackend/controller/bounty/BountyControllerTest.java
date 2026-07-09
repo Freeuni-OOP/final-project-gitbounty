@@ -190,20 +190,20 @@ class BountyControllerTest {
     }
 
     @Test
-    void getMyPostedBounties_ShouldReturnOk() throws Exception {
-        BountyDTO posted = bountyDto(1L, "Posted bounty", 100.0, BountyStatus.OPEN, 10L);
+    void getMyRepositoryBounties_ShouldReturnOk() throws Exception {
+        BountyDTO repositoryBounty = bountyDto(1L, "Repository bounty", 100.0, BountyStatus.OPEN, 10L);
 
-        when(bountyService.getPostedBountiesForUser("owner-jemala"))
-                .thenReturn(List.of(posted));
+        when(bountyService.getRepositoryBountiesForUser("owner-jemala"))
+                .thenReturn(List.of(repositoryBounty));
 
-        mockMvc.perform(get("/api/bounties/posted/me")
+        mockMvc.perform(get("/api/bounties/repository/me")
                         .with(jwt().jwt(builder -> builder.subject("owner-jemala"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].title").value("Posted bounty"))
+                .andExpect(jsonPath("$[0].title").value("Repository bounty"))
                 .andExpect(jsonPath("$[0].status").value("OPEN"));
 
-        verify(bountyService).getPostedBountiesForUser("owner-jemala");
+        verify(bountyService).getRepositoryBountiesForUser("owner-jemala");
     }
 
     @Test

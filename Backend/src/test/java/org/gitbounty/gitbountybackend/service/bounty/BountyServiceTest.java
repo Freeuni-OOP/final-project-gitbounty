@@ -408,7 +408,7 @@ class BountyServiceTest {
     }
 
     @Test
-    void getPostedBountiesForUser_ShouldReturnBountiesFromOwnedRepositories() {
+    void getRepositoryBountiesForUser_ShouldReturnBountiesFromOwnedRepositories() {
         Bounty bounty = new Bounty();
         bounty.setId(1L);
         bounty.setTitle("Fix bug");
@@ -423,7 +423,7 @@ class BountyServiceTest {
         when(bountyRepository.findByIssue_Repository_Owner_KeycloakId("owner-jemala"))
                 .thenReturn(List.of(bounty));
 
-        List<BountyDTO> result = bountyService.getPostedBountiesForUser("owner-jemala");
+        List<BountyDTO> result = bountyService.getRepositoryBountiesForUser("owner-jemala");
 
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getId());
