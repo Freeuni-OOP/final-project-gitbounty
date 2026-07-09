@@ -5,11 +5,15 @@ import java.util.List;
 
 import org.gitbounty.gitbountybackend.model.Codebase;
 import org.gitbounty.gitbountybackend.model.CodebaseMember;
+import org.gitbounty.gitbountybackend.service.codebase.CodebaseDeletionService;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
 import org.gitbounty.gitbountybackend.service.codebase.branch.BranchService;
 import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberService;
 import org.gitbounty.gitbountybackend.service.codebase.dto.CodebaseContentsDTO;
 import org.gitbounty.gitbountybackend.service.codebase.dto.UpdateCodebaseCommand;
+import org.gitbounty.gitbountybackend.service.codebase.storage.CodebaseStorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,20 +26,28 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/codebases")
 public class CodebaseController {
 
+    private static final Logger log = LoggerFactory.getLogger(CodebaseController.class);
+
     private final CodebaseService codebaseService;
     private final CodebaseMemberService memberService;
     private final CodebasePermissions codebasePermissions;
     private final BranchService branchService;
+    private final CodebaseDeletionService codebaseDeletionService;
+    private final CodebaseStorageService codebaseStorageService;
 
     public CodebaseController(
             CodebaseService codebaseService,
             CodebaseMemberService memberService,
             CodebasePermissions codebasePermissions,
-            BranchService branchService) {
+            BranchService branchService,
+            CodebaseDeletionService codebaseDeletionService,
+            CodebaseStorageService codebaseStorageService) {
         this.codebaseService = codebaseService;
         this.memberService = memberService;
         this.codebasePermissions = codebasePermissions;
         this.branchService = branchService;
+        this.codebaseDeletionService = codebaseDeletionService;
+        this.codebaseStorageService = codebaseStorageService;
     }
 
     @GetMapping
@@ -89,6 +101,28 @@ public class CodebaseController {
         }
         Codebase updatedCodebase = codebaseService.updateCodebase(repositoryName, command);
         return ResponseEntity.ok(CodebaseResponse.from(updatedCodebase));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCodebase(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (!codebasePermissions.canDeleteRepository(id, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to delete this repository");
+        }
+
+        Codebase deleted = codebaseDeletionService.deleteRepositoryRecords(id);
+
+        try {
+            codebaseStorageService.deleteRepository(deleted.getName());
+        } catch (RuntimeException e) {
+            // The DB deletion already committed; an orphaned directory is recoverable
+            // and must not fail the request or trigger a rollback.
+            log.warn("Failed to delete repository directory for '{}'", deleted.getName(), e);
+        }
+
+        return ResponseEntity.noContent().build();
     }
 
     // don't know how to test controllers
