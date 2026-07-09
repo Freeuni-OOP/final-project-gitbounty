@@ -6,18 +6,23 @@ import java.security.Principal;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.resolver.ServiceNotAuthorizedException;
 import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.CodebaseRole;
+import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberRepository;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GitRepositoryAccessService {
 
     private final CodebaseRepository codebaseRepository;
+    private final CodebaseMemberRepository codebaseMemberRepository;
 
-    public GitRepositoryAccessService(CodebaseRepository codebaseRepository) {
+    public GitRepositoryAccessService(CodebaseRepository codebaseRepository,
+                                      CodebaseMemberRepository codebaseMemberRepository) {
         this.codebaseRepository = codebaseRepository;
+        this.codebaseMemberRepository = codebaseMemberRepository;
     }
 
-    public void assertOwnerCanWrite(Repository repository, Principal principal)
+    public void assertUserCanWrite(Repository repository, Principal principal)
         throws ServiceNotAuthorizedException {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ServiceNotAuthorizedException("Authentication is required to push");
@@ -26,9 +31,23 @@ public class GitRepositoryAccessService {
         Codebase codebase = codebaseRepository.findByName(resolveRepositoryName(repository))
             .orElseThrow(() -> new ServiceNotAuthorizedException("Repository is not registered in the database"));
 
-        if (codebase.getOwner() == null || !principal.getName().equals(codebase.getOwner().getUsername())) {
-            throw new ServiceNotAuthorizedException("Only the repository owner may push");
+        String username = principal.getName();
+        
+        // Allow push if user is the owner
+        if (codebase.getOwner() != null && username.equals(codebase.getOwner().getUsername())) {
+            return;
         }
+
+        // Allow push if user is a codebase member
+        boolean isMemberWithPushAccess = codebaseMemberRepository.findByCodebaseId(codebase.getId())
+            .stream()
+            .anyMatch(member -> member.getUser().getUsername().equals(username));
+        
+        if (isMemberWithPushAccess) {
+            return;
+        }
+
+        throw new ServiceNotAuthorizedException("Only repository owners and members may push");
     }
 
     private String resolveRepositoryName(Repository repository) throws ServiceNotAuthorizedException {
@@ -38,8 +57,8 @@ public class GitRepositoryAccessService {
         }
         // strip away the .git suffix
 
-
-        return repositoryDirectory.getName().replace(".git", "");
+        String name = repositoryDirectory.getName();
+        return name.endsWith(".git") ? name.substring(0, name.length() - 4) : name;
     }
 }
 
