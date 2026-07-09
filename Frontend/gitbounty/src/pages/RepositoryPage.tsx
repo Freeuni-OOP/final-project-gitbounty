@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx';
 import BountiesTab from '../components/BountiesTab';
@@ -9,6 +9,7 @@ import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
 import { AddCodebaseMemberModal } from '../components/AddCodebaseMemberModal';
+import { DeleteRepositoryModal } from '../components/DeleteRepositoryModal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import "github-markdown-css/github-markdown.css";
@@ -271,6 +272,7 @@ function SyntaxHighlighter({ content, isDarkMode, filename }: Readonly<Highlight
 
 export default function RepositoryPage() {
   const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
+  const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
 
@@ -289,6 +291,7 @@ export default function RepositoryPage() {
   const [isDarkBox, setIsDarkBox] = useState(true);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Repo metadata
   const [repo, setRepo] = useState<RepoData | null>(null);
@@ -453,6 +456,14 @@ export default function RepositoryPage() {
             onSuccess={() => {}}
         />
 
+        <DeleteRepositoryModal
+            isOpen={isDeleteModalOpen}
+            repositoryId={repo.id}
+            repositoryName={repoName}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onDeleted={() => navigate('/repositories')}
+        />
+
         {/* ── Tab content ── */}
         {activeTab === 'Issues' && (
             <IssuesTab
@@ -561,6 +572,27 @@ export default function RepositoryPage() {
                     )}
                   </div>
               )}
+            </div>
+        )}
+
+        {canManageMembers && (
+            <div className="danger-zone">
+              <h2 className="danger-zone-title">Danger zone</h2>
+              <div className="danger-zone-row">
+                <div className="danger-zone-text">
+                  <p className="danger-zone-row-title">Delete this repository</p>
+                  <p className="danger-zone-row-desc">
+                    Once deleted, this repository, its issues, pull requests, and bounties cannot be recovered.
+                  </p>
+                </div>
+                <button
+                    type="button"
+                    className="danger-zone-btn"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  Delete repository
+                </button>
+              </div>
             </div>
         )}
       </div>
