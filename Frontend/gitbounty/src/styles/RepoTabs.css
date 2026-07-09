@@ -208,6 +208,106 @@
   text-transform: capitalize;
 }
 
+.bounty-card-list {
+  background: #ffffff;
+}
+
+.bounty-card-item {
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bounty-card-item.clickable {
+  cursor: pointer;
+}
+
+.bounty-card-item.clickable:hover {
+  background: #f6f8fa;
+}
+
+.bounty-card-item.clickable:focus {
+  outline: 2px solid #0969da;
+  outline-offset: -2px;
+}
+
+.bounty-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bounty-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.bounty-card-amount {
+  color: #1a7f37;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.bounty-card-title {
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bounty-card-description {
+  display: -webkit-box;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: #57606a;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bounty-card-meta {
+  margin-top: 7px;
+  color: #656d76;
+  font-size: 12px;
+}
+
+.bounty-card-meta strong {
+  color: #1f2328;
+  font-weight: 600;
+}
+
+.bounty-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.bounty-status-badge.status-open {
+  background: #dafbe1;
+  color: #116329;
+}
+
+.bounty-status-badge.status-assigned {
+  background: #fff8c5;
+  color: #7d4e00;
+}
+
+.bounty-status-badge.status-completed {
+  background: #ddf4ff;
+  color: #0550ae;
+}
+
+.bounty-status-badge.status-cancelled {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
 @media (max-width: 640px) {
   .branch-tag {
     display: none;

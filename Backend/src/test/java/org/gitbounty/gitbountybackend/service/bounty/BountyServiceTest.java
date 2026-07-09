@@ -162,6 +162,45 @@ class BountyServiceTest {
         });
     }
 
+    @Test
+    void getBountyById_ShouldIncludeIssueAndRepositoryDetails() {
+        User owner = new User();
+        owner.setId(1L);
+        owner.setUsername("jemala");
+        owner.setKeycloakId("kc-jemala");
+
+        Codebase repository = new Codebase(
+                "jemalasRepo",
+                "jemalasRepoDesc",
+                "http://localhost/git/jemalasRepo.git",
+                owner
+        );
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setNumber(7);
+        issue.setTitle("Fixx bug");
+        issue.setRepository(repository);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(100L);
+        bounty.setTitle("Fixx bug bounty");
+        bounty.setDescription("Reward for fixxing bug.");
+        bounty.setAmount(250.0);
+        bounty.setStatus(BountyStatus.OPEN);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(100L)).thenReturn(Optional.of(bounty));
+
+        BountyDTO result = bountyService.getBountyById(100L);
+
+        assertEquals(100L, result.getId());
+        assertEquals(10L, result.getIssueId());
+        assertEquals(7, result.getIssueNumber());
+        assertEquals("Fixx bug", result.getIssueTitle());
+        assertEquals("jemalasRepo", result.getRepositoryName());
+        assertEquals("jemala", result.getRepositoryOwnerUsername());
+    }
 
     @Test
     void cancelBounty_ShouldRefundUserAndCancelBounty_WhenBountyNotCompleted() {
