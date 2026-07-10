@@ -138,6 +138,30 @@ class BranchServiceTests {
 	}
 
 	@Test
+	void deleteAllBranchesForCodebase_deletesEachBranchEntityIndividually() {
+		Codebase codebase = new Codebase();
+		codebase.setId(20L);
+
+		Branch main = Branch.builder().id(21L).codebase(codebase).name("refs/heads/main").build();
+		Branch feature = Branch.builder().id(22L).codebase(codebase).name("refs/heads/feature").build();
+
+		when(branchRepository.findByCodebaseId(20L)).thenReturn(java.util.List.of(main, feature));
+
+		branchService.deleteAllBranchesForCodebase(codebase);
+
+		// Per-entity removal (not a bulk query), so any future @PreRemove hook on Branch
+		// fires normally for each row.
+		verify(branchRepository).delete(main);
+		verify(branchRepository).delete(feature);
+		verify(branchRepository, never()).deleteAll(any());
+	}
+
+	@Test
+	void deleteAllBranchesForCodebase_nullCodebase_throws() {
+		assertThrows(IllegalArgumentException.class, () -> branchService.deleteAllBranchesForCodebase(null));
+	}
+
+	@Test
 	void findBranch_returnsOptional_whenPresent_andNormalizesName() {
 		Codebase codebase = new Codebase();
 		codebase.setId(14L);

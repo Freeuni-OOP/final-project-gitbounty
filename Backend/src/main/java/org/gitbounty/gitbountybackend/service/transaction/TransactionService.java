@@ -489,13 +489,32 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
+    /**
+     * Severs every pre-existing transaction's reference to a bounty belonging to this
+     * repository, so those bounties (and their owning issues) can be deleted afterward
+     * without violating the transactions.bounty_id foreign key. Bounties that are still
+     * active at deletion time are refunded separately by BountyService.cancelIfActive,
+     * called by CodebaseDeletionCascadeService right before each owning issue is actually
+     * removed - this method only handles transactions that already existed before the
+     * deletion started (deposits, prior payouts).
+     *
+     * Deliberately mutates the managed Transaction entities one at a time instead of
+     * issuing a bulk UPDATE: a bulk query bypasses Hibernate's persistence context, so
+     * any Transaction already loaded in this session would keep a stale in-memory
+     * reference to a Bounty that a later cascade delete removes - which is exactly what
+     * caused a TransientPropertyValueException at flush time. Mutating through the
+     * session keeps Hibernate's own dirty-checking in sync with the database, so no
+     * explicit flush or cache-clear is needed here.
+     */
     @Transactional
     public void detachBountyReferencesForRepository(Long repositoryId) {
         if (repositoryId == null) {
             throw new IllegalArgumentException("Repository id is required.");
         }
 
-        transactionRepository.detachBountyReferencesForRepository(repositoryId);
+        for (Transaction transaction : transactionRepository.findByBounty_Issue_Repository_Id(repositoryId)) {
+            transaction.setBounty(null);
+        }
     }
 }
 

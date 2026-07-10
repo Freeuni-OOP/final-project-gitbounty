@@ -55,8 +55,6 @@ services:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
     networks:
@@ -70,8 +68,6 @@ services:
   keycloak:
     image: ghcr.io/freeuni-oop/gitbounty-keycloak:${BRANCH_NAME:-latest}
     container_name: gitbounty-keycloak
-    env_file:
-      - .env
 #    build:
 #      context: .
 #      dockerfile: ./keycloak/Dockerfile

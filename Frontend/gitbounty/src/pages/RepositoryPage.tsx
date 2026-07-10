@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import IssuesTab from '../components/IssuesTab';
 import PullRequestsTab from '../components/tabs/pullrequests/PullRequestsTab.tsx';
 import BountiesTab from '../components/BountiesTab';
@@ -9,6 +9,7 @@ import apiClient from "../api/apiClient.ts";
 import { useProfileData } from '../hooks/useProfileData';
 import { useAuth } from '../auth/useAuth';
 import { AddCodebaseMemberModal } from '../components/AddCodebaseMemberModal';
+import { DeleteRepositoryModal } from '../components/DeleteRepositoryModal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import "github-markdown-css/github-markdown.css";
@@ -271,13 +272,27 @@ function SyntaxHighlighter({ content, isDarkMode, filename }: Readonly<Highlight
 
 export default function RepositoryPage() {
   const { owner = '', repoName = '' } = useParams<{ owner: string; repoName: string }>();
+  const navigate = useNavigate();
+
+  const [searchParams] = useSearchParams();
 
   const { user: currentUser } = useProfileData();
   const { authenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('Code');
+  const [activeTab, setActiveTab] = useState<Tab>(
+      searchParams.get('tab') === 'Issues' ? 'Issues' : 'Code'
+  );
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'Issues') {
+      setActiveTab('Issues');
+    }
+  }, [searchParams]);
+
   const [isDarkBox, setIsDarkBox] = useState(true);
   const [currentBranch, setCurrentBranch] = useState('main');
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [membersRefreshKey, setMembersRefreshKey] = useState(0);
 
   // Repo metadata
   const [repo, setRepo] = useState<RepoData | null>(null);
@@ -399,25 +414,32 @@ export default function RepositoryPage() {
         {/* ── Header ── */}
         <div className="repo-header">
           <div className="repo-title-row">
-            <Link to="/repositories" className="repo-owner-link">{owner}</Link>
-            <span className="repo-sep">/</span>
-            <span className="repo-name">{repoName}</span>
-            <span className="repo-visibility-badge">Public</span>
-            <BranchDropdown
-                branches={branches.map(b => b.name)}
-                currentBranch={currentBranch}
-                onBranchChange={setCurrentBranch}
-            />
-            <CloneButton gitUrl={repo.gitUrl} />
-            {canManageMembers && (
-                <button
-                    type="button"
-                    className="add-member-btn"
-                    onClick={() => setIsAddMemberModalOpen(true)}
-                >
-                  Add member
-                </button>
-            )}
+            <div className="repo-title-main">
+              <Link to="/repositories" className="repo-owner-link">{owner}</Link>
+              <span className="repo-sep">/</span>
+              <span className="repo-name">{repoName}</span>
+              <span className="repo-visibility-badge">Public</span>
+            </div>
+
+            <div className="repo-header-actions">
+              <BranchDropdown
+                  branches={branches.map(b => b.name)}
+                  currentBranch={currentBranch}
+                  onBranchChange={setCurrentBranch}
+              />
+
+              <CloneButton gitUrl={repo.gitUrl} />
+
+              {canManageMembers && (
+                  <button
+                      type="button"
+                      className="add-member-btn"
+                      onClick={() => setIsAddMemberModalOpen(true)}
+                  >
+                    Add member
+                  </button>
+              )}
+            </div>
           </div>
           {repo.description && <p className="repo-description">{repo.description}</p>}
 
@@ -439,7 +461,17 @@ export default function RepositoryPage() {
             isOpen={isAddMemberModalOpen}
             repositoryName={repoName}
             onClose={() => setIsAddMemberModalOpen(false)}
-            onSuccess={() => {}}
+            onSuccess={() => {
+              setMembersRefreshKey((current) => current + 1);
+            }}
+        />
+
+        <DeleteRepositoryModal
+            isOpen={isDeleteModalOpen}
+            repositoryId={repo.id}
+            repositoryName={repoName}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onDeleted={() => navigate('/repositories')}
         />
 
         {/* ── Tab content ── */}
@@ -449,10 +481,18 @@ export default function RepositoryPage() {
                 repoName={repoName}
                 canCreateIssues={authenticated}
                 canManageBounties={currentUser?.username === repo.ownerUsername}
+                membersRefreshKey={membersRefreshKey}
             />
         )}
         {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}
-        {activeTab === 'Bounties' && <BountiesTab repoId={repo.id.toString()} />}
+        {activeTab === 'Bounties' && (
+            <BountiesTab
+                repoId={repo.id.toString()}
+                onViewIssue={() => {
+                  setActiveTab('Issues');
+                }}
+            />
+        )}
         {activeTab === 'Code' && (
             <div className="repo-browser">
               <div className="breadcrumb">
@@ -543,6 +583,27 @@ export default function RepositoryPage() {
                     )}
                   </div>
               )}
+            </div>
+        )}
+
+        {canManageMembers && (
+            <div className="danger-zone">
+              <h2 className="danger-zone-title">Danger zone</h2>
+              <div className="danger-zone-row">
+                <div className="danger-zone-text">
+                  <p className="danger-zone-row-title">Delete this repository</p>
+                  <p className="danger-zone-row-desc">
+                    Once deleted, this repository, its issues, pull requests, and bounties cannot be recovered.
+                  </p>
+                </div>
+                <button
+                    type="button"
+                    className="danger-zone-btn"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  Delete repository
+                </button>
+              </div>
             </div>
         )}
       </div>

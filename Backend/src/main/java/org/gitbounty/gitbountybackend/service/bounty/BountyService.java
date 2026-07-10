@@ -121,17 +121,38 @@ public class BountyService {
      * Finds and cancels a bounty by ID.
      */
     @Transactional
-    public void cancelBounty(Long bountyId) {
+    public Transaction cancelBounty(Long bountyId) {
         Bounty bounty = bountyRepository.findById(bountyId)
                 .orElseThrow(() -> new BountyNotFoundException(bountyId));
-        cancelBounty(bounty);
+        return cancelBounty(bounty);
     }
 
     /**
-     * Refunds an active bounty and marks it as cancelled.
+     * Refunds an active bounty and marks it as cancelled. Returns the refund Transaction
+     * so callers that are about to delete the bounty outright (see
+     * BountyService.cancelIfActive, used by CodebaseDeletionCascadeService's repository-
+     * deletion cascade) can sever that transaction's reference to it before the bounty row
+     * disappears.
      */
     @Transactional
-    public void cancelBounty(Bounty bounty) {
+    public Transaction cancelBounty(Bounty bounty) {
+        Transaction refund = refundEscrowedBounty(bounty);
+        bounty.setStatus(BountyStatus.CANCELLED);
+        bountyRepository.save(bounty);
+        return refund;
+    }
+
+    /**
+     * Refunds an active bounty's escrowed funds to its repository owner, without persisting
+     * any change to the bounty entity itself - this is just the refund half of cancelBounty
+     * above, which composes it with marking the bounty CANCELLED and saving it.
+     *
+     * Deliberately does NOT re-fetch the owner via userRepository: bounty.getIssue()
+     * .getRepository().getOwner() is already the same, fully-loaded User (Codebase.owner is
+     * eager) with zero extra queries.
+     */
+    @Transactional
+    public Transaction refundEscrowedBounty(Bounty bounty) {
         if (bounty == null || bounty.getId() == null) {
             throw new IllegalArgumentException("A saved bounty is required.");
         }
@@ -144,16 +165,37 @@ public class BountyService {
             throw new IllegalArgumentException("Bounty is already cancelled: " + bounty.getId());
         }
 
-        User owner = userRepository.findByKeycloakId(bounty.getIssue().getRepository().getOwner().getKeycloakId())
-                .orElseThrow(() -> new UserNotFoundException("Paying user not found"));
+        User owner = bounty.getIssue().getRepository().getOwner();
+        if (owner == null) {
+            throw new UserNotFoundException("Paying user not found");
+        }
 
         BigDecimal refundAmount = BigDecimal.valueOf(bounty.getAmount());
 
-        transactionService.recordBountyRefund(owner, bounty, refundAmount,
+        return transactionService.recordBountyRefund(owner, bounty, refundAmount,
                 "Bounty refund for issue #" + bounty.getIssue().getNumber() + ": " + bounty.getIssue().getTitle());
+    }
 
-        bounty.setStatus(BountyStatus.CANCELLED);
-        bountyRepository.save(bounty);
+    /**
+     * Cancels and refunds a bounty if it's still active (OPEN or ASSIGNED); a no-op for any
+     * other status, including a null bounty. Used by CodebaseService's repository-deletion
+     * cascade immediately before the owning issue (and its cascaded bounty) is deleted, so
+     * escrowed funds are never silently destroyed by that cascade.
+     *
+     * Severs the newly-created refund Transaction's bounty reference after cancelling: the
+     * bounty row is about to be deleted by the caller right after this returns, and
+     * transactions.bounty_id has no ON DELETE rule, so a refund transaction left pointing at
+     * it would violate that foreign key once the delete actually executes.
+     */
+    @Transactional
+    public void cancelIfActive(Bounty bounty) {
+        if (bounty == null
+                || (bounty.getStatus() != BountyStatus.OPEN && bounty.getStatus() != BountyStatus.ASSIGNED)) {
+            return;
+        }
+
+        Transaction refund = cancelBounty(bounty);
+        refund.setBounty(null);
     }
 
     public List<BountyDTO> getAllBounties() {
@@ -179,7 +221,20 @@ public class BountyService {
 
         if (bounty.getIssue() != null) {
             Issue issue = bounty.getIssue();
+
             dto.setIssueId(issue.getId());
+            dto.setIssueNumber(issue.getNumber());
+            dto.setIssueTitle(issue.getTitle());
+
+            if (issue.getRepository() != null) {
+                dto.setRepositoryName(issue.getRepository().getName());
+
+                if (issue.getRepository().getOwner() != null) {
+                    dto.setRepositoryOwnerUsername(
+                            issue.getRepository().getOwner().getUsername()
+                    );
+                }
+            }
 
             if (issue.getAssignedTo() != null) {
                 dto.setAssignedToId(issue.getAssignedTo().getId());
@@ -279,20 +334,5 @@ public class BountyService {
         bounty.setStatus(BountyStatus.OPEN);
 
         return convertToDto(bountyRepository.save(bounty));
-    }
-
-    @Transactional
-    public void cancelActiveBountiesForRepository(Long repositoryId) {
-        if (repositoryId == null) {
-            throw new IllegalArgumentException("Repository id is required.");
-        }
-
-        List<Bounty> bounties = bountyRepository.findByIssue_Repository_Id(repositoryId);
-
-        for (Bounty bounty : bounties) {
-            if (bounty.getStatus() == BountyStatus.OPEN || bounty.getStatus() == BountyStatus.ASSIGNED) {
-                cancelBounty(bounty);
-            }
-        }
     }
 }

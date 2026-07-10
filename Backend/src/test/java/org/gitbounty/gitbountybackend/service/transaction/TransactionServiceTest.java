@@ -637,4 +637,44 @@ class TransactionServiceTest {
             assertEquals(new BigDecimal("70.00"), toUser.getCreditBalance());
         }
     }
+
+    @Nested
+    class DetachBountyReferencesForRepositoryTests {
+
+        @Test
+        void detachBountyReferencesForRepository_ShouldNullOutBountyOnEachMatchingTransaction() {
+            Transaction refund = Transaction.builder().id(200L).toUser(fromUser).bounty(bounty)
+                    .amount(new BigDecimal("20.00")).status(TransactionStatus.COMPLETED).build();
+            Transaction deposit = Transaction.builder().id(201L).fromUser(fromUser).bounty(bounty)
+                    .amount(new BigDecimal("20.00")).status(TransactionStatus.COMPLETED).build();
+
+            when(transactionRepository.findByBounty_Issue_Repository_Id(5L)).thenReturn(List.of(refund, deposit));
+
+            transactionService.detachBountyReferencesForRepository(5L);
+
+            // Mutated through the managed entities (no bulk update, no explicit save call):
+            // Hibernate's own dirty-checking picks up the change at flush time.
+            assertNull(refund.getBounty());
+            assertNull(deposit.getBounty());
+            verify(transactionRepository, never()).save(any());
+        }
+
+        @Test
+        void detachBountyReferencesForRepository_ShouldDoNothing_WhenNoTransactionsReferenceRepository() {
+            when(transactionRepository.findByBounty_Issue_Repository_Id(5L)).thenReturn(List.of());
+
+            transactionService.detachBountyReferencesForRepository(5L);
+
+            verify(transactionRepository).findByBounty_Issue_Repository_Id(5L);
+            verifyNoMoreInteractions(transactionRepository);
+        }
+
+        @Test
+        void detachBountyReferencesForRepository_ShouldRejectNullRepositoryId() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> transactionService.detachBountyReferencesForRepository(null));
+
+            verifyNoInteractions(transactionRepository);
+        }
+    }
 }

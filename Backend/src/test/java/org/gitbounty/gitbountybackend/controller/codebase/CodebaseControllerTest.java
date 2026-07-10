@@ -185,6 +185,47 @@ class CodebaseControllerTest {
     }
 
     @Test
+    void deleteCodebase_ShouldReturnNoContent_WhenOwner() throws Exception {
+        User owner = user(1L, "owner", "kc-owner");
+        Codebase repo = codebase("my-repo", owner);
+
+        when(codebasePermissions.canDeleteRepository(1L, "kc-owner")).thenReturn(true);
+        when(codebaseService.deleteRepository(1L)).thenReturn(repo);
+
+        mockMvc.perform(delete("/api/codebases/1")
+                        .with(jwt().jwt(builder -> builder.subject("kc-owner"))))
+                .andExpect(status().isNoContent());
+
+        verify(codebaseService).deleteRepository(1L);
+    }
+
+    @Test
+    void deleteCodebase_ShouldReturnNoContent_WhenAuthorizedMember() throws Exception {
+        User owner = user(1L, "owner", "kc-owner");
+        Codebase repo = codebase("my-repo", owner);
+
+        when(codebasePermissions.canDeleteRepository(1L, "kc-dev")).thenReturn(true);
+        when(codebaseService.deleteRepository(1L)).thenReturn(repo);
+
+        mockMvc.perform(delete("/api/codebases/1")
+                        .with(jwt().jwt(builder -> builder.subject("kc-dev"))))
+                .andExpect(status().isNoContent());
+
+        verify(codebaseService).deleteRepository(1L);
+    }
+
+    @Test
+    void deleteCodebase_ShouldReturnForbidden_WhenUnauthorized() throws Exception {
+        when(codebasePermissions.canDeleteRepository(1L, "kc-reporter")).thenReturn(false);
+
+        mockMvc.perform(delete("/api/codebases/1")
+                        .with(jwt().jwt(builder -> builder.subject("kc-reporter"))))
+                .andExpect(status().isForbidden());
+
+        verify(codebaseService, never()).deleteRepository(any());
+    }
+
+    @Test
     void getContents_ShouldReturnOk() throws Exception {
         CodebaseContentsDTO contents = new CodebaseContentsDTO(FileType.FILE, "hello world", null);
 

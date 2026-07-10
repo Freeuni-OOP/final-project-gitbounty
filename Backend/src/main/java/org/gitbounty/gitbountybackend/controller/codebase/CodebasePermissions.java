@@ -1,7 +1,13 @@
 package org.gitbounty.gitbountybackend.controller.codebase;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 import org.gitbounty.gitbountybackend.model.Codebase;
+import org.gitbounty.gitbountybackend.model.CodebaseRole;
 import org.gitbounty.gitbountybackend.service.codebase.CodebaseService;
+import org.gitbounty.gitbountybackend.service.codebase.codebasemember.CodebaseMemberRepository;
+import org.gitbounty.gitbountybackend.service.user.UserService;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,10 +16,20 @@ import org.springframework.stereotype.Component;
 @Component("codebasePermissions")
 public class CodebasePermissions {
 
-    private final CodebaseService codebaseService;
+    // REPORTER is a read-only collaborator; everyone else can write to the repository.
+    private static final Set<CodebaseRole> WRITE_ROLES =
+            EnumSet.of(CodebaseRole.OWNER, CodebaseRole.MAINTAINER, CodebaseRole.DEVELOPER);
 
-    public CodebasePermissions(CodebaseService codebaseService) {
+    private final CodebaseService codebaseService;
+    private final CodebaseMemberRepository codebaseMemberRepository;
+    private final UserService userService;
+
+    public CodebasePermissions(CodebaseService codebaseService,
+                                CodebaseMemberRepository codebaseMemberRepository,
+                                UserService userService) {
         this.codebaseService = codebaseService;
+        this.codebaseMemberRepository = codebaseMemberRepository;
+        this.userService = userService;
     }
 
     /**
@@ -33,5 +49,26 @@ public class CodebasePermissions {
     public boolean isOwnerBySubject(String repositoryName, String subject) {
         Codebase codebase = codebaseService.getCodebase(repositoryName);
         return codebase.getOwner().getKeycloakId().equals(subject);
+    }
+
+    /**
+     * Checks whether the authenticated user may delete the repository: either the
+     * owner, or a codebase member with a write/admin role (not a read-only REPORTER).
+     */
+    public boolean canDeleteRepository(Long repositoryId, String subject) {
+        if (repositoryId == null || subject == null || subject.isBlank()) {
+            return false;
+        }
+
+        Codebase codebase = codebaseService.findById(repositoryId);
+
+        if (codebase.getOwner() != null && subject.equals(codebase.getOwner().getKeycloakId())) {
+            return true;
+        }
+
+        return userService.findByKeycloakId(subject)
+                .flatMap(user -> codebaseMemberRepository.findByCodebaseIdAndUserId(codebase.getId(), user.getId()))
+                .map(member -> WRITE_ROLES.contains(member.getRole()))
+                .orElse(false);
     }
 }

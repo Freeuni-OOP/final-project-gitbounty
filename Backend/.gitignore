@@ -38,3 +38,4 @@ repositories/
 
 .DS_Store
 **/.DS_Store
+run-local.sh
