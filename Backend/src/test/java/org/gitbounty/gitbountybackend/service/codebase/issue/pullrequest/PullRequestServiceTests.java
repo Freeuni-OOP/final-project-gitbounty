@@ -87,8 +87,8 @@ class PullRequestServiceTests {
     void createPullRequest_Success() {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
-        when(branchRepository.findByCodebaseIdAndName(10L, "feature-branch")).thenReturn(Optional.of(mockSourceBranch));
-        when(branchRepository.findByCodebaseIdAndName(10L, "main")).thenReturn(Optional.of(mockTargetBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "refs/heads/feature-branch")).thenReturn(Optional.of(mockSourceBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "refs/heads/main")).thenReturn(Optional.of(mockTargetBranch));
         when(issueRepository.findMaxNumberByRepositoryId(10L)).thenReturn(Optional.of(5));
 
         var command = new CreatePullRequestCommand(mockRepoName, mockKeycloakId, "feature-branch", "main", "Title", "Desc");
@@ -171,7 +171,7 @@ class PullRequestServiceTests {
     void createPullRequest_Throws_WhenBranchesAreSame() {
         when(userService.findByKeycloakId(mockKeycloakId)).thenReturn(Optional.of(mockUser));
         when(codebaseService.getCodebase(mockRepoName)).thenReturn(mockCodebase);
-        when(branchRepository.findByCodebaseIdAndName(10L, "same-branch")).thenReturn(Optional.of(mockSourceBranch));
+        when(branchRepository.findByCodebaseIdAndName(10L, "refs/heads/same-branch")).thenReturn(Optional.of(mockSourceBranch));
 
         var command = new CreatePullRequestCommand(
             mockRepoName, mockKeycloakId, "same-branch", "same-branch", "Title", "Desc"
