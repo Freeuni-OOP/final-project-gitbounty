@@ -292,6 +292,7 @@ export default function RepositoryPage() {
   const [currentBranch, setCurrentBranch] = useState('main');
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [membersRefreshKey, setMembersRefreshKey] = useState(0);
 
   // Repo metadata
   const [repo, setRepo] = useState<RepoData | null>(null);
@@ -413,25 +414,32 @@ export default function RepositoryPage() {
         {/* ── Header ── */}
         <div className="repo-header">
           <div className="repo-title-row">
-            <Link to="/repositories" className="repo-owner-link">{owner}</Link>
-            <span className="repo-sep">/</span>
-            <span className="repo-name">{repoName}</span>
-            <span className="repo-visibility-badge">Public</span>
-            <BranchDropdown
-                branches={branches.map(b => b.name)}
-                currentBranch={currentBranch}
-                onBranchChange={setCurrentBranch}
-            />
-            <CloneButton gitUrl={repo.gitUrl} />
-            {canManageMembers && (
-                <button
-                    type="button"
-                    className="add-member-btn"
-                    onClick={() => setIsAddMemberModalOpen(true)}
-                >
-                  Add member
-                </button>
-            )}
+            <div className="repo-title-main">
+              <Link to="/repositories" className="repo-owner-link">{owner}</Link>
+              <span className="repo-sep">/</span>
+              <span className="repo-name">{repoName}</span>
+              <span className="repo-visibility-badge">Public</span>
+            </div>
+
+            <div className="repo-header-actions">
+              <BranchDropdown
+                  branches={branches.map(b => b.name)}
+                  currentBranch={currentBranch}
+                  onBranchChange={setCurrentBranch}
+              />
+
+              <CloneButton gitUrl={repo.gitUrl} />
+
+              {canManageMembers && (
+                  <button
+                      type="button"
+                      className="add-member-btn"
+                      onClick={() => setIsAddMemberModalOpen(true)}
+                  >
+                    Add member
+                  </button>
+              )}
+            </div>
           </div>
           {repo.description && <p className="repo-description">{repo.description}</p>}
 
@@ -453,7 +461,9 @@ export default function RepositoryPage() {
             isOpen={isAddMemberModalOpen}
             repositoryName={repoName}
             onClose={() => setIsAddMemberModalOpen(false)}
-            onSuccess={() => {}}
+            onSuccess={() => {
+              setMembersRefreshKey((current) => current + 1);
+            }}
         />
 
         <DeleteRepositoryModal
@@ -471,6 +481,7 @@ export default function RepositoryPage() {
                 repoName={repoName}
                 canCreateIssues={authenticated}
                 canManageBounties={currentUser?.username === repo.ownerUsername}
+                membersRefreshKey={membersRefreshKey}
             />
         )}
         {activeTab === 'Pull Requests' && <PullRequestsTab repoName={repoName} />}

@@ -25,6 +25,7 @@ interface IssuesTabProps {
     repoName: string;
     canCreateIssues: boolean;
     canManageBounties: boolean;
+    membersRefreshKey?: number;
 }
 
 type Filter = 'open' | 'closed';
@@ -79,6 +80,7 @@ export default function IssuesTab({
                                       repoName,
                                       canCreateIssues,
                                       canManageBounties,
+                                      membersRefreshKey = 0,
                                   }: IssuesTabProps) {
     const [filter, setFilter] =
         useState<Filter>('open');
@@ -169,7 +171,7 @@ export default function IssuesTab({
         return () => {
             cancelled = true;
         };
-    }, [repoId, repoName, canManageBounties]);
+    }, [repoId, repoName, canManageBounties, membersRefreshKey]);
 
     useEffect(() => {
         if (!successMessage) {
@@ -357,8 +359,27 @@ export default function IssuesTab({
             setSuccessMessage(
                 `Assigned issue #${updatedIssue.number} to ${username}.`
             );
-        } catch {
-            setActionError('Failed to assign issue.');
+
+            setSelectedAssignees((current) => {
+                const next = { ...current };
+                delete next[issue.id];
+                return next;
+            });
+        } catch (error) {
+            const axiosError = error as {
+                response?: {
+                    data?: {
+                        message?: string;
+                    };
+                };
+                message?: string;
+            };
+
+            setActionError(
+                axiosError.response?.data?.message
+                || axiosError.message
+                || 'Failed to assign issue.'
+            );
         } finally {
             setPendingAssignmentIssueId(null);
         }
