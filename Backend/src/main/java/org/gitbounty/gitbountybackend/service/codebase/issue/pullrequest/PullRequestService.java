@@ -55,9 +55,9 @@ public class PullRequestService {
         User author = userService.findByKeycloakId(request.userId())
             .orElseThrow(() -> new UserNotFoundException("User not found: id=" + request.userId()));
         Codebase codebase = codebaseService.getCodebase(request.codebaseName());
-        Branch source = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.sourceBranchName())
+        Branch source = branchRepository.findByCodebaseIdAndName(codebase.getId(), normalizeBranchName(request.sourceBranchName()))
             .orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.sourceBranchName()));
-        Branch target = branchRepository.findByCodebaseIdAndName(codebase.getId(), request.targetBranchName())
+        Branch target = branchRepository.findByCodebaseIdAndName(codebase.getId(), normalizeBranchName(request.targetBranchName()))
             .orElseThrow(() ->  new BranchNotFoundException("Branch not found " + request.targetBranchName()));
 
         if (source.equals(target)) {
@@ -68,6 +68,19 @@ public class PullRequestService {
             .map(n -> n + 1).orElse(1);
 
         return persistenceService.create(request, author, codebase, source, target, nextNumber);
+    }
+
+    /**
+     * Normalize a branch name coming from the request to the repository-stored form.
+     * If the provided name already begins with "refs/" it is returned unchanged.
+     * Otherwise we prefix it with "refs/heads/" so callers can pass simple names like "main".
+     */
+    private String normalizeBranchName(String branchName) {
+        if (branchName == null) return null;
+        if (branchName.startsWith("refs/")) {
+            return branchName;
+        }
+        return "refs/heads/" + branchName;
     }
 
     public List<PullRequest> getPullRequestsForCodebase(String repositoryName) {
