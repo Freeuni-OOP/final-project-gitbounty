@@ -45,7 +45,14 @@ export interface BountyAPI {
     description: string | null;
     amount: number;
     status: BountyStatus;
+
     issueId: number;
+    issueNumber: number | null;
+    issueTitle: string | null;
+
+    repositoryName: string | null;
+    repositoryOwnerUsername: string | null;
+
     assignedToId: number | null;
     assignedToUsername: string | null;
 }

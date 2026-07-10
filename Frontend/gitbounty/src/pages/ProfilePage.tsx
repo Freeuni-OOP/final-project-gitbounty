@@ -6,6 +6,7 @@ import { CreateRepositoryModal } from '../components/CreateRepositoryModal';
 import { RepoCard } from '../components/RepoCard';
 import type { ApiRepo } from '../hooks/useRepositoriesData';
 import '../styles/ProfilePage.css';
+import { ProfileBountiesSection } from '../components/ProfileBountiesSection';
 
 const ProfilePage: React.FC = () => {
   const { user, isLoading, error, isUnauthenticated } = useProfileData();
@@ -68,6 +69,8 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ProfileBountiesSection />
 
       <div className="profile-repos-section">
         <div className="profile-repos-header">

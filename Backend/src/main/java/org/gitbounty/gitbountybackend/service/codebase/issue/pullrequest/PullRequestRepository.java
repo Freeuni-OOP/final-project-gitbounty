@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-interface PullRequestRepository extends JpaRepository<PullRequest, Long> {
+public interface PullRequestRepository extends JpaRepository<PullRequest, Long> {
     List<PullRequest> findByRepository(Codebase codebase);
 
     Optional<PullRequest> findByRepositoryAndNumber(Codebase codebase, Integer prNumber);

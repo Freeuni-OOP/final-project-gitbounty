@@ -15,6 +15,7 @@ import org.mockito.MockitoAnnotations;
 import org.gitbounty.gitbountybackend.service.codebase.issue.IssueService;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -161,6 +162,45 @@ class BountyServiceTest {
         });
     }
 
+    @Test
+    void getBountyById_ShouldIncludeIssueAndRepositoryDetails() {
+        User owner = new User();
+        owner.setId(1L);
+        owner.setUsername("jemala");
+        owner.setKeycloakId("kc-jemala");
+
+        Codebase repository = new Codebase(
+                "jemalasRepo",
+                "jemalasRepoDesc",
+                "http://localhost/git/jemalasRepo.git",
+                owner
+        );
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setNumber(7);
+        issue.setTitle("Fixx bug");
+        issue.setRepository(repository);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(100L);
+        bounty.setTitle("Fixx bug bounty");
+        bounty.setDescription("Reward for fixxing bug.");
+        bounty.setAmount(250.0);
+        bounty.setStatus(BountyStatus.OPEN);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findById(100L)).thenReturn(Optional.of(bounty));
+
+        BountyDTO result = bountyService.getBountyById(100L);
+
+        assertEquals(100L, result.getId());
+        assertEquals(10L, result.getIssueId());
+        assertEquals(7, result.getIssueNumber());
+        assertEquals("Fixx bug", result.getIssueTitle());
+        assertEquals("jemalasRepo", result.getRepositoryName());
+        assertEquals("jemala", result.getRepositoryOwnerUsername());
+    }
 
     @Test
     void cancelBounty_ShouldRefundUserAndCancelBounty_WhenBountyNotCompleted() {
@@ -228,6 +268,105 @@ class BountyServiceTest {
         );
 
         verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelIfActive_ShouldCancelAndSeverRefundBountyReference_WhenBountyOpen() {
+        User mockOwner = new User();
+        mockOwner.setKeycloakId("jemala-uuid");
+        mockOwner.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockOwner);
+
+        Issue mockIssue = new Issue();
+        mockIssue.setNumber(42);
+        mockIssue.setTitle("Fixx Bug");
+        mockIssue.setRepository(mockCodebase);
+
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(1L);
+        mockBounty.setAmount(150.0);
+        mockBounty.setStatus(BountyStatus.OPEN);
+        mockBounty.setIssue(mockIssue);
+
+        Transaction refund = new Transaction();
+        refund.setBounty(mockBounty);
+        when(transactionService.recordBountyRefund(eq(mockOwner), eq(mockBounty), eq(BigDecimal.valueOf(150.0)), anyString()))
+                .thenReturn(refund);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository).save(mockBounty);
+        // The refund Transaction must not be left pointing at a bounty that the caller is
+        // about to delete right after this returns - see cancelIfActive's Javadoc.
+        assertNull(refund.getBounty());
+    }
+
+    @Test
+    void cancelIfActive_ShouldCancelAndSeverRefundBountyReference_WhenBountyAssigned() {
+        User mockOwner = new User();
+        mockOwner.setKeycloakId("jemala-uuid");
+        mockOwner.setCreditBalance(BigDecimal.valueOf(100.0));
+
+        Codebase mockCodebase = new Codebase();
+        mockCodebase.setOwner(mockOwner);
+
+        Issue mockIssue = new Issue();
+        mockIssue.setNumber(7);
+        mockIssue.setTitle("Assigned issue");
+        mockIssue.setRepository(mockCodebase);
+
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(2L);
+        mockBounty.setAmount(60.0);
+        mockBounty.setStatus(BountyStatus.ASSIGNED);
+        mockBounty.setIssue(mockIssue);
+
+        Transaction refund = new Transaction();
+        refund.setBounty(mockBounty);
+        when(transactionService.recordBountyRefund(eq(mockOwner), eq(mockBounty), eq(BigDecimal.valueOf(60.0)), anyString()))
+                .thenReturn(refund);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository).save(mockBounty);
+        assertNull(refund.getBounty());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyCompleted() {
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(3L);
+        mockBounty.setStatus(BountyStatus.COMPLETED);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.COMPLETED, mockBounty.getStatus());
+        verify(bountyRepository, never()).save(any(Bounty.class));
+        verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyAlreadyCancelled() {
+        Bounty mockBounty = new Bounty();
+        mockBounty.setId(4L);
+        mockBounty.setStatus(BountyStatus.CANCELLED);
+
+        bountyService.cancelIfActive(mockBounty);
+
+        assertEquals(BountyStatus.CANCELLED, mockBounty.getStatus());
+        verify(bountyRepository, never()).save(any(Bounty.class));
+        verify(transactionService, never()).recordBountyRefund(any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelIfActive_ShouldNoOp_WhenBountyNull() {
+        bountyService.cancelIfActive(null);
+
+        verifyNoInteractions(bountyRepository, transactionService);
     }
 
     @Test
@@ -406,5 +545,62 @@ class BountyServiceTest {
         verify(bountyRepository, never()).save(any(Bounty.class));
     }
 
+    @Test
+    void getRepositoryBountiesForUser_ShouldReturnBountiesFromOwnedRepositories() {
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setDescription("Test bounty description");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.OPEN);
 
+        Issue issue = new Issue();
+        issue.setId(10L);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findByIssue_Repository_Owner_KeycloakId("owner-jemala"))
+                .thenReturn(List.of(bounty));
+
+        List<BountyDTO> result = bountyService.getRepositoryBountiesForUser("owner-jemala");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals("Fix bug", result.get(0).getTitle());
+        assertEquals(10L, result.get(0).getIssueId());
+
+        verify(bountyRepository).findByIssue_Repository_Owner_KeycloakId("owner-jemala");
+    }
+
+    @Test
+    void getClaimedBountiesForUser_ShouldReturnBountiesAssignedToUser() {
+        User claimant = new User();
+        claimant.setId(2L);
+        claimant.setUsername("jemala");
+        claimant.setKeycloakId("kc-jemala");
+
+        Issue issue = new Issue();
+        issue.setId(10L);
+        issue.setAssignedTo(claimant);
+
+        Bounty bounty = new Bounty();
+        bounty.setId(1L);
+        bounty.setTitle("Fix bug");
+        bounty.setDescription("Test bounty description");
+        bounty.setAmount(100.0);
+        bounty.setStatus(BountyStatus.ASSIGNED);
+        bounty.setIssue(issue);
+
+        when(bountyRepository.findByIssue_AssignedTo_KeycloakId("kc-jemala"))
+                .thenReturn(List.of(bounty));
+
+        List<BountyDTO> result = bountyService.getClaimedBountiesForUser("kc-jemala");
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(BountyStatus.ASSIGNED, result.get(0).getStatus());
+        assertEquals(2L, result.get(0).getAssignedToId());
+        assertEquals("jemala", result.get(0).getAssignedToUsername());
+
+        verify(bountyRepository).findByIssue_AssignedTo_KeycloakId("kc-jemala");
+    }
 }

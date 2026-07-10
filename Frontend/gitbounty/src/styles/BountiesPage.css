@@ -1,31 +1,53 @@
 .bounties-page {
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
 .bounties-header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #f1f5f9;
+  border-bottom: 1px solid #d0d7de;
 }
 
 .bounties-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  color: #1f2937;
+  color: #24292f;
   margin: 0;
 }
 
 .bounties-subtitle {
+  font-size: 14px;
+  color: #57606a;
+  margin: 6px 0 0;
+}
+
+.bounties-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  padding: 12px 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #f6f8fa;
+  color: #1a7f37;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.bounties-summary-card strong {
+  color: #57606a;
   font-size: 13px;
-  color: #9ca3af;
-  margin: 0;
+  font-weight: 500;
 }
 
 .bounties-filters {
@@ -35,64 +57,264 @@
 }
 
 .filter-pill {
-  padding: 6px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #f8fafc;
+  padding: 6px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 999px;
+  background: #ffffff;
   font-size: 13px;
   font-weight: 500;
-  color: #334155;
+  color: #57606a;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .filter-pill:hover {
-  border-color: #667eea;
-  color: #667eea;
+  background: #f6f8fa;
+  color: #24292f;
 }
 
 .filter-pill.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
+  background: #24292f;
+  color: #ffffff;
+  border-color: #24292f;
+}
+
+.bounties-success,
+.bounties-error {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bounties-success {
+  background: #dafbe1;
+  color: #116329;
+  border: 1px solid #a7d8b4;
+}
+
+.bounties-error {
+  background: #ffebe9;
+  color: #a40e26;
+  border: 1px solid #ff8182;
+}
+
+.bounties-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+  color: #57606a;
+  font-weight: 500;
 }
 
 .bounties-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
-@media (max-width: 480px) {
-  .bounties-page {
-    padding: 24px 16px;
-  }
+.no-bounties {
+  padding: 32px 20px;
+  border: 1px dashed #d0d7de;
+  border-radius: 8px;
+  text-align: center;
+  color: #57606a;
+  background: #f6f8fa;
+}
+
+.bounty-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.bounty-card.clickable {
+  cursor: pointer;
+}
+
+.bounty-card.clickable:hover {
+  background: #f6f8fa;
+  border-color: #8c959f;
+}
+
+.bounty-card.clickable:focus {
+  outline: 2px solid #0969da;
+  outline-offset: 2px;
+}
+
+.bounty-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.bounty-repo-name {
+  margin: 0 0 4px;
+  color: #57606a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bounty-issue-title {
+  margin: 0;
+  color: #24292f;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.bounty-issue-line {
+  margin: 4px 0 0;
+  color: #57606a;
+  font-size: 13px;
+}
+
+.bounty-description {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #57606a;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bounty-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #57606a;
+  font-size: 13px;
+}
+
+.bounty-card-meta strong {
+  color: #24292f;
+  font-weight: 600;
 }
 
 .bounty-status-badge {
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.03em;
 }
 
 .bounty-status-badge.status-open {
   background-color: #dafbe1;
-  color: #1a7f37;
+  color: #116329;
 }
 
 .bounty-status-badge.status-assigned {
   background-color: #fff8c5;
-  color: #9a6700;
+  color: #7d4e00;
 }
 
 .bounty-status-badge.status-completed {
   background-color: #ddf4ff;
-  color: #0969da;
+  color: #0550ae;
 }
 
 .bounty-status-badge.status-cancelled {
   background-color: #ffebe9;
   color: #cf222e;
+}
+
+.bounty-reward-badge {
+  white-space: nowrap;
+  color: #1a7f37;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.bounty-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bounty-primary-btn,
+.bounty-secondary-btn,
+.bounty-danger-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bounty-primary-btn {
+  border: 1px solid #1f883d;
+  background: #1f883d;
+  color: white;
+}
+
+.bounty-primary-btn:hover:not(:disabled) {
+  background: #1a7f37;
+  border-color: #1a7f37;
+}
+
+.bounty-secondary-btn {
+  border: 1px solid #d0d7de;
+  background: #f6f8fa;
+  color: #24292f;
+}
+
+.bounty-secondary-btn:hover:not(:disabled) {
+  background: #eaeef2;
+}
+
+.bounty-danger-btn {
+  border: 1px solid #cf222e;
+  background: #ffffff;
+  color: #cf222e;
+}
+
+.bounty-danger-btn:hover:not(:disabled) {
+  background: #ffebe9;
+}
+
+.bounty-primary-btn:disabled,
+.bounty-secondary-btn:disabled,
+.bounty-danger-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .bounties-page {
+    padding: 24px 16px;
+  }
+
+  .bounties-header {
+    flex-direction: column;
+  }
+
+  .bounties-summary-card {
+    width: 100%;
+    text-align: left;
+  }
+
+  .bounty-card-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bounty-card-actions {
+    flex-direction: column;
+  }
+
+  .bounty-primary-btn,
+  .bounty-secondary-btn,
+  .bounty-danger-btn {
+    width: 100%;
+  }
 }

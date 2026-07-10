@@ -33,6 +33,22 @@ export const bountyApi = {
         return response.data;
     },
 
+    async getMyRepositoryBounties(): Promise<BountyAPI[]> {
+        const response = await apiClient.get<BountyAPI[]>(
+            '/api/bounties/repository/me'
+        );
+
+        return response.data;
+    },
+
+    async getMyClaimedBounties(): Promise<BountyAPI[]> {
+        const response = await apiClient.get<BountyAPI[]>(
+            '/api/bounties/claimed/me'
+        );
+
+        return response.data;
+    },
+
     async createBounty(
         request: CreateBountyRequest
     ): Promise<BountyAPI> {

@@ -325,6 +325,27 @@
   cursor: not-allowed;
 }
 
+/* ── Danger variant (delete repository) ── */
+
+.crm-header-band-danger {
+  background: linear-gradient(135deg, #cf222e 0%, #a40e26 100%);
+}
+
+.crm-btn-danger {
+  background: #d1242f;
+  box-shadow: 0 2px 6px rgba(209, 36, 47, 0.35);
+}
+
+.crm-btn-danger:hover:not(:disabled) {
+  background: #a40e26;
+  box-shadow: 0 4px 14px rgba(209, 36, 47, 0.5);
+}
+
+.crm-btn-danger:active:not(:disabled) {
+  background: #a40e26;
+  box-shadow: 0 2px 6px rgba(209, 36, 47, 0.3);
+}
+
 /* ── Spinner inside submit button ── */
 
 .crm-spinner {

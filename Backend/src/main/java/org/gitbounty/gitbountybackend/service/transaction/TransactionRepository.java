@@ -50,5 +50,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * Finds a pending payout for a bounty.
      */
     Optional<Transaction> findByBountyIdAndStatus(Long bountyId, TransactionStatus status);
+
+    /**
+     * Finds every transaction that references a bounty belonging to a given repository.
+     * Used to sever those references (via managed-entity mutation, not a bulk update) before
+     * the bounties are deleted as part of a repository deletion.
+     */
+    List<Transaction> findByBounty_Issue_Repository_Id(Long repositoryId);
 }
 

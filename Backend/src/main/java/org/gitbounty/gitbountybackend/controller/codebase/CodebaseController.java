@@ -91,6 +91,20 @@ public class CodebaseController {
         return ResponseEntity.ok(CodebaseResponse.from(updatedCodebase));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCodebase(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        if (!codebasePermissions.canDeleteRepository(id, jwt.getSubject())) {
+            throw new AccessDeniedException("Don't have permission to delete this repository");
+        }
+
+        codebaseService.deleteRepository(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
     // don't know how to test controllers
     @GetMapping("/{repositoryName}/contents/{*path}")
     public ResponseEntity<CodebaseContentsDTO> getContents(

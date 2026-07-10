@@ -189,4 +189,40 @@ class BountyControllerTest {
         verify(bountyService).unclaimBounty(1L, "kc-jemala");
     }
 
+    @Test
+    void getMyRepositoryBounties_ShouldReturnOk() throws Exception {
+        BountyDTO repositoryBounty = bountyDto(1L, "Repository bounty", 100.0, BountyStatus.OPEN, 10L);
+
+        when(bountyService.getRepositoryBountiesForUser("owner-jemala"))
+                .thenReturn(List.of(repositoryBounty));
+
+        mockMvc.perform(get("/api/bounties/repository/me")
+                        .with(jwt().jwt(builder -> builder.subject("owner-jemala"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].title").value("Repository bounty"))
+                .andExpect(jsonPath("$[0].status").value("OPEN"));
+
+        verify(bountyService).getRepositoryBountiesForUser("owner-jemala");
+    }
+
+    @Test
+    void getMyClaimedBounties_ShouldReturnOk() throws Exception {
+        BountyDTO claimed = bountyDto(2L, "Claimed bounty", 150.0, BountyStatus.ASSIGNED, 20L);
+        claimed.setAssignedToId(7L);
+        claimed.setAssignedToUsername("jemala");
+
+        when(bountyService.getClaimedBountiesForUser("kc-jemala"))
+                .thenReturn(List.of(claimed));
+
+        mockMvc.perform(get("/api/bounties/claimed/me")
+                        .with(jwt().jwt(builder -> builder.subject("kc-jemala"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(2))
+                .andExpect(jsonPath("$[0].title").value("Claimed bounty"))
+                .andExpect(jsonPath("$[0].status").value("ASSIGNED"))
+                .andExpect(jsonPath("$[0].assignedToUsername").value("jemala"));
+
+        verify(bountyService).getClaimedBountiesForUser("kc-jemala");
+    }
 }

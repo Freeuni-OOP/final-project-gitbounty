@@ -48,7 +48,9 @@ class CodebaseServiceTests {
         userService = Mockito.mock(UserService.class);
         storageService = Mockito.mock(CodebaseStorageService.class);
         branchService = Mockito.mock(BranchService.class);
-        codebaseService = new CodebaseService(codebaseRepository, storageService, userService, branchService);
+        // Not exercised by any test in this class - only deleteRepository uses it.
+        codebaseService = new CodebaseService(codebaseRepository, storageService, userService, branchService,
+                Mockito.mock(CodebaseDeletionCascadeService.class));
         owner = new User("git-owner", "git-owner@test.local", randomKeycloakId());
     }
 
