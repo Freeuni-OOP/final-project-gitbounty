@@ -26,7 +26,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow your frontend and Swagger origins
         configuration.setAllowedOrigins(List.of("https://gitbounty.foo", "https://api.gitbounty.foo"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true); // Required for OAuth2/JWT cookies
 
