@@ -12,6 +12,12 @@ export interface CreatePullRequestResponse extends PullRequest {
     description?: string | null;
 }
 
+export interface PullRequestDiffResponse {
+    repositoryName: string;
+    prNumber: number;
+    rawDiff: string;
+}
+
 function getPullRequestsPath(repositoryName: string): string {
     return `/api/codebases/${encodeURIComponent(repositoryName)}/pull-requests`;
 }
@@ -45,6 +51,17 @@ export const pullRequestApi = {
         const response = await apiClient.post<CreatePullRequestResponse>(
             getPullRequestsPath(repositoryName),
             request
+        );
+
+        return response.data;
+    },
+
+    async getPullRequestDiff(
+        repositoryName: string,
+        prNumber: number
+    ): Promise<PullRequestDiffResponse> {
+        const response = await apiClient.get<PullRequestDiffResponse>(
+            `${getPullRequestsPath(repositoryName)}/${prNumber}/diff`
         );
 
         return response.data;

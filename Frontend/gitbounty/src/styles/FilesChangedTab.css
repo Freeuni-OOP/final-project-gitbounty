@@ -1,0 +1,293 @@
+/* ── Files changed tab (PR diff view) ── */
+
+.files-changed-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 24px;
+}
+
+.files-changed-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background-color: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #24292f;
+}
+
+.files-changed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.files-changed-error,
+.files-changed-empty {
+    padding: 32px;
+    text-align: center;
+    color: #656d76;
+    font-size: 14px;
+    background-color: #fafbfc;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    margin: 0;
+}
+
+.files-changed-error {
+    color: #d1242f;
+}
+
+/* ── Loading skeleton ── */
+
+.files-changed-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.files-changed-skeleton-row {
+    height: 120px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f6f8fa 25%, #eef1f4 37%, #f6f8fa 63%);
+    background-size: 400% 100%;
+    animation: files-changed-shimmer 1.4s ease infinite;
+}
+
+@keyframes files-changed-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+
+/* ── Per-file card ── */
+
+.diff-file-card {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.diff-file-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background-color: #f6f8fa;
+    border-bottom: 1px solid #d0d7de;
+    font-size: 13px;
+}
+
+.diff-file-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #57606a;
+    cursor: pointer;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.diff-file-collapse-btn:hover {
+    background-color: #eaeef2;
+}
+
+.diff-chevron {
+    transition: transform 0.15s ease;
+}
+
+.diff-chevron.collapsed {
+    transform: rotate(-90deg);
+}
+
+.diff-status-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 24px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.diff-status-badge.added {
+    background-color: #dafbe1;
+    color: #033a16;
+    border: 1px solid #34d399;
+}
+
+.diff-status-badge.deleted {
+    background-color: #ffebe9;
+    color: #82071e;
+    border: 1px solid #fc7681;
+}
+
+.diff-status-badge.modified {
+    background-color: #fff8c5;
+    color: #7d4e00;
+    border: 1px solid #eac54f;
+}
+
+.diff-status-badge.renamed {
+    background-color: #e8daff;
+    color: #47126b;
+    border: 1px solid #a371f7;
+}
+
+.diff-file-path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-weight: 600;
+    color: #1f2328;
+}
+
+.diff-file-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 12px;
+}
+
+.diff-additions {
+    color: #1a7f37;
+    font-weight: 600;
+}
+
+.diff-deletions {
+    color: #cf222e;
+    font-weight: 600;
+}
+
+.diff-file-note {
+    padding: 16px;
+    color: #656d76;
+    font-size: 13px;
+}
+
+/* ── Diff table ── */
+
+.diff-file-body {
+    overflow-x: auto;
+}
+
+.diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.diff-hunk-header {
+    padding: 4px 12px;
+    background-color: #f1f8ff;
+    color: #57606a;
+    font-style: normal;
+}
+
+.diff-gutter {
+    width: 1%;
+    min-width: 40px;
+    padding: 0 8px;
+    text-align: right;
+    color: #8c959f;
+    user-select: none;
+    -webkit-user-select: none;
+    border: none;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.diff-content-cell {
+    padding: 0 8px;
+    white-space: pre;
+    vertical-align: top;
+}
+
+.diff-marker {
+    display: inline-block;
+    width: 1ch;
+    margin-right: 6px;
+    user-select: none;
+    -webkit-user-select: none;
+    color: #8c959f;
+}
+
+.diff-code-plain {
+    color: #1f2328;
+}
+
+.diff-line-context .diff-gutter,
+.diff-line-context .diff-content-cell {
+    background-color: #ffffff;
+}
+
+.diff-line-add .diff-gutter {
+    background-color: #ceffd8;
+}
+
+.diff-line-add .diff-content-cell {
+    background-color: #e6ffec;
+}
+
+.diff-line-add .diff-marker {
+    color: #1a7f37;
+}
+
+.diff-line-del .diff-gutter {
+    background-color: #ffd7d5;
+}
+
+.diff-line-del .diff-content-cell {
+    background-color: #ffebe9;
+}
+
+.diff-line-del .diff-marker {
+    color: #cf222e;
+}
+
+.diff-line-meta .diff-content-cell {
+    background-color: #ffffff;
+    color: #8c959f;
+    font-style: italic;
+}
+
+.diff-meta-text {
+    padding-left: 1ch;
+}
+
+/* Only Shiki's per-token <span> survives extraction (see useDiffHighlight),
+   but guard against stray pre/code wrappers so layout stays cell-owned. */
+.diff-content-cell pre,
+.diff-content-cell code {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    display: inline;
+}
+
+@media (max-width: 768px) {
+    .diff-file-path {
+        font-size: 12px;
+    }
+
+    .diff-table {
+        font-size: 11px;
+    }
+}

@@ -5,8 +5,12 @@ import '../styles/PRPage.css';
 import { pullRequestApi, type CreatePullRequestResponse } from '../services/pullRequestService';
 import { useAuth } from '../auth/useAuth';
 import { useProfileData } from '../hooks/useProfileData';
+import FilesChangedTab from '../components/tabs/pullrequests/FilesChangedTab';
 
 type PRPageData = CreatePullRequestResponse;
+
+type PRTab = 'Conversation' | 'Files changed';
+const PR_TABS: PRTab[] = ['Conversation', 'Files changed'];
 
 export default function PRPage() {
     const { owner = '', repoName = '', prNumber = '' } = useParams<{
@@ -20,6 +24,7 @@ export default function PRPage() {
     const [error, setError] = useState<string | null>(null);
     const [isMerging, setIsMerging] = useState(false);
     const [mergeError, setMergeError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<PRTab>('Conversation');
     const { isLoading: isAuthLoading, authenticated } = useAuth();
     const { user: currentUser, isLoading: isProfileLoading } = useProfileData();
 
@@ -168,52 +173,71 @@ export default function PRPage() {
                         opened {formattedDate} by <strong>{pullRequest.authorUsername}</strong>
                     </span>
                 </div>
-            </div>
 
-            <div className="pr-content">
-                <div className="pr-info-section">
-                    <div className="pr-branches">
-                        <div className="branch-info">
-                            <span className="branch-label">Source Branch</span>
-                            <span className="branch-name">{pullRequest.sourceBranch}</span>
-                        </div>
-                        <div className="branch-arrow">→</div>
-                        <div className="branch-info">
-                            <span className="branch-label">Target Branch</span>
-                            <span className="branch-name">{pullRequest.targetBranch}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {pullRequest.description && (
-                    <div className="pr-description-section">
-                        <h2>Description</h2>
-                        <div className="pr-description">
-                            {pullRequest.description}
-                        </div>
-                    </div>
-                )}
-
-                <div className="pr-footer">
-                    {mergeError && <p className="pr-action-error">{mergeError}</p>}
-                    {canMerge && (
+                <div className="pr-tabs">
+                    {PR_TABS.map((tab) => (
                         <button
+                            key={tab}
                             type="button"
-                            className="merge-button"
-                            onClick={handleMerge}
-                            disabled={isMerging}
+                            className={`pr-tab ${activeTab === tab ? 'active' : ''}`}
+                            onClick={() => setActiveTab(tab)}
                         >
-                            {isMerging ? 'Merging…' : 'Merge pull request'}
+                            {tab}
                         </button>
-                    )}
-                    <Link
-                        to={`/repositories/${owner}/${repoName}`}
-                        className="back-button"
-                    >
-                        ← Back to repository
-                    </Link>
+                    ))}
                 </div>
             </div>
+
+            {activeTab === 'Files changed' && (
+                <FilesChangedTab repositoryName={repoName} prNumber={pullRequest.number} />
+            )}
+
+            {activeTab === 'Conversation' && (
+                <div className="pr-content">
+                    <div className="pr-info-section">
+                        <div className="pr-branches">
+                            <div className="branch-info">
+                                <span className="branch-label">Source Branch</span>
+                                <span className="branch-name">{pullRequest.sourceBranch}</span>
+                            </div>
+                            <div className="branch-arrow">→</div>
+                            <div className="branch-info">
+                                <span className="branch-label">Target Branch</span>
+                                <span className="branch-name">{pullRequest.targetBranch}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {pullRequest.description && (
+                        <div className="pr-description-section">
+                            <h2>Description</h2>
+                            <div className="pr-description">
+                                {pullRequest.description}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pr-footer">
+                        {mergeError && <p className="pr-action-error">{mergeError}</p>}
+                        {canMerge && (
+                            <button
+                                type="button"
+                                className="merge-button"
+                                onClick={handleMerge}
+                                disabled={isMerging}
+                            >
+                                {isMerging ? 'Merging…' : 'Merge pull request'}
+                            </button>
+                        )}
+                        <Link
+                            to={`/repositories/${owner}/${repoName}`}
+                            className="back-button"
+                        >
+                            ← Back to repository
+                        </Link>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
