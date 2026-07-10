@@ -320,18 +320,6 @@ export default function BountiesTab({
                                     event.stopPropagation();
                                 }}
                             >
-                                {onViewIssue && (
-                                    <button
-                                        type="button"
-                                        className="issue-bounty-action-btn"
-                                        onClick={() => {
-                                            onViewIssue(bounty.issueId);
-                                        }}
-                                    >
-                                        Details
-                                    </button>
-                                )}
-
                                 {authenticated && isClaimable(bounty) && (
                                     <button
                                         type="button"
