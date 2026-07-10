@@ -47,6 +47,10 @@ const EXT_LANG_MAP: Record<string, string> = {
     sql: 'sql',
     dockerfile: 'dockerfile',
     makefile: 'makefile',
+    c: 'c',
+    h: 'c',
+    cpp: 'cpp',
+    cc: 'cpp'
 };
 
 // Filenames that don't have a useful extension.
